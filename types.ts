@@ -1,11 +1,12 @@
 export enum CraftCategory {
-  COSTUME = 'Costume & Cosplay',
-  WOODWORKING = 'Woodworking',
-  PAPER_CRAFT = 'Paper Craft',
-  ELECTRONICS = 'Electronics & Robotics',
-  TEXTILES = 'Sewing & Textiles',
-  CLAY = 'Clay & Pottery',
-  MISC = 'Miscellaneous'
+  PAPERCRAFT = 'Papercraft',
+  CLAY = 'Clay',
+  FABRIC_SEWING = 'Fabric/Sewing',
+  COSTUME_PROPS = 'Costume & Props',
+  WOODCRAFT = 'Woodcraft',
+  JEWELRY = 'Jewelry',
+  KIDS_CRAFTS = 'Kids Crafts',
+  TABLETOP_FIGURES = 'Tabletop Figures'
 }
 
 export interface DissectionResponse {
@@ -26,6 +27,7 @@ export interface MasterNodeData {
   imageUrl: string;
   category: CraftCategory;
   onDissect: (id: string, imageUrl: string) => void;
+  onContextMenu?: (nodeId: string, element: HTMLElement) => void;
   isDissecting: boolean;
   isDissected: boolean;
 }
@@ -41,4 +43,40 @@ export interface InstructionNodeData {
 
 export interface MaterialNodeData {
   items: string[];
+}
+
+export interface ImageNodeData {
+  imageUrl: string;
+  fileName: string;
+  width: number;
+  height: number;
+}
+
+export interface ShapeNodeData {
+  shapeType: 'rectangle' | 'circle' | 'triangle' | 'star' | 'rectangle-text' | 'circle-text' | 'speech-bubble' | 'arrow-right' | 'arrow-left';
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  width: number;
+  height: number;
+  text?: string;
+}
+
+export interface TextNodeData {
+  content: string;
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  alignment: 'left' | 'center' | 'right';
+}
+
+export interface DrawingPath {
+  points: { x: number; y: number }[];
+  tool: 'pencil' | 'pen';
+}
+
+export interface DrawingNodeData {
+  paths: DrawingPath[];
+  strokeColor: string;
+  strokeWidth: number;
 }

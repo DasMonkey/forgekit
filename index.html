@@ -3,7 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Craftus</title>
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com;
+      style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+      img-src 'self' data: https:;
+      connect-src 'self' https://generativelanguage.googleapis.com;
+      font-src 'self' data:;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+      frame-ancestors 'none';
+      upgrade-insecure-requests;
+    " />
+    
+    <title>Craftus - AI-Powered Craft Instructions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@xyflow/react/dist/style.css" rel="stylesheet" />
     <style>
@@ -24,7 +46,7 @@
     </style>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-slate-950 text-slate-100 overflow-hidden">
+  <body class="bg-slate-950 text-slate-100">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

@@ -19,7 +19,10 @@
   - _Requirements: 1.3, 1.5, 2.4, 3.1, 3.2, 4.1, 4.7, 9.1, 9.3_
   - **Status: COMPLETE - All AI service methods implemented with retry logic**
 
-- [ ] 3. Enhance AI prompts with category-specific visual rules
+- [x] 3. Enhance AI prompts with category-specific visual rules
+
+
+
   - Update generateStepImage() to include all 8 category-specific prompt templates (currently generic)
   - Add detailed visual rules for Papercraft, Clay, Fabric/Sewing, Costume & Props, Woodcraft, Jewelry, Kids Crafts, Tabletop Figures
   - Ensure EXTREME ISOLATION rules are enforced per category
@@ -84,14 +87,19 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 9.3, 9.4_
   - **Status: COMPLETE**
 
-- [ ] 9. Add missing craft category and update types
+- [x] 9. Add missing craft category and update types
+
+
   - Update CraftCategory enum in types.ts to include all 8 categories from spec
   - Current categories: Costume, Woodworking, Paper Craft, Electronics, Textiles, Clay, Misc
   - Spec categories: Papercraft, Clay, Fabric/Sewing, Costume & Props, Woodcraft, Jewelry, Kids Crafts, Tabletop Figures
   - Align category names between implementation and spec
   - _Requirements: 1.2_
 
-- [ ] 10. Create state management contexts
+- [x] 10. Create state management contexts
+
+
+
   - Create contexts/ folder
   - Implement AIContext with state (currentProject, isGenerating, error) and actions
   - Implement ProjectsContext with state (projects array, currentProjectId) and actions (saveProject, loadProject, deleteProject)
@@ -99,7 +107,9 @@
   - Refactor App.tsx to use contexts instead of local state
   - _Requirements: 7.2, 7.6_
 
-- [ ] 11. Build landing page with marketing content
+- [x] 11. Build landing page with marketing content
+
+
   - Create pages/ folder
   - Create LandingPage.jsx component with hero section
   - Add tagline "Dissect your imagination. Build reality." and subtext
@@ -110,7 +120,10 @@
   - Add footer with GitHub link and credits
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 12. Set up routing and navigation
+- [x] 12. Set up routing and navigation
+
+
+
   - Install react-router-dom dependency
   - Refactor App.tsx to be AppContent and create new App.tsx with routing
   - Configure React Router with routes: /, /canvas, /projects, /community
@@ -119,7 +132,12 @@
   - Implement route guards for project-specific canvas views
   - _Requirements: 6.4_
 
-- [ ] 13. Implement projects gallery and management
+- [x] 13. Implement projects gallery and management
+
+
+
+
+
   - Create ProjectsGallery.jsx component in pages/
   - Display project cards with thumbnail, name, category, last modified date
   - Add "Open Project" action that loads canvas with saved state
@@ -129,7 +147,10 @@
   - Integrate with ProjectsContext for data management
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 14. Build community gallery with readonly mode
+- [x] 14. Build community gallery with readonly mode
+
+
+
   - Create CommunityGallery.jsx component in pages/
   - Display community project cards with master image, category, difficulty, creator handle
   - Implement card click handler to open project in readonly mode
@@ -147,7 +168,11 @@
   - Show retry count in UI during retries
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 16. Add final polish and optimizations
+- [x] 16. Add final polish and optimizations
+
+
+
+
   - Add React.memo to node components (already partially done)
   - Add smooth transitions and animations for node creation
   - Implement responsive layouts for mobile/tablet/desktop

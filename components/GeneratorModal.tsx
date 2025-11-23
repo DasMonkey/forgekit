@@ -19,7 +19,7 @@ const LOADING_MESSAGES = [
 
 export const GeneratorModal: React.FC<GeneratorModalProps> = ({ isOpen, onClose, onGenerate }) => {
   const [prompt, setPrompt] = useState('');
-  const [category, setCategory] = useState<CraftCategory>(CraftCategory.MISC);
+  const [category, setCategory] = useState<CraftCategory>(CraftCategory.PAPERCRAFT);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
