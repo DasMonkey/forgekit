@@ -1,0 +1,26 @@
+{
+  "enabled": true,
+  "name": "Comprehensive Security Audit",
+  "description": "Automatically triggers a detailed security audit when files are modified, checking for OWASP Top 10 vulnerabilities, injection flaws, authentication issues, and stack-specific security concerns in React/TypeScript/Supabase applications",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.sql",
+      "**/*.env*",
+      "**/vite.config.*",
+      "**/supabase/**/*",
+      "**/migrations/**/*",
+      "**/api/**/*",
+      "**/auth/**/*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Conduct a comprehensive security audit of the recently modified files. Examine the code for:\n\n**Critical Security Areas:**\n- OWASP Top 10 vulnerabilities (injection flaws, broken authentication, sensitive data exposure, XXE, broken access control, security misconfigurations, XSS, insecure deserialization, components with known vulnerabilities, insufficient logging)\n- SQL injection and NoSQL injection vulnerabilities in database queries\n- Authentication and session management weaknesses\n- Authorization bypass opportunities and privilege escalation risks\n- Input validation gaps and output encoding issues\n- CSRF protection implementation\n- Supabase-specific security: RLS policies, anon vs service key usage, database security configurations\n- API security: rate limiting, proper authentication, webhook signature verification\n- Cryptographic implementations and key management\n- File upload security and validation\n- Error handling that might leak sensitive information\n- Security headers and HTTPS enforcement\n\n**For each vulnerability found:**\n1. Explain the security risk and potential impact\n2. Provide specific, actionable remediation steps\n3. Include secure code examples where applicable\n4. Suggest additional defensive measures\n\n**Context-Aware Checks:**\n- Focus on React/TypeScript/Supabase stack security patterns\n- Check Vite configuration for security implications\n- Validate environment variable handling\n- Review database migration security\n\nPrioritize findings by severity (Critical, High, Medium, Low) and provide a clear action plan for remediation."
+  }
+}
