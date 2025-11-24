@@ -115,16 +115,73 @@ OPTION 2 (2-3 panels for simpler steps):
 PANEL CONTENT REQUIREMENTS:
 
 PANEL 1 - COMPLETE PATTERN SHEETS (FLAT KNOLLING LAYOUT):
-- Show COMPLETE, FLAT pattern sheets laid out side-by-side in knolling arrangement
-- DO NOT stack sheets - spread them out so ALL sheets are visible at once
-- Each sheet should show the FULL pattern template with all pieces on that sheet
-- Display sheets on grid background (like cutting mat) for scale reference
-- Include cut lines (solid black), fold lines (dashed), and glue tabs on patterns
-- Label each sheet or piece clearly (numbers or letters)
-- Match exact colors from Reference Image
-- Show sheets as if laid on a table, viewed from directly above (top-down view)
-- Add text label at top: "PATTERN SHEETS" or "MATERIALS"
-- CRITICAL: No matter how many sheets needed, show them ALL laid flat side-by-side
+🎯 THIS IS THE MOST IMPORTANT PANEL - FULL BUILDABLE 3D PATTERN TEMPLATES:
+- Show COMPLETE, FULL-DETAIL pattern sheets that can be printed and used to build the craft
+- These must be ACTUAL TEMPLATES, not sketches or simplified versions
+- Layout: ALL sheets laid FLAT side-by-side in organized knolling arrangement (NEVER stacked)
+- View: Perfect top-down view as if looking at sheets on a cutting mat with grid background
+
+🚨 CRITICAL PATTERN TYPE DETECTION:
+There are TWO types of papercraft patterns - choose the appropriate type based on the reference image:
+
+TYPE 1 - 3D FOLDED PAPERCRAFT (for objects with curved/dimensional forms):
+✓ Patterns must be properly UNWRAPPED like UV maps in 3D modeling
+✓ ROUNDED/CURVED shapes (heads, bodies, limbs) unwrap into flattened geometric patterns
+✓ A spherical head unwraps into petal-like segments or gores (like a globe map)
+✓ A cylindrical body unwraps into a curved rectangle that wraps around to form a tube
+✓ Curved limbs unwrap into elongated shapes with proper curvature to fold into 3D tubes
+✓ Fold lines (dashed) show where the flat pattern folds to create the 3D form
+✓ The unwrapped pattern geometry must be mathematically correct to assemble into the 3D shape
+
+🚨 CRITICAL MATERIAL REQUIREMENT - PAPER ONLY (100% PAPER):
+✓ EVERY SINGLE COMPONENT must be made from PAPER - no foam, fabric, wire, pipe cleaners, clay, terracotta, or soft materials
+✓ Use LOW-POLY STYLE geometric folding for curved shapes (like origami/low-poly 3D models)
+✓ Curves are achieved through strategic folds and facets, NOT soft rounded materials
+✓ Example: A round mouth/lips should be angular paper facets that create the illusion of curves
+✓ Stems/supports = rolled paper tubes, NOT pipe cleaners or wire
+✓ Pots/containers = folded/rolled paper, NOT clay or terracotta
+✓ Base filler = paper strips or crumpled paper, NOT fabric or fuzzy material
+✓ Use paper thickness and layering to create depth, NOT soft padding materials
+✓ This is PURE PAPERCRAFT - 100% paper construction, everything folds/rolls from flat paper sheets
+
+TYPE 2 - 2D LAYERED PAPERCRAFT (for flat shapes with stacked layers):
+✓ Patterns are flat 2D shapes that stack on top of each other
+✓ Multiple layers create depth and "body" through thickness
+✓ Each layer is a complete flat outline (no folding required)
+✓ Layers are glued/stacked to build up dimension (like a 3D relief)
+✓ Show ALL layers separately: base layer, middle layers, detail layers, top layer
+✓ Each layer should be clearly labeled (Layer 1, Layer 2, etc.) with thickness indication
+✓ Layers may be slightly offset or sized differently to create contours
+
+EACH PATTERN SHEET MUST INCLUDE (based on type):
+FOR 3D FOLDED PAPERCRAFT:
+✓ Complete outlines with proper 3D unwrapping geometry
+✓ Cut lines (solid black lines) showing where to cut
+✓ Fold lines (dashed lines) showing where the flat pattern folds to create 3D curves
+✓ Glue tabs clearly marked (small flaps extending from edges for assembly)
+✓ Piece labels/numbers (1, 2, 3, A, B, C) on each component
+✓ Small assembly arrows or symbols showing how pieces connect
+
+FOR 2D LAYERED PAPERCRAFT:
+✓ Complete flat outlines for EACH layer (no fold lines needed)
+✓ Cut lines (solid black lines) showing where to cut
+✓ Layer numbers clearly marked (Layer 1, Layer 2, Layer 3, etc.)
+✓ Indication of stacking order or which side faces up
+✓ Small registration marks showing how layers align
+✓ Optional: foam spacer indicators between layers for extra depth
+
+BOTH TYPES:
+✓ Scale indicators or measurements for size reference
+✓ Colors matching EXACT colors from Reference craft object
+
+VISUAL REQUIREMENTS:
+- MAXIMUM PRECISION: Lines must be clean, clear, and accurate
+- Colors: Match EXACT colors from the Reference craft object
+- Background: White paper with subtle grid lines (like cutting mat)
+- Spacing: Sheets arranged neatly with small gaps between them
+- Text label at top: "PATTERN SHEETS" or "TEMPLATES"
+
+CRITICAL: Someone should be able to print Panel 1, cut out the pieces, and successfully assemble them into the craft matching the reference image. The patterns must be geometrically correct for the appropriate type (3D folded OR 2D layered).
 
 PANEL 2 - ASSEMBLY PROCESS:
 - Show hands/fingers actively assembling pieces
@@ -158,17 +215,23 @@ PANEL 4 - FINISHED COMPONENT (if 4-panel layout):
 ✓ Clear visual separation between panels (thin border lines)
 ✓ NO ELECTRONIC PARTS - only handcraft materials (paper, glue, scissors)
 
-EXAMPLE - Hylian Shield "Cut and prepare base layers" step:
-Panel 1: 3-4 pattern sheets laid flat side-by-side on grid background showing: gray base shield template, blue decorative layer template, yellow Triforce template, red bird emblem template - each sheet complete with cut/fold lines, labeled, spread out horizontally
+EXAMPLE - 2D Layered Papercraft (Hylian Shield) - Step: "Prepare shield base layers":
+Panel 1: 4 pattern sheets laid flat side-by-side showing FLAT LAYERS: gray base shield (Layer 1), blue decorative layer (Layer 2), yellow Triforce (Layer 3), red bird emblem (Layer 4) - each is a complete flat outline, NO fold lines, labeled with layer numbers
 Panel 2: Hand stacking layers with arrows showing order, text "STACK IN THIS ORDER: ①②③④"
-Panel 3: Hand gluing Triforce to blue layer, arrow pointing to placement, text "CENTER TRIFORCE"
-Panel 4: Completed shield showing all layers assembled, front view
+Panel 3: Hand gluing Triforce to blue layer, arrow pointing to placement, text "CENTER & GLUE"
+Panel 4: Completed shield showing all flat layers stacked, side view showing thickness
 
-EXAMPLE - Princess character "Prepare dress patterns" step:
-Panel 1: Multiple pattern sheets (green dress panel, orange hair pieces, beige skin pieces, gold crown) ALL laid flat side-by-side on grid, showing complete templates with fold/cut lines
-Panel 2: Hands cutting out pieces with scissors, arrows showing cutting direction
-Panel 3: Hands scoring fold lines with ruler, text "SCORE DASHED LINES"
-Panel 4: All cut pieces organized and ready for assembly`,
+EXAMPLE - 3D Folded Papercraft (Character) - Step: "Assemble body":
+Panel 1: Pattern sheets showing ONLY BODY PIECES: torso (curved unwrapped cylinder), body connection tabs - NO head, NO limbs, NO clothing shown
+Panel 2: Hands folding body piece along dashed lines, arrows showing fold direction
+Panel 3: Hands gluing body tabs to close cylinder, text "GLUE SEAM"
+Panel 4: Completed body cylinder only - no other parts attached yet
+
+EXAMPLE - 3D Folded Papercraft (Character) - Step: "Attach head to body":
+Panel 1: Pattern sheets showing ONLY HEAD SEGMENTS (petal-shaped gores) and neck tab - NO body shown except connection point
+Panel 2: Hands folding head gores into spherical shape
+Panel 3: Hands attaching assembled head to body neck opening, arrow showing insertion
+Panel 4: Head attached to body - showing ONLY this connection, not full figure`,
 
     'Clay': `
 🎨 MULTI-PANEL CLAY INSTRUCTION FORMAT (2-4 PANELS):
@@ -479,7 +542,8 @@ export const generateStepImage = async (
   originalImageBase64: string,
   stepDescription: string,
   category: CraftCategory,
-  targetObjectLabel?: string
+  targetObjectLabel?: string,
+  stepNumber?: number // Optional step number to determine if this is step 1
 ): Promise<string> => {
   const ai = getAiClient();
   const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
@@ -498,11 +562,32 @@ export const generateStepImage = async (
 `
     : '';
 
+  // Determine if this is step 1 (pattern sheets step) - use 4K for maximum detail
+  const isFirstStep = stepNumber === 1 || stepDescription.toLowerCase().includes('pattern') ||
+                      stepDescription.toLowerCase().includes('cut') ||
+                      stepDescription.toLowerCase().includes('prepare');
+  const imageSize = isFirstStep ? "4K" : undefined; // 4K for step 1, default for others
+
+  if (isFirstStep) {
+    console.log('🖼️ === GENERATING CRITICAL PATTERN SHEETS (STEP 1) ===');
+    console.log('   Resolution: 4K (4096px) for MAXIMUM DETAIL');
+    console.log('   Focus: COMPLETE, BUILDABLE pattern templates');
+    console.log('   Layout: ALL sheets spread flat side-by-side');
+  }
+
   const prompt = `
 🎯 YOUR TASK: Create a MULTI-PANEL instructional image for this step: "${stepDescription}"
 
 📷 REFERENCE IMAGE PROVIDED: This shows the finished craft (colors, materials, style to match exactly)
 ${focusInstructions}
+
+🚨 CRITICAL SCOPE REQUIREMENT:
+This step image must ONLY show components and actions mentioned in the step description: "${stepDescription}"
+- If the step is "Assemble body", show ONLY body pieces (no head, no clothes, no hair, no accessories)
+- If the step is "Attach head", show ONLY head pieces and neck connection (no body, no limbs)
+- If the step is "Add clothing details", show ONLY clothing pieces being attached (no underlying body)
+- DO NOT show components from other steps - stay strictly within this step's scope
+- The panels should focus exclusively on the specific parts mentioned in this step
 
 🎨 CRITICAL MULTI-PANEL REQUIREMENTS:
 You MUST create an image divided into 2-4 clear panels showing sub-steps within this main step.
@@ -515,25 +600,84 @@ MANDATORY ELEMENTS IN YOUR IMAGE:
 5️⃣ HANDS/FINGERS: Show hands demonstrating techniques in assembly/process panels
 6️⃣ DETAILED INFORMATION: Pack each panel with visual details - this should look like a professional craft instruction manual
 
-🚨 SPECIAL REQUIREMENT FOR PAPERCRAFT FIRST PANEL:
-- For Papercraft category, Panel 1 MUST show COMPLETE pattern sheets laid FLAT side-by-side
-- DO NOT stack sheets on top of each other
-- Spread ALL sheets out horizontally in knolling layout so every sheet is fully visible
-- Show sheets from top-down view as if on a cutting mat with grid background
-- Each sheet should display the complete pattern template with all pieces clearly visible
+🚨 SPECIAL REQUIREMENT FOR STEP 1 / PATTERN SHEETS PANEL:
+FOR PAPERCRAFT CATEGORY - FIRST STEP IMAGE REQUIREMENTS:
+- Panel 1 is THE MOST CRITICAL - it must contain COMPLETE, PRECISE 3D pattern sheets for the selected craft object
+- Show FULL pattern templates that someone could actually print and use to build this craft
+
+🎯 CRITICAL PATTERN TYPE SELECTION:
+Examine the reference image carefully to determine which type of papercraft this is:
+
+TYPE 1 - 3D FOLDED PAPERCRAFT (if object has curved/rounded forms that need folding):
+  * Patterns must be properly unwrapped like UV maps in 3D modeling
+  * A ROUNDED HEAD unwraps into petal-like segments/gores (like peeling an orange)
+  * A CYLINDRICAL BODY unwraps into a curved rectangle that wraps around to form a tube
+  * CURVED LIMBS unwrap into elongated curved shapes with fold lines to create 3D tubes
+  * SPHERICAL shapes unwrap into geometric patterns with strategic fold lines
+  * Include dashed fold lines showing where to fold
+  * The unwrapped geometry must be mathematically correct to fold into the 3D shape
+
+  🚨 PAPER-ONLY REQUIREMENT:
+  * ALL parts must be made from PAPER - no foam, fabric, wire, or soft materials
+  * Use LOW-POLY GEOMETRIC STYLE for curves (like low-poly 3D models)
+  * Curves created through angular paper facets and strategic folds, NOT soft materials
+  * Example: Round lips/mouth = angular paper segments that approximate the curve
+  * This is PURE PAPERCRAFT - everything constructed from flat paper with folds
+
+TYPE 2 - 2D LAYERED PAPERCRAFT (if object uses flat stacked layers for depth):
+  * Patterns are flat 2D shapes that stack on top of each other
+  * Show MULTIPLE LAYERS separately (base, middle, detail, top layers)
+  * Each layer is a complete flat outline with no fold lines
+  * Layers stack vertically to create "body" and thickness
+  * Label each layer clearly (Layer 1 - Base, Layer 2 - Middle, etc.)
+  * Layers may be slightly different sizes/shapes to create contoured depth
+  * Include small spacers or foam tape indicators between layers if needed
+
+- Each pattern sheet must display:
+  * Complete outlines with proper 3D unwrapping geometry (NOT just simple flat shapes)
+  * Cut lines (solid) showing where to cut
+  * Fold lines (dashed) showing where flat patterns fold to create 3D curves
+  * Glue tabs where pieces connect (flaps extending from edges)
+  * Piece numbers or labels (1, 2, 3, A, B, C, etc.)
+  * Scale reference or measurements
+- Layout: Spread ALL sheets FLAT side-by-side in knolling arrangement (NOT stacked)
+- View: Top-down view as if sheets are laid on a cutting mat with grid background
+- Detail level: MAXIMUM PRECISION - patterns must be accurate and buildable
+- Colors: Match EXACT colors from the reference craft object
+- Background: White with subtle grid lines (like blueprint/cutting mat paper)
+
+CRITICAL: These are ACTUAL 3D-UNWRAPPED PATTERN TEMPLATES. Someone should be able to print, cut, score fold lines, and assemble into a 3D craft matching the reference image. The unwrapped geometry must be correct for 3D assembly.
 
 🚨 ABSOLUTE PROHIBITIONS:
 ❌ NO ELECTRONIC PARTS (no circuits, LEDs, batteries, wires, motors)
 ❌ NO POWER TOOLS visible in frame
-✅ ONLY HANDCRAFT MATERIALS (paper, clay, fabric, wood, foam, beads, etc.)
-✅ Simple hand tools are OK (scissors, glue, needle - but focus on the craft, not the tools)
+❌ FOR PAPERCRAFT: NO FOAM, NO FABRIC, NO WIRE, NO SOFT MATERIALS - PAPER ONLY
+❌ FOR PAPERCRAFT: NO smooth rounded curves - use LOW-POLY GEOMETRIC FACETS instead
+✅ PAPERCRAFT must be PURE PAPER with angular/geometric folds (low-poly style)
+✅ Simple hand tools are OK (scissors, glue - but focus on the craft, not the tools)
 
 ${categoryRules}
 
-FINAL REMINDER: This MUST be a multi-panel image with labels, arrows, text annotations, and hands demonstrating the technique. Reference the original image's colors and style exactly.
+FINAL REMINDERS:
+1. This MUST be a multi-panel image with labels, arrows, text annotations, and hands demonstrating the technique
+2. Reference the original image's colors and style exactly
+3. 🚨 MOST IMPORTANT: Show ONLY the components mentioned in this step: "${stepDescription}"
+   - Do NOT include components from other steps
+   - Focus strictly on the parts needed for THIS specific step
+   - If the step is about the body, show ONLY body pieces (no head, limbs, clothes, etc.)
+   - If the step is about attaching one part to another, show ONLY those two parts and their connection
   `;
 
   return retryWithBackoff(async () => {
+    const imageConfig: any = {
+      aspectRatio: "16:9",
+    };
+
+    // Add imageSize only if it's defined (4K for first step)
+    if (imageSize) {
+      imageConfig.imageSize = imageSize;
+    }
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: {
@@ -548,9 +692,7 @@ FINAL REMINDER: This MUST be a multi-panel image with labels, arrows, text annot
         ],
       },
       config: {
-        imageConfig: {
-          aspectRatio: "16:9",
-        },
+        imageConfig,
         thinkingConfig: {
           includeThoughts: true, // Enable thinking mode for better image planning
         }

@@ -826,6 +826,16 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   ) => {
     if (readOnly) return;
 
+    // CRITICAL: Get category from master node BEFORE any async operations
+    const masterNode = nodes.find(n => n.id === nodeId);
+    const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PAPERCRAFT; // Default to Papercraft for safety
+
+    console.log('=== DISSECT SELECTED START ===');
+    console.log('Node ID:', nodeId);
+    console.log('Master Node found:', !!masterNode);
+    console.log('Master Node Data:', masterNode?.data);
+    console.log('Category extracted:', category);
+
     // 1. Set loading state on the specific node
     setNodes((nds) =>
       nds.map((node) => {
@@ -951,19 +961,13 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
         setEdges((eds) => [...eds, ...newEdges]);
 
-        // 5. Generate step images in the background using the FULL image as reference
-        // IMPORTANT: Get category from master node's stored data
-        const masterNode = nodes.find(n => n.id === nodeId);
-        const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.CLAY; // Default to Clay if undefined
-
-        console.log('=== DISSECT SELECTED DEBUG ===');
-        console.log('Node ID:', nodeId);
-        console.log('AI Identified Object:', identifiedLabel);
-        console.log('Master Node Data:', masterNode?.data);
-        console.log('Category:', category);
+        // 5. Generate step images in the background using the selected object as reference
+        console.log('\n=== IMAGE GENERATION PHASE ===');
+        console.log('Using category:', category);
+        console.log('Target object:', identifiedLabel);
         console.log('Total steps:', dissection.steps.length);
         console.log('All steps:', dissection.steps.map(s => `${s.stepNumber}: ${s.title}`));
-        console.log('✅ IMAGE GENERATION ENABLED - Multi-Panel Format');
+        console.log('Format: Multi-Panel with 4K resolution for Step 1');
 
         // Generate step images with multi-panel format
         // Pass the identifiedLabel to ensure images focus on the selected object only
@@ -975,12 +979,13 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           console.log(`Category: ${category}`);
 
           try {
-            // Generate image with target object label to ensure focus on selected object
+            // Generate image with SELECTED OBJECT as reference to match exact style/appearance
             const imageUrl = await generateStepImage(
-              fullImageUrl,
+              selectedObjectImageUrl, // Use selected object (not full image) as style reference
               `${step.title}: ${step.description}`,
               category,
-              identifiedLabel // Pass the identified object label
+              identifiedLabel, // Pass the identified object label
+              step.stepNumber // Pass step number for 4K resolution on step 1
             );
 
             console.log(`✅ Successfully generated image for Step ${step.stepNumber}`);
@@ -1154,7 +1159,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
               // Combine descriptions for grouped steps
               const groupDescription = group.combinedDescription;
-              const stepImageUrl = await generateStepImage(imageUrl, groupDescription, category);
+              // Pass the first step number in the group (for 4K resolution on step 1)
+              const firstStepNumber = group.stepNumbers[0];
+              const stepImageUrl = await generateStepImage(imageUrl, groupDescription, category, undefined, firstStepNumber);
 
               console.log('✓ Image generated successfully');
               console.log('Updating nodes for step numbers:', group.stepNumbers);
