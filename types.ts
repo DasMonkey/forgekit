@@ -28,6 +28,7 @@ export interface MasterNodeData {
   category: CraftCategory;
   onDissect: (id: string, imageUrl: string) => void;
   onContextMenu?: (nodeId: string, element: HTMLElement) => void;
+  onDissectSelected?: (id: string, selectedObjectImageUrl: string, fullImageUrl: string, label: string) => void;
   isDissecting: boolean;
   isDissected: boolean;
 }

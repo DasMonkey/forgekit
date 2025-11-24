@@ -25,14 +25,74 @@ import { ShapesSubmenu, ShapeType } from '../components/ShapesSubmenu';
 import { PencilSubmenu, PencilMode } from '../components/PencilSubmenu';
 import { calculateNodeMenuPosition } from '../utils/contextMenuPosition';
 import { handleFileUpload } from '../utils/fileUpload';
-import { dissectCraft, generateStepImage } from '../services/geminiService';
-import { CraftCategory } from '../types';
+import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject } from '../services/geminiService';
+import { CraftCategory, DissectionResponse } from '../types';
 import { useProjects } from '../contexts/ProjectsContext';
 import { useKeyboardShortcuts } from '../utils/useKeyboardShortcuts';
 import { useToolKeyboardShortcuts } from '../utils/useToolKeyboardShortcuts';
 import { useDrawingState } from '../utils/useDrawingState';
 import { DrawingPath } from '../types';
 import { getToolCursor } from '../utils/toolCursors';
+
+// Maximum number of step images to generate
+const MAX_STEP_IMAGES = 6;
+
+// Type for instruction step
+type InstructionStep = DissectionResponse['steps'][number];
+
+/**
+ * Groups instruction steps to ensure we never exceed MAX_STEP_IMAGES
+ * When steps > 6, combines multiple steps into groups
+ */
+interface StepGroup {
+  stepNumbers: number[];
+  combinedTitle: string;
+  combinedDescription: string;
+  safetyWarnings: string[];
+  originalSteps: InstructionStep[];
+}
+
+const groupStepsForImageGeneration = (steps: InstructionStep[]): StepGroup[] => {
+  if (steps.length <= MAX_STEP_IMAGES) {
+    // No grouping needed - return each step as its own group
+    return steps.map(step => ({
+      stepNumbers: [step.stepNumber],
+      combinedTitle: step.title,
+      combinedDescription: step.description,
+      safetyWarnings: step.safetyWarning ? [step.safetyWarning] : [],
+      originalSteps: [step],
+    }));
+  }
+
+  // Need to group steps - calculate how many steps per group
+  const stepsPerGroup = Math.ceil(steps.length / MAX_STEP_IMAGES);
+  const groups: StepGroup[] = [];
+
+  for (let i = 0; i < steps.length; i += stepsPerGroup) {
+    const groupSteps = steps.slice(i, i + stepsPerGroup);
+    const stepNumbers = groupSteps.map(s => s.stepNumber);
+
+    // Combine titles and descriptions
+    const combinedTitle = groupSteps.map(s => s.title).join(' + ');
+    const combinedDescription = groupSteps
+      .map((s, idx) => `Step ${s.stepNumber}: ${s.description}`)
+      .join(' | ');
+
+    const safetyWarnings = groupSteps
+      .filter(s => s.safetyWarning)
+      .map(s => s.safetyWarning!);
+
+    groups.push({
+      stepNumbers,
+      combinedTitle,
+      combinedDescription,
+      safetyWarnings,
+      originalSteps: groupSteps,
+    });
+  }
+
+  return groups;
+};
 
 // Define custom node types outside component to prevent re-renders
 const nodeTypes = {
@@ -294,37 +354,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     },
     [readOnly],
   );
-
-  /**
-   * Helper to trigger image generation for a specific node
-   */
-  const triggerStepImageGeneration = async (nodeId: string, stepDescription: string, masterImageUrl: string, category: CraftCategory) => {
-      try {
-          const stepImageUrl = await generateStepImage(masterImageUrl, stepDescription, category);
-          
-          setNodes((nds) => nds.map(n => {
-              if (n.id === nodeId) {
-                  return { 
-                      ...n, 
-                      data: { 
-                          ...n.data, 
-                          imageUrl: stepImageUrl, 
-                          isGeneratingImage: false 
-                      } 
-                  };
-              }
-              return n;
-          }));
-      } catch (err) {
-          console.error(`Failed to generate image for node ${nodeId}`, err);
-          setNodes((nds) => nds.map(n => {
-              if (n.id === nodeId) {
-                  return { ...n, data: { ...n.data, isGeneratingImage: false } };
-              }
-              return n;
-          }));
-      }
-  };
 
   /**
    * Handle context menu for master node
@@ -787,7 +816,227 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   }, [contextMenu.nodeId, nodes]);
 
   /**
-   * Step 2: The Logic to "Dissect" the craft
+   * Step 2a: Dissect a selected object from the image
+   */
+  const handleDissectSelected = async (
+    nodeId: string,
+    selectedObjectImageUrl: string,
+    fullImageUrl: string,
+    _label: string // Unused - AI identifies object automatically
+  ) => {
+    if (readOnly) return;
+
+    // 1. Set loading state on the specific node
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, isDissecting: true } };
+        }
+        return node;
+      })
+    );
+
+    try {
+        // 2. First, let AI identify what object was selected
+        console.log('\n🔍 === AI IDENTIFICATION PHASE ===');
+        console.log('Selected Object Image (base64 length):', selectedObjectImageUrl.length);
+        console.log('Full Image URL (base64 length):', fullImageUrl.length);
+        console.log('Asking AI to identify the selected object...\n');
+
+        const identifiedLabel = await identifySelectedObject(
+          selectedObjectImageUrl,
+          fullImageUrl
+        );
+
+        console.log('✅ AI Identified Object as:', identifiedLabel);
+        console.log('=== IDENTIFICATION COMPLETE ===\n');
+
+        // 3. Now call Gemini API to get TEXT instructions for the identified object
+        console.log('🔍 === AI DISSECTION PHASE ===');
+        console.log('Object to dissect:', identifiedLabel);
+        console.log('Sending to AI for instructions...\n');
+
+        const dissection = await dissectSelectedObject(
+          selectedObjectImageUrl,
+          fullImageUrl,
+          identifiedLabel
+        );
+
+        console.log('\n📊 === AI OUTPUT DEBUG ===');
+        console.log('Complexity:', dissection.complexity);
+        console.log('Complexity Score:', dissection.complexityScore);
+        console.log('Materials:', dissection.materials);
+        console.log('Number of Steps Generated:', dissection.steps.length);
+        console.log('\nGenerated Steps:');
+        dissection.steps.forEach((step) => {
+            console.log(`  Step ${step.stepNumber}: ${step.title}`);
+            console.log(`    Description: ${step.description.substring(0, 100)}...`);
+            if (step.safetyWarning) {
+                console.log(`    ⚠️ Safety: ${step.safetyWarning}`);
+            }
+        });
+        console.log('\n🔍 VERIFICATION CHECK:');
+        console.log(`Does the AI output match "${identifiedLabel}"? Review the steps above to verify.`);
+        console.log('=== AI OUTPUT DEBUG END ===\n');
+
+        // 4. Calculate Positions for new nodes
+        const newNodes: Node[] = [];
+        const newEdges: Edge[] = [];
+
+        // 4a. Materials Node (Left side)
+        const matNodeId = `${nodeId}-mat`;
+        newNodes.push({
+            id: matNodeId,
+            type: 'materialNode',
+            position: { x: -400, y: 0 },
+            data: { items: dissection.materials },
+        });
+        newEdges.push({
+            id: `e-${nodeId}-${matNodeId}`,
+            source: nodeId,
+            sourceHandle: null,
+            target: matNodeId,
+            animated: true,
+            style: { stroke: '#3b82f6', strokeWidth: 2 },
+        });
+
+        // 4b. Instruction Nodes (Right side, Grid/List layout)
+        const startX = 500;
+        const startY = -100;
+        const gapY = 500;
+        const gapX = 400;
+
+        dissection.steps.forEach((step, index) => {
+            const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
+            const col = index % 2;
+            const row = Math.floor(index / 2);
+
+            newNodes.push({
+                id: stepNodeId,
+                type: 'instructionNode',
+                position: {
+                    x: startX + (col * gapX),
+                    y: startY + (row * gapY) - ((dissection.steps.length * gapY)/4)
+                },
+                data: {
+                    stepNumber: step.stepNumber,
+                    title: step.title,
+                    description: step.description,
+                    safetyWarning: step.safetyWarning,
+                    isGeneratingImage: true,
+                    imageUrl: undefined
+                }
+            });
+
+            newEdges.push({
+                id: `e-${nodeId}-${stepNodeId}`,
+                source: nodeId,
+                sourceHandle: null,
+                target: stepNodeId,
+                animated: true,
+                style: { stroke: '#10b981', strokeWidth: 2 },
+            });
+        });
+
+        // 4. Update state: mark node as dissected, add instruction nodes
+        setNodes((nds) => {
+            const updatedNodes = nds.map((node) => {
+                if (node.id === nodeId) {
+                    return { ...node, data: { ...node.data, isDissecting: false, isDissected: true } };
+                }
+                return node;
+            });
+            return [...updatedNodes, ...newNodes];
+        });
+
+        setEdges((eds) => [...eds, ...newEdges]);
+
+        // 5. Generate step images in the background using the FULL image as reference
+        // IMPORTANT: Get category from master node's stored data
+        const masterNode = nodes.find(n => n.id === nodeId);
+        const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.CLAY; // Default to Clay if undefined
+
+        console.log('=== DISSECT SELECTED DEBUG ===');
+        console.log('Node ID:', nodeId);
+        console.log('AI Identified Object:', identifiedLabel);
+        console.log('Master Node Data:', masterNode?.data);
+        console.log('Category:', category);
+        console.log('Total steps:', dissection.steps.length);
+        console.log('All steps:', dissection.steps.map(s => `${s.stepNumber}: ${s.title}`));
+        console.log('✅ IMAGE GENERATION ENABLED - Multi-Panel Format');
+
+        // Generate step images with multi-panel format
+        // Pass the identifiedLabel to ensure images focus on the selected object only
+        for (const step of dissection.steps) {
+          const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
+
+          console.log(`\n🎨 Generating multi-panel image for Step ${step.stepNumber}: ${step.title}`);
+          console.log(`Target object: ${identifiedLabel}`);
+          console.log(`Category: ${category}`);
+
+          try {
+            // Generate image with target object label to ensure focus on selected object
+            const imageUrl = await generateStepImage(
+              fullImageUrl,
+              `${step.title}: ${step.description}`,
+              category,
+              identifiedLabel // Pass the identified object label
+            );
+
+            console.log(`✅ Successfully generated image for Step ${step.stepNumber}`);
+
+            // Update node with generated image
+            setNodes((nds) =>
+              nds.map((node) => {
+                if (node.id === stepNodeId) {
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      imageUrl,
+                      isGeneratingImage: false
+                    }
+                  };
+                }
+                return node;
+              })
+            );
+          } catch (error) {
+            console.error(`❌ Failed to generate image for Step ${step.stepNumber}:`, error);
+            // Clear loading state on error
+            setNodes((nds) =>
+              nds.map((node) => {
+                if (node.id === stepNodeId) {
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      isGeneratingImage: false
+                    }
+                  };
+                }
+                return node;
+              })
+            );
+          }
+        }
+
+        console.log('=== DISSECT SELECTED COMPLETE ===\n');
+    } catch (error) {
+      console.error('Dissection failed:', error);
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId) {
+            return { ...node, data: { ...node.data, isDissecting: false } };
+          }
+          return node;
+        })
+      );
+    }
+  };
+
+  /**
+   * Step 2b: The Logic to "Dissect" the entire craft
    */
   const handleDissect = async (nodeId: string, imageUrl: string) => {
     if (readOnly) return;
@@ -881,15 +1130,73 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
         setEdges((eds) => [...eds, ...newEdges]);
 
-        // 5. Trigger Image Generation Sequence
+        // 5. Trigger Image Generation Sequence with step grouping
         const processImagesSequentially = async () => {
           const masterNode = nodes.find(n => n.id === nodeId);
           const category = masterNode?.data?.category as CraftCategory;
-          
-          for (const step of dissection.steps) {
-            const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
-            await triggerStepImageGeneration(stepNodeId, step.description, imageUrl, category);
+          const stepGroups = groupStepsForImageGeneration(dissection.steps);
+
+          console.log('=== DISSECT FULL CRAFT DEBUG ===');
+          console.log('Node ID:', nodeId);
+          console.log('Category:', category);
+          console.log('Total steps:', dissection.steps.length);
+          console.log('Step groups:', stepGroups.length);
+          console.log('All steps:', dissection.steps.map(s => `${s.stepNumber}: ${s.title}`));
+          console.log('Group details:', stepGroups.map(g => ({
+            stepNumbers: g.stepNumbers,
+            title: g.combinedTitle
+          })));
+
+          for (const group of stepGroups) {
+            try {
+              console.log(`\n--- Generating image for group: steps ${group.stepNumbers.join(', ')} ---`);
+              console.log('Group description:', group.combinedDescription);
+
+              // Combine descriptions for grouped steps
+              const groupDescription = group.combinedDescription;
+              const stepImageUrl = await generateStepImage(imageUrl, groupDescription, category);
+
+              console.log('✓ Image generated successfully');
+              console.log('Updating nodes for step numbers:', group.stepNumbers);
+
+              // Update all nodes in this group with the same generated image
+              setNodes((nds) => {
+                const updated = nds.map((node) => {
+                  if (node.id.startsWith(`${nodeId}-step-`)) {
+                    const nodeStepNumber = parseInt(node.id.split('-step-')[1]);
+                    if (!isNaN(nodeStepNumber) && group.stepNumbers.includes(nodeStepNumber)) {
+                      console.log(`  → Updated node ${node.id} (step ${nodeStepNumber})`);
+                      return {
+                        ...node,
+                        data: {
+                          ...node.data,
+                          imageUrl: stepImageUrl,
+                          isGeneratingImage: false
+                        }
+                      };
+                    }
+                  }
+                  return node;
+                });
+                return updated;
+              });
+            } catch (error) {
+              console.error(`✗ Failed to generate image for step group ${group.stepNumbers.join(', ')}:`, error);
+              setNodes((nds) =>
+                nds.map((node) => {
+                  if (node.id.startsWith(`${nodeId}-step-`)) {
+                    const nodeStepNumber = parseInt(node.id.split('-step-')[1]);
+                    if (!isNaN(nodeStepNumber) && group.stepNumbers.includes(nodeStepNumber)) {
+                      console.log(`  → Cleared loading state for node ${node.id} (step ${nodeStepNumber})`);
+                      return { ...node, data: { ...node.data, isGeneratingImage: false } };
+                    }
+                  }
+                  return node;
+                })
+              );
+            }
           }
+          console.log('=== DISSECT FULL CRAFT COMPLETE ===\n');
         };
 
         processImagesSequentially();
@@ -925,6 +1232,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         category,
         onDissect: handleDissect,
         onContextMenu: handleNodeContextMenu,
+        onDissectSelected: handleDissectSelected,
         isDissecting: false,
         isDissected: false,
       },

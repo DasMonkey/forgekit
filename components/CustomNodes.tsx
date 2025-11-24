@@ -1,53 +1,239 @@
-import React, { memo } from 'react';
+import React, { memo, useRef, useState, useEffect } from 'react';
+import { Loader2, Scissors, TriangleAlert, Hammer, List, Image as ImageIcon, MousePointerClick } from 'lucide-react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Loader2, TriangleAlert, List, Image as ImageIcon } from 'lucide-react';
 import { MasterNodeData, InstructionNodeData, MaterialNodeData, ImageNodeData, ShapeNodeData, TextNodeData, DrawingNodeData, DrawingPath } from '../types';
+import { initSegmenter, segmentImage, extractSelectedObject, filterLargestRegion } from '../services/segmentationService';
 
 /**
- * The Central "Master" Node displaying the generated image.
+ * The Central "Master" Node displaying the generated image with Interactive Segmentation.
  */
 export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
-  const { label, imageUrl, isDissecting, isDissected, onContextMenu } = data as MasterNodeData;
+  const { label, imageUrl, isDissecting, isDissected, onContextMenu, onDissectSelected } = data as MasterNodeData;
+  const imgRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isSegmenterReady, setIsSegmenterReady] = useState(false);
+  const [isSegmenterLoading, setIsSegmenterLoading] = useState(true);
+  const [isProcessingMask, setIsProcessingMask] = useState(false);
+  const [hasSelection, setHasSelection] = useState(false);
+  const [selectionData, setSelectionData] = useState<{
+    maskData: Uint8Array;
+    width: number;
+    height: number;
+  } | null>(null);
 
-  const handleClick = (event: React.MouseEvent) => {
-    // Trigger context menu on click
-    if (onContextMenu && !isDissected) {
-      const target = event.currentTarget as HTMLElement;
-      onContextMenu(id, target);
-    }
+  // Initialize Segmenter on mount
+  useEffect(() => {
+    setIsSegmenterLoading(true);
+    initSegmenter().then((seg) => {
+        if (seg) {
+          setIsSegmenterReady(true);
+        }
+        setIsSegmenterLoading(false);
+    });
+  }, []);
+
+  const handleImageClick = async (e: React.MouseEvent) => {
+      // Don't segment if we are clicking the dissect button (handled by e.stopPropagation there ideally, but just in case)
+      // Also ensure segmenter is ready
+      if (!isSegmenterReady || !imgRef.current || !canvasRef.current || isProcessingMask) return;
+
+      setIsProcessingMask(true);
+      try {
+          const result = await segmentImage(e, imgRef.current);
+
+          if (result) {
+              let { uint8Array, width, height } = result;
+              
+              // Filter to keep only the largest connected region
+              // This removes small disconnected areas like parts of display stands
+              uint8Array = filterLargestRegion(uint8Array, width, height);
+              
+              const ctx = canvasRef.current.getContext('2d');
+              if (ctx) {
+                  // Ensure canvas internal dim matches mask
+                  canvasRef.current.width = width;
+                  canvasRef.current.height = height;
+
+                  const imageData = ctx.createImageData(width, height);
+                  const data = imageData.data;
+
+                  // Apply mask: Only show selected object
+                  // MagicTouch usually returns distinct indices. Assuming non-zero or specific index is object.
+                  // Typically index 1 is the selected area for single object interaction.
+                  for (let i = 0; i < uint8Array.length; i++) {
+                      const category = uint8Array[i];
+                      const pixelIndex = i * 4;
+
+                      // Check if part of the selected object (category > 0 typically)
+                      if (category > 0) {
+                          data[pixelIndex] = 139;     // R (Indigo-ish/Purple)
+                          data[pixelIndex + 1] = 92;  // G
+                          data[pixelIndex + 2] = 246; // B
+                          data[pixelIndex + 3] = 140; // Alpha (Semi-transparent)
+                      } else {
+                          data[pixelIndex + 3] = 0;   // Transparent background
+                      }
+                  }
+                  ctx.putImageData(imageData, 0, 0);
+                  setHasSelection(true);
+                  // Store filtered selection data for later use
+                  setSelectionData({ maskData: uint8Array, width, height });
+              }
+          }
+      } catch (err) {
+          console.error("Segmentation failed", err);
+      } finally {
+          setIsProcessingMask(false);
+      }
   };
 
+  const handleClearSelection = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+              ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+      }
+      setHasSelection(false);
+      setSelectionData(null);
+  };
+
+  const handleDissectSelected = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!selectionData || !imgRef.current || !onDissectSelected) return;
+
+      try {
+          // Extract the selected object with expanded context
+          const selectedObjectImage = await extractSelectedObject(
+              imgRef.current,
+              selectionData.maskData,
+              selectionData.width,
+              selectionData.height,
+              20 // Expand by 20 pixels to capture more context
+          );
+
+          // AI will identify the object automatically - pass empty string as placeholder
+          // The actual identification happens in handleDissectSelected in CanvasWorkspace
+          onDissectSelected(id, selectedObjectImage, imageUrl, '');
+      } catch (err) {
+          console.error("Failed to extract selected object:", err);
+      }
+  };
   return (
-    <div 
-      className="relative group rounded-lg overflow-hidden shadow-lg w-[280px] md:w-[300px] smooth-transition cursor-pointer hover:shadow-xl"
-      onClick={handleClick}
-    >
+    <div className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[300px]">
       {/* Connection Handle */}
       <Handle type="source" position={Position.Right} className="!bg-indigo-500 !w-3 !h-3" />
       <Handle type="source" position={Position.Left} className="!bg-indigo-500 !w-3 !h-3" />
-      
-      {/* Image - Clean display without decorative borders */}
-      <div className="relative aspect-square w-full bg-white">
-        <img 
-          src={imageUrl} 
-          alt={label} 
-          className="w-full h-full object-cover"
-        />
-        
-        {/* Loading overlay when dissecting */}
-        {isDissecting && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-            <div className="flex items-center gap-2 text-white">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm font-medium">Dissecting...</span>
-            </div>
-          </div>
-        )}
+
+      {/* Header */}
+      <div className="px-4 py-2 bg-indigo-600/20 border-b border-indigo-500/30 flex justify-between items-center">
+        <span className="text-indigo-200 font-semibold text-sm truncate">{label}</span>
+        <div className="flex items-center gap-2">
+            {isProcessingMask && <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />}
+            <Hammer className="w-4 h-4 text-indigo-400" />
+        </div>
       </div>
 
-      {/* Label below image - minimal styling */}
-      <div className="px-3 py-2 bg-slate-900/95 backdrop-blur-sm">
-        <span className="text-slate-300 text-xs truncate block">{label}</span>
+      {/* Image & Interactive Area */}
+      <div className="relative aspect-square w-full bg-slate-950 cursor-crosshair">
+        <img
+          ref={imgRef}
+          src={imageUrl}
+          alt={label}
+          crossOrigin="anonymous"
+          onClick={handleImageClick}
+          className="w-full h-full object-cover relative z-10"
+        />
+
+        {/* Segmentation Overlay Canvas */}
+        <canvas
+            ref={canvasRef}
+            className="absolute inset-0 z-20 pointer-events-none w-full h-full mix-blend-screen"
+        />
+
+        {/* Loading Indicator for AI Model */}
+        {!hasSelection && isSegmenterLoading && (
+          <div className="absolute top-2 right-2 z-30 pointer-events-none">
+               <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
+                   <Loader2 className="w-3 h-3 animate-spin" />
+                   Loading AI...
+               </div>
+          </div>
+        )}
+
+        {/* Hover Hint for Selection */}
+        {!hasSelection && !isSegmenterLoading && (
+          <div className={`absolute top-2 right-2 z-30 pointer-events-none transition-opacity duration-300 ${isSegmenterReady ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}>
+               <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
+                   <MousePointerClick className="w-3 h-3" />
+                   Magic Select
+               </div>
+          </div>
+        )}
+
+        {/* Clear Selection Button */}
+        {hasSelection && (
+          <div className="absolute top-2 right-2 z-30">
+            <button
+              onClick={handleClearSelection}
+              className="bg-red-600 hover:bg-red-500 text-white text-[10px] px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg active:scale-95 transition-all"
+            >
+              <span className="text-sm">×</span>
+              Clear Selection
+            </button>
+          </div>
+        )}
+
+        {/* Dissect Button - Floating at bottom */}
+        {!isDissected && !hasSelection && onContextMenu && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 transition-transform duration-300 transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+            <button
+              onClick={(e) => {
+                  e.stopPropagation();
+                  const target = e.currentTarget as HTMLElement;
+                  onContextMenu(id, target);
+              }}
+              disabled={isDissecting}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full font-bold shadow-lg shadow-black/50 hover:shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isDissecting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Dissecting...
+                </>
+              ) : (
+                <>
+                  <Scissors className="w-4 h-4" />
+                  Dissect Craft
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Dissect Selected Object Button - Shows when object is selected */}
+        {!isDissected && hasSelection && onDissectSelected && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
+            <button
+              onClick={handleDissectSelected}
+              disabled={isDissecting}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-full font-bold shadow-lg shadow-black/50 hover:shadow-emerald-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isDissecting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Dissecting...
+                </>
+              ) : (
+                <>
+                  <Scissors className="w-4 h-4" />
+                  Dissect Selected
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -163,24 +349,144 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
  */
 export const ImageNode = memo(({ data }: NodeProps<any>) => {
   const { imageUrl, fileName, width, height } = data as ImageNodeData;
+  const imgRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isSegmenterReady, setIsSegmenterReady] = useState(false);
+  const [isSegmenterLoading, setIsSegmenterLoading] = useState(true);
+  const [isProcessingMask, setIsProcessingMask] = useState(false);
+  const [hasSelection, setHasSelection] = useState(false);
+
+  // Initialize Segmenter on mount
+  useEffect(() => {
+    setIsSegmenterLoading(true);
+    initSegmenter().then((seg) => {
+        if (seg) {
+          setIsSegmenterReady(true);
+        }
+        setIsSegmenterLoading(false);
+    });
+  }, []);
+
+  const handleImageClick = async (e: React.MouseEvent) => {
+      if (!isSegmenterReady || !imgRef.current || !canvasRef.current || isProcessingMask) return;
+
+      setIsProcessingMask(true);
+      try {
+          const result = await segmentImage(e, imgRef.current);
+
+          if (result) {
+              let { uint8Array, width, height } = result;
+              
+              // Filter to keep only the largest connected region
+              // This removes small disconnected areas like parts of display stands
+              uint8Array = filterLargestRegion(uint8Array, width, height);
+              
+              const ctx = canvasRef.current.getContext('2d');
+              if (ctx) {
+                  canvasRef.current.width = width;
+                  canvasRef.current.height = height;
+
+                  const imageData = ctx.createImageData(width, height);
+                  const data = imageData.data;
+
+                  for (let i = 0; i < uint8Array.length; i++) {
+                      const category = uint8Array[i];
+                      const pixelIndex = i * 4;
+
+                      if (category > 0) {
+                          data[pixelIndex] = 168;     // R (Purple)
+                          data[pixelIndex + 1] = 85;  // G
+                          data[pixelIndex + 2] = 247; // B
+                          data[pixelIndex + 3] = 140; // Alpha
+                      } else {
+                          data[pixelIndex + 3] = 0;
+                      }
+                  }
+                  ctx.putImageData(imageData, 0, 0);
+                  setHasSelection(true);
+              }
+          }
+      } catch (err) {
+          console.error("Segmentation failed", err);
+      } finally {
+          setIsProcessingMask(false);
+      }
+  };
+
+  const handleClearSelection = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+              ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+      }
+      setHasSelection(false);
+  };
 
   return (
-    <div className="bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl overflow-hidden">
+    <div className="relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl border-2 border-purple-500/50 overflow-hidden smooth-transition hover:shadow-xl">
       <Handle type="source" position={Position.Right} className="!bg-purple-500 !w-3 !h-3" />
       <Handle type="source" position={Position.Left} className="!bg-purple-500 !w-3 !h-3" />
-      
-      {/* Image */}
-      <div className="relative bg-white" style={{ width: `${width}px`, height: `${height}px` }}>
-        <img 
-          src={imageUrl} 
-          alt={fileName} 
-          className="w-full h-full object-contain"
-        />
+
+      {/* Header */}
+      <div className="px-4 py-2 bg-purple-600/20 border-b border-purple-500/30 flex justify-between items-center">
+        <span className="text-purple-200 font-semibold text-sm truncate">{fileName}</span>
+        <div className="flex items-center gap-2">
+            {isProcessingMask && <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />}
+            <ImageIcon className="w-4 h-4 text-purple-400" />
+        </div>
       </div>
 
-      {/* File name label */}
-      <div className="px-3 py-2 bg-slate-900/95 backdrop-blur-sm">
-        <span className="text-slate-300 text-xs truncate block">{fileName}</span>
+      {/* Image & Interactive Area */}
+      <div className="relative bg-white cursor-crosshair" style={{ width: `${width}px`, height: `${height}px` }}>
+        <img
+          ref={imgRef}
+          src={imageUrl}
+          alt={fileName}
+          crossOrigin="anonymous"
+          onClick={handleImageClick}
+          className="w-full h-full object-contain relative z-10"
+        />
+
+        {/* Segmentation Overlay Canvas */}
+        <canvas
+            ref={canvasRef}
+            className="absolute inset-0 z-20 pointer-events-none w-full h-full mix-blend-screen"
+        />
+
+        {/* Loading Indicator for AI Model */}
+        {!hasSelection && isSegmenterLoading && (
+          <div className="absolute top-2 right-2 z-30 pointer-events-none">
+               <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
+                   <Loader2 className="w-3 h-3 animate-spin" />
+                   Loading AI...
+               </div>
+          </div>
+        )}
+
+        {/* Hover Hint for Selection */}
+        {!hasSelection && !isSegmenterLoading && (
+          <div className={`absolute top-2 right-2 z-30 pointer-events-none transition-opacity duration-300 ${isSegmenterReady ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}>
+               <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
+                   <MousePointerClick className="w-3 h-3" />
+                   Magic Select
+               </div>
+          </div>
+        )}
+
+        {/* Clear Selection Button */}
+        {hasSelection && (
+          <div className="absolute top-2 right-2 z-30">
+            <button
+              onClick={handleClearSelection}
+              className="bg-red-600 hover:bg-red-500 text-white text-[10px] px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg active:scale-95 transition-all"
+            >
+              <span className="text-sm">×</span>
+              Clear Selection
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
