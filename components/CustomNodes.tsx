@@ -8,7 +8,8 @@ import { initSegmenter, segmentImage, extractSelectedObject, filterLargestRegion
  * The Central "Master" Node displaying the generated image with Interactive Segmentation.
  */
 export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
-  const { label, imageUrl, isDissecting, isDissected, onContextMenu, onDissectSelected } = data as MasterNodeData;
+  const { label, imageUrl, isDissecting, isDissected, onContextMenu, onDissectSelected, onSelect, onDeselect } = data as MasterNodeData;
+  const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSegmenterReady, setIsSegmenterReady] = useState(false);
@@ -120,8 +121,28 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
           console.error("Failed to extract selected object:", err);
       }
   };
+
+  const handleNodeHover = () => {
+      // Trigger selection callback on hover if provided
+      if (onSelect && nodeRef.current) {
+        onSelect(id, nodeRef.current);
+      }
+  };
+
+  const handleNodeLeave = () => {
+      // Trigger deselect callback when mouse leaves
+      if (onDeselect) {
+        onDeselect();
+      }
+  };
+
   return (
-    <div className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[300px]">
+    <div
+      ref={nodeRef}
+      onMouseEnter={handleNodeHover}
+      onMouseLeave={handleNodeLeave}
+      className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[300px]"
+    >
       {/* Connection Handle */}
       <Handle type="source" position={Position.Right} className="!bg-indigo-500 !w-3 !h-3" />
       <Handle type="source" position={Position.Left} className="!bg-indigo-500 !w-3 !h-3" />
@@ -347,8 +368,9 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
 /**
  * Node for uploaded images
  */
-export const ImageNode = memo(({ data }: NodeProps<any>) => {
-  const { imageUrl, fileName, width, height } = data as ImageNodeData;
+export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
+  const { imageUrl, fileName, width, height, isSelected, isGeneratingImage, onSelect, onDeselect, onActionsMenuSelect, onActionsMenuDeselect } = data as ImageNodeData;
+  const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSegmenterReady, setIsSegmenterReady] = useState(false);
@@ -366,6 +388,28 @@ export const ImageNode = memo(({ data }: NodeProps<any>) => {
         setIsSegmenterLoading(false);
     });
   }, []);
+
+  const handleNodeHover = () => {
+      // Trigger both craft style menu and actions menu callbacks on hover if provided
+      if (nodeRef.current) {
+        if (onSelect) {
+          onSelect(id, nodeRef.current);
+        }
+        if (onActionsMenuSelect) {
+          onActionsMenuSelect(id, nodeRef.current);
+        }
+      }
+  };
+
+  const handleNodeLeave = () => {
+      // Trigger both deselect callbacks when mouse leaves
+      if (onDeselect) {
+        onDeselect();
+      }
+      if (onActionsMenuDeselect) {
+        onActionsMenuDeselect();
+      }
+  };
 
   const handleImageClick = async (e: React.MouseEvent) => {
       if (!isSegmenterReady || !imgRef.current || !canvasRef.current || isProcessingMask) return;
@@ -425,7 +469,16 @@ export const ImageNode = memo(({ data }: NodeProps<any>) => {
   };
 
   return (
-    <div className="relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl border-2 border-purple-500/50 overflow-hidden smooth-transition hover:shadow-xl">
+    <div 
+      ref={nodeRef}
+      onMouseEnter={handleNodeHover}
+      onMouseLeave={handleNodeLeave}
+      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl border-2 overflow-hidden smooth-transition hover:shadow-xl ${
+        isSelected 
+          ? 'border-orange-500 shadow-orange-500/50 ring-2 ring-orange-500/30' 
+          : 'border-purple-500/50'
+      }`}
+    >
       <Handle type="source" position={Position.Right} className="!bg-purple-500 !w-3 !h-3" />
       <Handle type="source" position={Position.Left} className="!bg-purple-500 !w-3 !h-3" />
 
@@ -440,14 +493,26 @@ export const ImageNode = memo(({ data }: NodeProps<any>) => {
 
       {/* Image & Interactive Area */}
       <div className="relative bg-white cursor-crosshair" style={{ width: `${width}px`, height: `${height}px` }}>
-        <img
-          ref={imgRef}
-          src={imageUrl}
-          alt={fileName}
-          crossOrigin="anonymous"
-          onClick={handleImageClick}
-          className="w-full h-full object-contain relative z-10"
-        />
+        {isGeneratingImage ? (
+          // Loading placeholder while image is being generated
+          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950">
+            <div className="relative">
+              <div className="absolute inset-0 bg-purple-500 blur opacity-20 pulse-glow rounded-full"></div>
+              <Loader2 className="w-12 h-12 animate-spin text-purple-500/50 relative z-10" />
+            </div>
+            <span className="text-sm text-purple-500/70 pulse-glow font-medium mt-4">Generating pattern sheet...</span>
+            <span className="text-xs text-purple-400/50 mt-2">This may take a moment</span>
+          </div>
+        ) : (
+          <img
+            ref={imgRef}
+            src={imageUrl}
+            alt={fileName}
+            crossOrigin="anonymous"
+            onClick={handleImageClick}
+            className="w-full h-full object-contain relative z-10"
+          />
+        )}
 
         {/* Segmentation Overlay Canvas */}
         <canvas
@@ -491,7 +556,10 @@ export const ImageNode = memo(({ data }: NodeProps<any>) => {
     </div>
   );
 }, (prevProps: NodeProps<any>, nextProps: NodeProps<any>) => {
-  return prevProps.data.imageUrl === nextProps.data.imageUrl;
+  return (
+    prevProps.data.imageUrl === nextProps.data.imageUrl &&
+    prevProps.data.isSelected === nextProps.data.isSelected
+  );
 });
 
 /*

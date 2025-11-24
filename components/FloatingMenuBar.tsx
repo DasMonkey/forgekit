@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Box, Home, Layout, Users } from 'lucide-react';
+import { Box, Home, Layout, Users, User } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface FloatingMenuBarProps {
   projectName?: string;
@@ -12,6 +13,7 @@ export const FloatingMenuBar: React.FC<FloatingMenuBarProps> = ({
   onNavigate 
 }) => {
   const navigate = useNavigate();
+  const { state } = useAuth();
 
   const handleNavigation = (path: string) => {
     if (onNavigate) {
@@ -69,6 +71,18 @@ export const FloatingMenuBar: React.FC<FloatingMenuBarProps> = ({
             >
               <Users className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span className="hidden md:inline">Community</span>
+            </button>
+
+            <button
+              onClick={() => handleNavigation('/profile')}
+              className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 smooth-transition text-xs md:text-sm font-medium relative"
+              title="Profile"
+            >
+              <User className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="hidden md:inline">Profile</span>
+              {state.isAuthenticated && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-slate-900"></span>
+              )}
             </button>
           </div>
 

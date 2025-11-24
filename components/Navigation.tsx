@@ -1,15 +1,18 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Box, Home, Layout, Users, Sparkles } from 'lucide-react';
+import { Box, Home, Layout, Users, Sparkles, User } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Navigation: React.FC = () => {
   const location = useLocation();
+  const { state } = useAuth();
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/canvas', label: 'Canvas', icon: Layout },
     { path: '/projects', label: 'My Projects', icon: Sparkles },
     { path: '/community', label: 'Community', icon: Users },
+    { path: '/profile', label: 'Profile', icon: User },
   ];
 
   // Hide navigation on canvas page for immersive experience
@@ -32,13 +35,14 @@ export const Navigation: React.FC = () => {
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
+              const isProfileLink = item.path === '/profile';
 
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   className={`
-                    flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm smooth-transition
+                    flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm smooth-transition relative
                     ${isActive 
                       ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' 
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -47,6 +51,9 @@ export const Navigation: React.FC = () => {
                 >
                   <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   <span className="hidden sm:inline">{item.label}</span>
+                  {isProfileLink && state.isAuthenticated && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border-2 border-slate-950"></span>
+                  )}
                 </Link>
               );
             })}

@@ -1,11 +1,42 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CraftCategory, DissectionResponse } from "../types";
 import { imageGenerationLimiter, dissectionLimiter, trackApiUsage } from "../utils/rateLimiter";
+import { decryptApiKey } from "../utils/encryption";
 
-// Initialize GenAI
-const apiKey = process.env.API_KEY || '';
+// Application API key (fallback)
+const appApiKey = process.env.API_KEY || '';
 
-const getAiClient = () => new GoogleGenAI({ apiKey });
+/**
+ * Gets the API key to use for requests
+ * Prioritizes user's personal API key over application key
+ */
+const getApiKey = (): string => {
+  try {
+    // Check for user's personal API key in LocalStorage
+    const encryptedKey = localStorage.getItem('craftus_user_api_key');
+    if (encryptedKey) {
+      try {
+        const userKey = decryptApiKey(encryptedKey);
+        if (userKey) {
+          console.log('Using personal API key');
+          return userKey;
+        }
+      } catch (error) {
+        console.warn('Failed to decrypt user API key, falling back to app key');
+        // Remove invalid key
+        localStorage.removeItem('craftus_user_api_key');
+      }
+    }
+  } catch (error) {
+    console.warn('Error accessing user API key:', error);
+  }
+
+  // Fall back to application API key
+  console.log('Using application API key');
+  return appApiKey;
+};
+
+const getAiClient = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 /**
  * Helper to wait for a specified duration.
@@ -82,6 +113,84 @@ export const generateCraftImage = async (
     throw new Error("Failed to generate image");
   }).catch((error) => {
     trackApiUsage('generateCraftImage', false);
+    throw error;
+  });
+};
+
+/**
+ * Generates a craft-style image from an uploaded image.
+ * Transforms the uploaded image into a studio-quality craft reference image.
+ */
+export const generateCraftFromImage = async (
+  imageBase64: string,
+  category: CraftCategory
+): Promise<string> => {
+  // Check rate limit before making request
+  if (!imageGenerationLimiter.canMakeRequest()) {
+    const waitTime = imageGenerationLimiter.getTimeUntilNextRequest();
+    const waitSeconds = Math.ceil(waitTime / 1000);
+    throw new Error(`Rate limit exceeded. Please wait ${waitSeconds} seconds before generating another image.`);
+  }
+
+  const ai = getAiClient();
+  const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
+
+  const prompt = `
+    Transform this image into a photorealistic studio photograph of a DIY craft project.
+    
+    Target Category: ${category}
+    
+    Style Requirements:
+    - Recreate the subject/object from the image as a handmade craft in the ${category} style
+    - Neutral background with even studio lighting
+    - Highly detailed textures showing craft materials (paper fibers, clay texture, fabric weave, wood grain, etc.)
+    - The object should look tangible, handmade, and finished
+    - Match the general form and colors of the original image
+    - View: Isometric or front-facing, centered
+    
+    Material Guidelines by Category:
+    - Papercraft: Paper, cardstock, glue, scissors - show paper texture and fold lines
+    - Clay: Polymer clay, sculpting tools - show matte clay texture and sculpted details
+    - Fabric/Sewing: Fabric, thread, stuffing - show fabric weave and stitching
+    - Costume & Props: Foam, thermoplastic, paint - show foam texture and painted surfaces
+    - Woodcraft: Wood, dowels, joints - show wood grain and joinery
+    - Jewelry: Beads, wire, metal findings - show metal shine and bead clarity
+    - Kids Crafts: Simple materials, bright colors - show playful, safe materials
+    - Tabletop Figures: Miniature parts, primer, paint - show miniature scale and paint details
+  `;
+
+  return retryWithBackoff(async () => {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: 'image/png',
+              data: cleanBase64,
+            },
+          },
+          { text: prompt },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: "1K",
+        },
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        trackApiUsage('generateCraftFromImage', true);
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    trackApiUsage('generateCraftFromImage', false);
+    throw new Error("Failed to generate craft image from uploaded image");
+  }).catch((error) => {
+    trackApiUsage('generateCraftFromImage', false);
     throw error;
   });
 };
@@ -215,23 +324,38 @@ PANEL 4 - FINISHED COMPONENT (if 4-panel layout):
 ✓ Clear visual separation between panels (thin border lines)
 ✓ NO ELECTRONIC PARTS - only handcraft materials (paper, glue, scissors)
 
-EXAMPLE - 2D Layered Papercraft (Hylian Shield) - Step: "Prepare shield base layers":
-Panel 1: 4 pattern sheets laid flat side-by-side showing FLAT LAYERS: gray base shield (Layer 1), blue decorative layer (Layer 2), yellow Triforce (Layer 3), red bird emblem (Layer 4) - each is a complete flat outline, NO fold lines, labeled with layer numbers
-Panel 2: Hand stacking layers with arrows showing order, text "STACK IN THIS ORDER: ①②③④"
-Panel 3: Hand gluing Triforce to blue layer, arrow pointing to placement, text "CENTER & GLUE"
-Panel 4: Completed shield showing all flat layers stacked, side view showing thickness
+EXAMPLE WITH ANALYSIS - Piranha Plant - Step: "Create and Pot the Plants":
+ANALYSIS FIRST:
+- Pot: 3D cylinder → unwrap into curved rectangle with base circle
+- Needs: Base stability (reinforced bottom), connection tabs for stems
+- Surface: Brown paper texture, simple geometric form
+THEN CREATE:
+Panel 1: Pattern sheets showing pot unwrapped cylinder + circular base + small support tabs for stem insertion points
+Panel 2: Hands rolling cylinder and gluing seam, text "FORM CYLINDER"
+Panel 3: Hands attaching base circle to bottom of cylinder, arrows showing tab fold
+Panel 4: Completed pot with stem holes visible at top
 
-EXAMPLE - 3D Folded Papercraft (Character) - Step: "Assemble body":
-Panel 1: Pattern sheets showing ONLY BODY PIECES: torso (curved unwrapped cylinder), body connection tabs - NO head, NO limbs, NO clothing shown
+EXAMPLE WITH ANALYSIS - Piranha Plant - Step: "Assemble Stems and Leaves":
+ANALYSIS FIRST:
+- Stems: Long thin tubes → need internal paper support (rolled tight paper rod inside)
+- Leaves: Flat shapes with slight curve → simple cutouts with subtle center fold for 3D effect
+- Connection: Stems insert into pot holes, leaves attach to stem sides
+THEN CREATE:
+Panel 1: Pattern sheets showing ONLY stem rectangles (for rolling), inner support strips, leaf shapes - laid flat
+Panel 2: Hands rolling stem around inner support tube, text "ROLL TIGHTLY"
+Panel 3: Hands folding leaf center line and gluing to stem, arrows showing attachment
+Panel 4: Completed stem with leaves attached, ready to insert into pot
+
+EXAMPLE WITH ANALYSIS - Character - Step: "Assemble body":
+ANALYSIS FIRST:
+- Body: Cylindrical torso → unwrap into curved rectangle
+- Has: Rounded belly (slight curve in pattern), connection points top/bottom for head/legs
+- Needs: Glue tabs on vertical seam, neck opening at top
+THEN CREATE:
+Panel 1: Pattern sheets showing ONLY BODY: torso unwrapped curved rectangle with belly curve, connection tabs - NO head, NO limbs shown
 Panel 2: Hands folding body piece along dashed lines, arrows showing fold direction
 Panel 3: Hands gluing body tabs to close cylinder, text "GLUE SEAM"
-Panel 4: Completed body cylinder only - no other parts attached yet
-
-EXAMPLE - 3D Folded Papercraft (Character) - Step: "Attach head to body":
-Panel 1: Pattern sheets showing ONLY HEAD SEGMENTS (petal-shaped gores) and neck tab - NO body shown except connection point
-Panel 2: Hands folding head gores into spherical shape
-Panel 3: Hands attaching assembled head to body neck opening, arrow showing insertion
-Panel 4: Head attached to body - showing ONLY this connection, not full figure`,
+Panel 4: Completed body cylinder only - no other parts attached yet`,
 
     'Clay': `
 🎨 MULTI-PANEL CLAY INSTRUCTION FORMAT (2-4 PANELS):
@@ -562,24 +686,46 @@ export const generateStepImage = async (
 `
     : '';
 
-  // Determine if this is step 1 (pattern sheets step) - use 4K for maximum detail
-  const isFirstStep = stepNumber === 1 || stepDescription.toLowerCase().includes('pattern') ||
-                      stepDescription.toLowerCase().includes('cut') ||
-                      stepDescription.toLowerCase().includes('prepare');
-  const imageSize = isFirstStep ? "4K" : undefined; // 4K for step 1, default for others
-
-  if (isFirstStep) {
-    console.log('🖼️ === GENERATING CRITICAL PATTERN SHEETS (STEP 1) ===');
-    console.log('   Resolution: 4K (4096px) for MAXIMUM DETAIL');
-    console.log('   Focus: COMPLETE, BUILDABLE pattern templates');
-    console.log('   Layout: ALL sheets spread flat side-by-side');
-  }
+  // Use default 1K resolution for all steps (no special handling)
+  console.log(`🖼️ Generating image for: ${stepDescription}`);
+  console.log(`   Step Number: ${stepNumber || 'N/A'}`);
+  console.log(`   Resolution: 1K (default)`);
 
   const prompt = `
 🎯 YOUR TASK: Create a MULTI-PANEL instructional image for this step: "${stepDescription}"
 
 📷 REFERENCE IMAGE PROVIDED: This shows the finished craft (colors, materials, style to match exactly)
 ${focusInstructions}
+
+🧠 BEFORE GENERATING PATTERNS - ANALYZE THE COMPONENT:
+Ask yourself these questions about the component in "${stepDescription}":
+1. **Is this a 3D or 2D structure?**
+   - Does it have volume/depth (head, body, limbs, pot) = 3D → needs unwrapping
+   - Is it flat with stacked layers (shield, badge, sign) = 2D → needs layer sheets
+
+2. **If 3D - What is the base shape?**
+   - Sphere/rounded (head, ball) → unwrap into petal gores like a globe
+   - Cylinder (body, limbs, tube, pot) → unwrap into curved rectangle
+   - Cone (hat, nose) → unwrap into pie-slice fan shape
+   - Box (base, platform) → unwrap into cross/net with 6 faces
+   - Complex organic → break into geometric segments and unwrap each
+
+3. **Does it need structural support?**
+   - Tall/thin parts (stems, legs, necks) → add internal rolled paper tubes for rigidity
+   - Heavy parts (pot, base) → reinforce edges with doubled paper
+   - Hanging parts (leaves, petals) → add small paper tabs for support
+
+4. **How will it connect to other parts?**
+   - Add glue tabs at connection points
+   - Ensure tab placement allows proper assembly
+   - Match connection size to adjacent component
+
+5. **What's the surface detail?**
+   - Spots/patterns → print directly on pattern sheet
+   - Teeth/features → separate small pieces to glue on
+   - Texture → indicate with fold lines or scored paper
+
+ANALYZE THE REFERENCE IMAGE NOW and determine the answers to these questions before creating the pattern sheets.
 
 🚨 CRITICAL SCOPE REQUIREMENT:
 This step image must ONLY show components and actions mentioned in the step description: "${stepDescription}"
@@ -671,12 +817,8 @@ FINAL REMINDERS:
   return retryWithBackoff(async () => {
     const imageConfig: any = {
       aspectRatio: "16:9",
+      // Use default 1K resolution for all steps
     };
-
-    // Add imageSize only if it's defined (4K for first step)
-    if (imageSize) {
-      imageConfig.imageSize = imageSize;
-    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
@@ -727,6 +869,222 @@ FINAL REMINDERS:
       }
     }
     throw new Error("Failed to generate step image");
+  });
+};
+
+/**
+ * Generates a comprehensive SVG-style pattern sheet showing all components
+ * of the craft organized by element (hair, head, dress, props, etc.)
+ */
+export const generateSVGPatternSheet = async (
+  originalImageBase64: string,
+  category: CraftCategory,
+  craftLabel?: string
+): Promise<string> => {
+  console.log('🔍 [generateSVGPatternSheet] Function called');
+  console.log('📊 Parameters:', { category, craftLabel, imageBase64Length: originalImageBase64?.length });
+
+  // Check rate limit before making request
+  if (!imageGenerationLimiter.canMakeRequest()) {
+    const waitTime = imageGenerationLimiter.getTimeUntilNextRequest();
+    const waitSeconds = Math.ceil(waitTime / 1000);
+    console.error('⚠️ Rate limit exceeded');
+    throw new Error(`Rate limit exceeded. Please wait ${waitSeconds} seconds before generating another image.`);
+  }
+
+  console.log('✅ Rate limit check passed');
+
+  const ai = getAiClient();
+  console.log('✅ AI client obtained');
+
+  const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
+  console.log('✅ Base64 cleaned, length:', cleanBase64.length);
+
+  const prompt = `
+🎯 YOUR TASK: Create a comprehensive SVG-style papercraft pattern template sheet for the entire craft shown in the reference image.
+
+📷 REFERENCE IMAGE: Study this completed craft to understand all elements and components.
+
+${craftLabel ? `🎨 CRAFT: ${craftLabel}` : ''}
+
+🚨 CRITICAL REQUIREMENTS:
+
+1️⃣ ANALYZE FIRST - Identify ALL Elements:
+Before creating patterns, carefully identify EVERY component in the craft:
+- Character parts: Head, torso, limbs, hands, feet
+- Hair elements: Base, bangs, curls, ponytail, etc.
+- Clothing: Dress, shirt, pants, skirt, sleeves, collar, etc.
+- Accessories: Crown, hat, jewelry, belt, buttons, etc.
+- Props: Weapons, tools, containers, stands, bases, etc.
+
+List them mentally, then create patterns for ALL of them.
+
+2️⃣ SINGLE IMAGE OUTPUT:
+Generate ONE comprehensive pattern sheet image containing ALL elements organized by category.
+
+3️⃣ LAYOUT STRUCTURE:
+┌─────────────────────────────────────────────┐
+│  PATTERN SHEET - [CRAFT NAME]              │
+├──────────┬──────────┬──────────┬───────────┤
+│  HAIR    │  HEAD    │  BODY    │  CLOTHES  │
+│ (pieces) │ (pieces) │ (pieces) │ (pieces)  │
+├──────────┼──────────┼──────────┼───────────┤
+│  LIMBS   │  HANDS   │  PROPS   │  BASE     │
+│ (pieces) │ (pieces) │ (pieces) │ (pieces)  │
+└──────────┴──────────┴──────────┴───────────┘
+
+4️⃣ PATTERN REQUIREMENTS:
+
+For EACH component:
+✓ Show as 3D unwrapped patterns (UV-mapped like 3D modeling)
+✓ ROUNDED shapes (heads, bodies) → unwrap into petal gores or segments
+✓ CYLINDRICAL shapes (limbs, tubes) → unwrap into curved rectangles
+✓ CURVED surfaces → show how they flatten with fold lines
+✓ Include cut lines (solid) and fold lines (dashed)
+✓ Add glue tabs for assembly
+✓ Label each piece clearly (e.g., "HEAD - Front", "ARM L", "SKIRT - Panel 1")
+✓ Match EXACT colors from reference image
+✓ Show scale/size indicators
+
+5️⃣ ORGANIZATION BY CATEGORY:
+
+Group patterns by logical categories with clear labels:
+- HAIR SECTION: All hair pieces (base, curls, bangs, etc.)
+- HEAD SECTION: Face, ears, neck pieces
+- BODY SECTION: Torso front/back, belly, chest
+- CLOTHING SECTION: Dress panels, sleeves, collar, etc.
+- LIMBS SECTION: Arms, legs (left & right)
+- HANDS/FEET SECTION: Hand pieces, fingers, shoes
+- ACCESSORIES SECTION: Crown, jewelry, decorative elements
+- PROPS SECTION: Weapons, containers, tools
+- BASE/STAND SECTION: Platform, support pieces
+
+6️⃣ VISUAL STYLE:
+
+✓ Clean SVG/vector style with precise lines
+✓ White background with subtle grid
+✓ Black outlines for cut lines (solid)
+✓ Blue dashed lines for fold lines
+✓ Red dotted lines for glue tabs
+✓ Color fill matching reference image
+✓ Text labels in clean sans-serif font
+✓ Professional technical drawing aesthetic
+
+7️⃣ COMPLETENESS CHECK:
+
+Before finalizing, verify you included patterns for:
+✓ Every visible component in the reference image
+✓ Both left AND right limbs (if character has limbs)
+✓ All layers of clothing (if multi-layered)
+✓ Every hair component (base + curls + details)
+✓ All accessories and props
+✓ Connection tabs for assembly
+✓ Base or stand (if applicable)
+
+8️⃣ PAPER-ONLY CONSTRUCTION:
+
+🚨 CRITICAL: ALL patterns must be paper-constructible:
+✓ Use LOW-POLY GEOMETRIC approach for curves
+✓ Curves achieved through faceted folds, NOT soft materials
+✓ Round shapes = angular segments that approximate curves
+✓ NO foam, fabric, wire, or soft materials
+✓ Pure papercraft = everything folds/rolls from flat sheets
+
+EXAMPLE CATEGORIES (for a princess character):
+┌────────────────────────────────────────────┐
+│ PATTERN SHEET - Princess Peach Papercraft │
+├──────────┬─────────┬──────────┬───────────┤
+│ HAIR     │ HEAD    │ BODY     │ DRESS     │
+│ - Base   │ - Front │ - Torso  │ - Skirt   │
+│ - Curls  │ - Back  │ - Neck   │ - Bodice  │
+│ (orange) │ (skin)  │ (skin)   │ (green)   │
+├──────────┼─────────┼──────────┼───────────┤
+│ ARMS     │ HANDS   │ CROWN    │ BASE      │
+│ - L/R    │ - L/R   │ - 5 pts  │ - Circle  │
+│ (skin)   │ (skin)  │ (gold)   │ (brown)   │
+└──────────┴─────────┴──────────┴───────────┘
+
+📐 TECHNICAL PRECISION:
+- This is a buildable template - someone must be able to print, cut, and assemble
+- Patterns must be geometrically correct for 3D folding
+- All pieces must connect properly with tabs
+- Maintain proper proportions relative to reference image
+
+🎨 FINAL OUTPUT:
+One comprehensive, professionally organized pattern sheet with ALL elements labeled and ready to print.
+
+Category: ${category}
+`;
+
+  console.log('🚀 Starting retryWithBackoff...');
+
+  return retryWithBackoff(async () => {
+    console.log('📡 Making API call to Gemini...');
+    console.log('🔧 Model: gemini-3-pro-image-preview');
+    console.log('🔧 Config: 2K, 16:9, thinking enabled');
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: 'image/png',
+                data: cleanBase64,
+              },
+            },
+            { text: prompt },
+          ],
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "16:9", // Wide format for pattern sheet layout
+            imageSize: "2K", // 2K resolution for good detail with faster generation
+          },
+          thinkingConfig: {
+            includeThoughts: true, // Enable thinking for thorough analysis
+          }
+        },
+      });
+
+      console.log('✅ API response received');
+
+      // Log thinking process
+      const candidate = response.candidates?.[0];
+      const parts = candidate?.content?.parts || [];
+      const thinkingTexts: string[] = [];
+
+      for (const part of parts) {
+        const partAny = part as any;
+        if (partAny.text && partAny.thought === true) {
+          thinkingTexts.push(partAny.text);
+        }
+      }
+
+      if (thinkingTexts.length > 0) {
+        console.log('\n💭 === AI THINKING PROCESS (SVG Pattern Sheet) ===');
+        console.log('Craft:', craftLabel || 'Unknown');
+        console.log('\nThinking:');
+        console.log(thinkingTexts.join('\n'));
+        console.log('=== END THINKING ===\n');
+      }
+
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          trackApiUsage('generateSVGPatternSheet', true);
+          return `data:image/png;base64,${part.inlineData.data}`;
+        }
+      }
+      trackApiUsage('generateSVGPatternSheet', false);
+      throw new Error("Failed to generate SVG pattern sheet");
+    } catch (error) {
+      console.error('❌ API call failed:', error);
+      throw error;
+    }
+  }).catch((error) => {
+    trackApiUsage('generateSVGPatternSheet', false);
+    throw error;
   });
 };
 
@@ -863,14 +1221,23 @@ export const dissectSelectedObject = async (
     2. List the essential materials needed FOR "${objectLabel}" ONLY.
     3. Break down the construction into logical steps FOR "${objectLabel}" ONLY.
 
-    🚨 CRITICAL STEP COUNT REDUCTION RULES 🚨
-    - MAXIMUM 4-6 STEPS TOTAL - Keep it simple and concise!
+    🚨 CRITICAL STEP COUNT AND CHARACTER LIMIT RULES 🚨
+    - MAXIMUM 4 STEPS TOTAL - This is a hard limit!
+    - MAXIMUM 2 CHARACTERS per craft (NOT counting props/accessories)
+    - Props and accessories (swords, shields, hats, pots, stands, bases) DO NOT count toward character limit
+    - If "${objectLabel}" contains more than 2 characters, intelligently select the 2 most important/iconic ones
+    - Examples:
+      * "Mario and Luigi" = 2 characters ✓ (allowed)
+      * "Mario, Luigi, and Peach" = 3 characters ✗ (pick 2 most iconic: Mario + Luigi)
+      * "Link with Master Sword and Shield" = 1 character + 2 props ✓ (allowed, props don't count)
+      * "Piranha Plant in Pot with Stand" = 1 character + 2 props ✓ (allowed)
+
+    STEP COUNT RULES:
     - Do NOT create a "gather materials" step - start with actual construction
     - Combine related substeps into single steps (e.g., "Cut and shape base pieces" instead of two steps)
     - Focus on MAJOR construction phases only, not every tiny detail
     - Each step should represent a significant milestone in the build
     - Focus ONLY on "${objectLabel}", ignore all other objects in both images
-    - If this is one character in a set, provide instructions for ONLY this character
 
     EXAMPLE - Good step breakdown for a papercraft figure (4 steps):
     Step 1: Cut out all pattern pieces and score fold lines
@@ -991,23 +1358,29 @@ export const dissectCraft = async (
     2. List the essential materials visible or implied.
     3. Break down the construction into logical, step-by-step instructions.
 
-    IMPORTANT RULES FOR STEPS:
-    - Do NOT create a "gather materials" or "prepare materials" step. The materials list is already captured separately.
-    - Start directly with the first actual construction/assembly step.
-    - Focus only on hands-on construction actions.
+    🚨 CRITICAL STEP COUNT AND CHARACTER LIMIT RULES 🚨
+    - MAXIMUM 4 STEPS TOTAL - This is a hard limit!
+    - MAXIMUM 2 CHARACTERS per craft (NOT counting props/accessories)
+    - Props and accessories (swords, shields, hats, pots, stands, bases) DO NOT count toward character limit
+    - If the project contains more than 2 distinct characters, intelligently select the 2 most important/iconic ones
+    - Examples:
+      * "Mario and Luigi" = 2 characters ✓ (allowed)
+      * "Mario, Luigi, Peach, and Bowser" = 4 characters ✗ (pick 2 most iconic: Mario + Bowser)
+      * "Link with Master Sword and Hylian Shield" = 1 character + 2 props ✓ (allowed, props don't count)
+      * "Three Piranha Plants in Pots" = 3 characters ✗ (reduce to 2 plants, keep all pots as props)
 
-    CHARACTER/OBJECT LIMIT:
-    - If the project contains MULTIPLE DISTINCT CHARACTERS OR OBJECTS (e.g., "Mario set" with Mario, Mushroom, Block, Flower), limit to a MAXIMUM OF 4 characters/objects.
-    - This limit ONLY applies to separate standalone items, NOT to parts of a single craft.
-    - Examples that should be limited to 4 objects:
-      * Character sets (Mario + Luigi + Peach + Bowser = 4 max)
-      * Scene collections (multiple figures in a diorama)
-      * Sets of similar items (multiple ornaments, multiple toys)
-    - Examples that should NOT be limited:
-      * Single automata with many gears/parts (this is ONE object with multiple components)
-      * Single Lego figure with arms/legs/head/body (this is ONE figure)
-      * Single complex model with many pieces (this is ONE craft)
-    - If the user's prompt implies more than 4 distinct objects, intelligently select the 4 most important/iconic ones.
+    STEP COUNT RULES:
+    - Do NOT create a "gather materials" or "prepare materials" step - materials list is captured separately
+    - Start directly with the first actual construction/assembly step
+    - Combine related substeps into single steps (e.g., "Cut and shape base pieces" instead of two steps)
+    - Focus on MAJOR construction phases only, not every tiny detail
+    - Each step should represent a significant milestone in the build
+
+    WHAT COUNTS AS A CHARACTER vs PROP:
+    - Character: Standalone figure, person, creature, or main object (Mario, Link, Piranha Plant, dinosaur)
+    - Prop: Accessory, weapon, container, base, or support item (sword, pot, stand, shield, hat, platform)
+    - Complex example: "Link figure" = 1 character, "Master Sword" = 1 prop, "Hylian Shield" = 1 prop, "Display base" = 1 prop
+    - If unclear, ask: "Can this exist independently as the main focus?" Yes = Character, No = Prop
 
     Return strict JSON matching this schema.
   `;

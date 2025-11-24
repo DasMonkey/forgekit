@@ -31,6 +31,8 @@ export interface MasterNodeData {
   onDissectSelected?: (id: string, selectedObjectImageUrl: string, fullImageUrl: string, label: string) => void;
   isDissecting: boolean;
   isDissected: boolean;
+  onSelect?: (nodeId: string, element: HTMLElement) => void;
+  onDeselect?: () => void;
 }
 
 export interface InstructionNodeData {
@@ -51,6 +53,12 @@ export interface ImageNodeData {
   fileName: string;
   width: number;
   height: number;
+  isSelected?: boolean;
+  isGeneratingImage?: boolean;
+  onSelect?: (nodeId: string, element: HTMLElement) => void;
+  onDeselect?: () => void;
+  onActionsMenuSelect?: (nodeId: string, element: HTMLElement) => void;
+  onActionsMenuDeselect?: () => void;
 }
 
 export interface ShapeNodeData {

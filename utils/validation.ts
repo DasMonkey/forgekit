@@ -56,3 +56,52 @@ export const validateProjectData = (data: any): boolean => {
   
   return true;
 };
+
+/**
+ * Validates email format
+ */
+export const validateEmail = (email: string): boolean => {
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+
+  // Basic email regex pattern
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  // Length check
+  if (email.length > 254) {
+    return false;
+  }
+
+  return emailRegex.test(email);
+};
+
+/**
+ * Validates password strength
+ * Requirements: At least 8 characters, contains letter and number
+ */
+export const validatePassword = (password: string): { valid: boolean; error?: string } => {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, error: 'Password is required' };
+  }
+
+  if (password.length < 8) {
+    return { valid: false, error: 'Password must be at least 8 characters' };
+  }
+
+  if (password.length > 128) {
+    return { valid: false, error: 'Password must be less than 128 characters' };
+  }
+
+  // Must contain at least one letter
+  if (!/[a-zA-Z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one letter' };
+  }
+
+  // Must contain at least one number
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one number' };
+  }
+
+  return { valid: true };
+};

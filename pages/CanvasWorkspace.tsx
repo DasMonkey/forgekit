@@ -23,9 +23,12 @@ import { ContextMenu, ContextMenuItem } from '../components/ContextMenu';
 import { UploadSubmenu } from '../components/UploadSubmenu';
 import { ShapesSubmenu, ShapeType } from '../components/ShapesSubmenu';
 import { PencilSubmenu, PencilMode } from '../components/PencilSubmenu';
-import { calculateNodeMenuPosition } from '../utils/contextMenuPosition';
+import { CraftStyleMenu } from '../src/components/CraftStyleMenu';
+import { MasterNodeActionsMenu } from '../src/components/MasterNodeActionsMenu';
+import { ImageNodeActionsMenu } from '../src/components/ImageNodeActionsMenu';
+import { calculateNodeMenuPosition, calculateCraftMenuPosition } from '../utils/contextMenuPosition';
 import { handleFileUpload } from '../utils/fileUpload';
-import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject } from '../services/geminiService';
+import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject, generateCraftFromImage, generateSVGPatternSheet } from '../services/geminiService';
 import { CraftCategory, DissectionResponse } from '../types';
 import { useProjects } from '../contexts/ProjectsContext';
 import { useKeyboardShortcuts } from '../utils/useKeyboardShortcuts';
@@ -176,10 +179,50 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     position: { x: number; y: number };
   } | null>(null);
 
+  // Craft style menu state for image-to-craft conversion
+  const [craftStyleMenu, setCraftStyleMenu] = useState<{
+    visible: boolean;
+    position: { x: number; y: number };
+    nodeId: string | null;
+    selectedCategory: CraftCategory | null;
+  }>({
+    visible: false,
+    position: { x: 0, y: 0 },
+    nodeId: null,
+    selectedCategory: null,
+  });
+  const [isConvertingImage, setIsConvertingImage] = useState(false);
+
+  // Master node actions menu state
+  const [masterNodeActionsMenu, setMasterNodeActionsMenu] = useState<{
+    visible: boolean;
+    position: { x: number; y: number };
+    nodeId: string | null;
+  }>({
+    visible: false,
+    position: { x: 0, y: 0 },
+    nodeId: null,
+  });
+
+  // State for ImageNode actions menu (download/share)
+  const [imageNodeActionsMenu, setImageNodeActionsMenu] = useState<{
+    visible: boolean;
+    position: { x: number; y: number };
+    nodeId: string | null;
+  }>({
+    visible: false,
+    position: { x: 0, y: 0 },
+    nodeId: null,
+  });
+
   // Track the current drawing node ID and start position
   const [currentDrawingNodeId, setCurrentDrawingNodeId] = useState<string | null>(null);
   const [drawingStartPos, setDrawingStartPos] = useState<{ x: number; y: number } | null>(null);
   const updateFrameRef = useRef<number | null>(null);
+  
+  // Track hover state for craft menu auto-dismiss
+  const menuHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isHoveringMenu, setIsHoveringMenu] = useState(false);
 
   // Drawing state management
   const drawingState = useDrawingState({
@@ -219,6 +262,15 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     };
   }, []);
 
+  // Cleanup menu hover timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (menuHoverTimeoutRef.current) {
+        clearTimeout(menuHoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Enable keyboard shortcuts for tool switching
   useToolKeyboardShortcuts({
     enabled: !readOnly,
@@ -237,6 +289,381 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const currentProject = projectId 
     ? projectsState.projects.find(p => p.id === projectId)
     : null;
+
+  /**
+   * Handle image node selection for craft conversion
+   */
+  const handleImageNodeSelect = useCallback((nodeId: string, element: HTMLElement) => {
+    if (readOnly) return;
+
+    // Clear any pending timeout
+    if (menuHoverTimeoutRef.current) {
+      clearTimeout(menuHoverTimeoutRef.current);
+      menuHoverTimeoutRef.current = null;
+    }
+
+    const position = calculateCraftMenuPosition(element);
+    setCraftStyleMenu({
+      visible: true,
+      position,
+      nodeId,
+      selectedCategory: null,
+    });
+  }, [readOnly]);
+
+  /**
+   * Handle image node deselection (mouse leave)
+   */
+  const handleImageNodeDeselect = useCallback(() => {
+    // Delay closing to allow moving to the menu
+    menuHoverTimeoutRef.current = setTimeout(() => {
+      if (!isHoveringMenu) {
+        handleCloseCraftStyleMenu();
+      }
+    }, 200); // 200ms delay
+  }, [isHoveringMenu]);
+
+  /**
+   * Handle menu mouse enter
+   */
+  const handleMenuMouseEnter = useCallback(() => {
+    setIsHoveringMenu(true);
+    // Clear any pending close timeout
+    if (menuHoverTimeoutRef.current) {
+      clearTimeout(menuHoverTimeoutRef.current);
+      menuHoverTimeoutRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Handle menu mouse leave
+   */
+  const handleMenuMouseLeave = useCallback(() => {
+    setIsHoveringMenu(false);
+    // Close menu after a short delay
+    menuHoverTimeoutRef.current = setTimeout(() => {
+      handleCloseCraftStyleMenu();
+    }, 200);
+  }, []);
+
+  /**
+   * Handle craft category selection
+   */
+  const handleCraftCategorySelect = useCallback((category: CraftCategory) => {
+    setCraftStyleMenu((prev) => ({
+      ...prev,
+      selectedCategory: category,
+    }));
+  }, []);
+
+  /**
+   * Close craft style menu
+   */
+  const handleCloseCraftStyleMenu = useCallback(() => {
+    setCraftStyleMenu({
+      visible: false,
+      position: { x: 0, y: 0 },
+      nodeId: null,
+      selectedCategory: null,
+    });
+    
+    // Clear selection state from ImageNode
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.type === 'imageNode' && node.data.isSelected) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              isSelected: false,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+  /**
+   * Handle master node selection for actions menu
+   */
+  const handleMasterNodeSelect = useCallback((nodeId: string, element: HTMLElement) => {
+    if (readOnly) return;
+
+    // Clear any pending timeout
+    if (menuHoverTimeoutRef.current) {
+      clearTimeout(menuHoverTimeoutRef.current);
+      menuHoverTimeoutRef.current = null;
+    }
+
+    const position = calculateCraftMenuPosition(element);
+    setMasterNodeActionsMenu({
+      visible: true,
+      position,
+      nodeId,
+    });
+  }, [readOnly]);
+
+  /**
+   * Handle master node deselection (mouse leave)
+   */
+  const handleMasterNodeDeselect = useCallback(() => {
+    // Delay closing to allow moving to the menu
+    menuHoverTimeoutRef.current = setTimeout(() => {
+      if (!isHoveringMenu) {
+        handleCloseMasterNodeActionsMenu();
+      }
+    }, 200); // 200ms delay
+  }, [isHoveringMenu]);
+
+  /**
+   * Close master node actions menu
+   */
+  const handleCloseMasterNodeActionsMenu = useCallback(() => {
+    setMasterNodeActionsMenu({
+      visible: false,
+      position: { x: 0, y: 0 },
+      nodeId: null,
+    });
+  }, []);
+
+  /**
+   * Handle ImageNode hover to show download/share menu
+   */
+  const handleImageNodeActionsSelect = useCallback((nodeId: string, element: HTMLElement) => {
+    if (readOnly) return;
+
+    // Clear any pending timeout
+    if (menuHoverTimeoutRef.current) {
+      clearTimeout(menuHoverTimeoutRef.current);
+      menuHoverTimeoutRef.current = null;
+    }
+
+    const position = calculateCraftMenuPosition(element);
+    setImageNodeActionsMenu({
+      visible: true,
+      position,
+      nodeId,
+    });
+  }, [readOnly]);
+
+  /**
+   * Handle ImageNode mouse leave
+   */
+  const handleImageNodeActionsDeselect = useCallback(() => {
+    // Delay closing to allow moving to the menu
+    menuHoverTimeoutRef.current = setTimeout(() => {
+      if (!isHoveringMenu) {
+        handleCloseImageNodeActionsMenu();
+      }
+    }, 200); // 200ms delay
+  }, [isHoveringMenu]);
+
+  /**
+   * Close image node actions menu
+   */
+  const handleCloseImageNodeActionsMenu = useCallback(() => {
+    setImageNodeActionsMenu({
+      visible: false,
+      position: { x: 0, y: 0 },
+      nodeId: null,
+    });
+  }, []);
+
+  /**
+   * Download image from ImageNode
+   */
+  const handleDownloadImageNode = useCallback(() => {
+    const nodeId = imageNodeActionsMenu.nodeId;
+    if (!nodeId) return;
+
+    // Find the image node
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type !== 'imageNode') {
+      console.error('Image node not found');
+      return;
+    }
+
+    const imageUrl = node.data.imageUrl as string;
+    const fileName = node.data.fileName as string || 'image.png';
+
+    // Close menu immediately
+    handleCloseImageNodeActionsMenu();
+
+    try {
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      console.log('✅ Image download started:', fileName);
+    } catch (error) {
+      console.error('Failed to download image:', error);
+      alert('Failed to download image');
+    }
+  }, [imageNodeActionsMenu.nodeId, nodes]);
+
+  /**
+   * Share image from ImageNode (placeholder)
+   */
+  const handleShareImageNode = useCallback(() => {
+    const nodeId = imageNodeActionsMenu.nodeId;
+    if (!nodeId) return;
+
+    // Find the image node
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type !== 'imageNode') {
+      console.error('Image node not found');
+      return;
+    }
+
+    // Close menu immediately
+    handleCloseImageNodeActionsMenu();
+
+    // Placeholder for share functionality
+    alert('Share functionality coming soon!');
+    console.log('Share requested for:', node.data.fileName);
+  }, [imageNodeActionsMenu.nodeId, nodes]);
+
+  /**
+   * Handle action button clicks from MasterNode menu
+   */
+  const handleCreateSVGPattern = useCallback(async () => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId || readOnly) return;
+
+    // Find the master node
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type !== 'masterNode') {
+      console.error('Master node not found');
+      return;
+    }
+
+    const imageUrl = node.data.imageUrl as string;
+    const label = node.data.label as string;
+    const category = node.data.category as CraftCategory;
+
+    // Close menu immediately and clear nodeId to prevent double-triggering
+    handleCloseMasterNodeActionsMenu();
+
+    console.log('🎨 Generating comprehensive SVG pattern sheet...');
+    console.log('Craft:', label);
+    console.log('Category:', category);
+    console.log('Image URL length:', imageUrl?.length || 0);
+
+    // Create placeholder node immediately so user knows where it will appear
+    const patternNodeId = `pattern-${Date.now()}`;
+    const placeholderNode: Node = {
+      id: patternNodeId,
+      type: 'imageNode',
+      position: {
+        x: node.position.x - 600, // Position to the left
+        y: node.position.y - 100,
+      },
+      data: {
+        imageUrl: '', // Empty for now
+        fileName: `${label} - Pattern Sheet.png`,
+        width: 600,
+        height: 338, // 16:9 aspect ratio
+        isSelected: false,
+        isGeneratingImage: true, // Show loading state
+        onSelect: handleImageNodeSelect,
+        onDeselect: handleImageNodeDeselect,
+        onActionsMenuSelect: handleImageNodeActionsSelect,
+        onActionsMenuDeselect: handleImageNodeActionsDeselect,
+      },
+    };
+
+    // Add placeholder node immediately
+    setNodes((nds) => [...nds, placeholderNode]);
+
+    // Create edge immediately
+    const newEdge: Edge = {
+      id: `e-${patternNodeId}-${nodeId}`,
+      source: patternNodeId,
+      target: nodeId,
+      animated: true,
+      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+    };
+    setEdges((eds) => [...eds, newEdge]);
+
+    // Generate pattern sheet in background
+    try {
+      console.log('📞 Calling generateSVGPatternSheet...');
+      const patternSheetUrl = await generateSVGPatternSheet(imageUrl, category, label);
+      console.log('📥 Received pattern sheet URL, length:', patternSheetUrl?.length || 0);
+      console.log('✅ Pattern sheet generated successfully!');
+
+      // Update node with actual image
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === patternNodeId) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                imageUrl: patternSheetUrl,
+                isGeneratingImage: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    } catch (error) {
+      console.error('Failed to generate SVG pattern sheet:', error);
+      alert(error instanceof Error ? error.message : 'Failed to generate pattern sheet');
+
+      // Remove placeholder node on error
+      setNodes((nds) => nds.filter((n) => n.id !== patternNodeId));
+      setEdges((eds) => eds.filter((e) => e.id !== `e-${patternNodeId}-${nodeId}`));
+    }
+  }, [masterNodeActionsMenu.nodeId, nodes, readOnly, setNodes, setEdges, handleImageNodeSelect, handleImageNodeDeselect]);
+
+  const handleCreateStepInstructions = useCallback(() => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId) return;
+
+    // TODO: This should trigger the dissect flow (same as clicking "Dissect Craft")
+    // For now, just show info
+    console.log('Create Step Instructions for node:', nodeId);
+    alert('This will trigger the dissect flow. Use the "Dissect Craft" button for now.');
+    handleCloseMasterNodeActionsMenu();
+  }, [masterNodeActionsMenu.nodeId]);
+
+  const handleDownloadImage = useCallback(() => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId) return;
+
+    // Find the node and download its image
+    const node = nodes.find(n => n.id === nodeId);
+    if (node && node.type === 'masterNode') {
+      const imageUrl = node.data.imageUrl as string;
+      const label = node.data.label as string;
+
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `${label.slice(0, 50)}.png`; // Use prompt as filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    handleCloseMasterNodeActionsMenu();
+  }, [masterNodeActionsMenu.nodeId, nodes]);
+
+  const handleShareImage = useCallback(() => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId) return;
+
+    // TODO: Implement share functionality (copy link, social media, etc.)
+    console.log('Share image for node:', nodeId);
+    alert('Share functionality will be implemented soon!');
+    handleCloseMasterNodeActionsMenu();
+  }, [masterNodeActionsMenu.nodeId]);
 
   // Handle tool-specific behaviors
   useEffect(() => {
@@ -264,7 +691,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     if (projectId) {
       const project = projectsState.projects.find(p => p.id === projectId);
       if (project && project.canvasState) {
-        // Add handlers to text nodes when loading
+        // Add handlers to text nodes and image nodes when loading
         const nodesWithHandlers = (project.canvasState.nodes || []).map(node => {
           if (node.type === 'textNode') {
             return {
@@ -276,13 +703,24 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               },
             };
           }
+          if (node.type === 'imageNode') {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                isSelected: false,
+                onSelect: handleImageNodeSelect,
+                onDeselect: handleImageNodeDeselect,
+              },
+            };
+          }
           return node;
         });
         setNodes(nodesWithHandlers);
         setEdges(project.canvasState.edges || []);
       }
     }
-  }, [projectId, projectsState.projects, setNodes, setEdges]);
+  }, [projectId, projectsState.projects, setNodes, setEdges, handleImageNodeSelect, handleImageNodeDeselect]);
 
   // Auto-save canvas state when nodes or edges change
   useEffect(() => {
@@ -460,6 +898,11 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               fileName,
               width,
               height,
+              isSelected: false,
+              onSelect: handleImageNodeSelect,
+              onDeselect: handleImageNodeDeselect,
+              onActionsMenuSelect: handleImageNodeActionsSelect,
+              onActionsMenuDeselect: handleImageNodeActionsDeselect,
             },
           };
 
@@ -616,6 +1059,11 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       handleCloseToolSubmenu();
     }
 
+    // Close craft style menu if clicking on canvas background
+    if (craftStyleMenu.visible) {
+      handleCloseCraftStyleMenu();
+    }
+
     // Handle text creation
     if (!textCreationMode || readOnly) return;
 
@@ -652,7 +1100,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
     // Switch back to select tool after creating text
     setActiveTool('select');
-  }, [textCreationMode, readOnly, setNodes, setActiveTool, toolSubmenu.visible, handleCloseToolSubmenu, handleTextEdit, screenToFlowPosition]);
+  }, [textCreationMode, readOnly, setNodes, setActiveTool, toolSubmenu.visible, handleCloseToolSubmenu, craftStyleMenu.visible, handleCloseCraftStyleMenu, handleTextEdit, screenToFlowPosition]);
 
   /**
    * Handle pane mouse down for drawing
@@ -904,7 +1352,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         newEdges.push({
             id: `e-${nodeId}-${matNodeId}`,
             source: nodeId,
-            sourceHandle: null,
             target: matNodeId,
             animated: true,
             style: { stroke: '#3b82f6', strokeWidth: 2 },
@@ -941,7 +1388,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
             newEdges.push({
                 id: `e-${nodeId}-${stepNodeId}`,
                 source: nodeId,
-                sourceHandle: null,
                 target: stepNodeId,
                 animated: true,
                 style: { stroke: '#10b981', strokeWidth: 2 },
@@ -1046,6 +1492,18 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const handleDissect = async (nodeId: string, imageUrl: string) => {
     if (readOnly) return;
 
+    // CRITICAL: Get category from master node BEFORE any async operations
+    const masterNode = nodes.find(n => n.id === nodeId);
+    const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PAPERCRAFT;
+    const promptContext = masterNode?.data?.label as string || "Unknown craft";
+
+    console.log('=== DISSECT FULL CRAFT START ===');
+    console.log('Node ID:', nodeId);
+    console.log('Master Node found:', !!masterNode);
+    console.log('Master Node Data:', masterNode?.data);
+    console.log('Category extracted:', category);
+    console.log('Prompt Context:', promptContext);
+
     // 1. Set loading state on the specific node
     setNodes((nds) =>
       nds.map((node) => {
@@ -1057,13 +1515,28 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     );
 
     try {
-        // Find the prompt from the node data to give context to the AI
-        const node = nodes.find(n => n.id === nodeId);
-        const promptContext = node?.data?.label as string || "Unknown craft";
-
         // 2. Call Gemini API to get TEXT instructions
+        console.log('\n🔍 === AI DISSECTION PHASE ===');
+        console.log('Craft to dissect:', promptContext);
+        console.log('Sending to AI for instructions...\n');
+
         const dissection = await dissectCraft(imageUrl, promptContext);
-        
+
+        console.log('\n📊 === AI OUTPUT DEBUG ===');
+        console.log('Complexity:', dissection.complexity);
+        console.log('Complexity Score:', dissection.complexityScore);
+        console.log('Materials:', dissection.materials);
+        console.log('Number of Steps Generated:', dissection.steps.length);
+        console.log('\nGenerated Steps:');
+        dissection.steps.forEach((step) => {
+            console.log(`  Step ${step.stepNumber}: ${step.title}`);
+            console.log(`    Description: ${step.description.substring(0, 100)}...`);
+            if (step.safetyWarning) {
+                console.log(`    ⚠️ Safety: ${step.safetyWarning}`);
+            }
+        });
+        console.log('=== AI OUTPUT DEBUG END ===\n');
+
         // 3. Calculate Positions for new nodes
         const newNodes: Node[] = [];
         const newEdges: Edge[] = [];
@@ -1079,7 +1552,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         newEdges.push({
             id: `e-${nodeId}-${matNodeId}`,
             source: nodeId,
-            sourceHandle: null, 
             target: matNodeId,
             animated: true,
             style: { stroke: '#3b82f6', strokeWidth: 2 },
@@ -1090,20 +1562,20 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         const startY = -100;
         const gapY = 500;
         const gapX = 400;
-        
+
         dissection.steps.forEach((step, index) => {
             const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
             const col = index % 2;
             const row = Math.floor(index / 2);
-            
+
             newNodes.push({
                 id: stepNodeId,
                 type: 'instructionNode',
-                position: { 
-                    x: startX + (col * gapX), 
-                    y: startY + (row * gapY) - ((dissection.steps.length * gapY)/4) 
+                position: {
+                    x: startX + (col * gapX),
+                    y: startY + (row * gapY) - ((dissection.steps.length * gapY)/4)
                 },
-                data: { 
+                data: {
                     stepNumber: step.stepNumber,
                     title: step.title,
                     description: step.description,
@@ -1135,79 +1607,71 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
         setEdges((eds) => [...eds, ...newEdges]);
 
-        // 5. Trigger Image Generation Sequence with step grouping
-        const processImagesSequentially = async () => {
-          const masterNode = nodes.find(n => n.id === nodeId);
-          const category = masterNode?.data?.category as CraftCategory;
-          const stepGroups = groupStepsForImageGeneration(dissection.steps);
+        // 5. Generate step images individually (same as handleDissectSelected)
+        console.log('\n=== IMAGE GENERATION PHASE ===');
+        console.log('Using category:', category);
+        console.log('Target craft:', promptContext);
+        console.log('Total steps:', dissection.steps.length);
+        console.log('All steps:', dissection.steps.map(s => `${s.stepNumber}: ${s.title}`));
+        console.log('Format: Multi-Panel with 1K resolution for all steps');
 
-          console.log('=== DISSECT FULL CRAFT DEBUG ===');
-          console.log('Node ID:', nodeId);
-          console.log('Category:', category);
-          console.log('Total steps:', dissection.steps.length);
-          console.log('Step groups:', stepGroups.length);
-          console.log('All steps:', dissection.steps.map(s => `${s.stepNumber}: ${s.title}`));
-          console.log('Group details:', stepGroups.map(g => ({
-            stepNumbers: g.stepNumbers,
-            title: g.combinedTitle
-          })));
+        // Generate step images with multi-panel format (same loop as handleDissectSelected)
+        for (const step of dissection.steps) {
+          const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
 
-          for (const group of stepGroups) {
-            try {
-              console.log(`\n--- Generating image for group: steps ${group.stepNumbers.join(', ')} ---`);
-              console.log('Group description:', group.combinedDescription);
+          console.log(`\n🎨 Generating multi-panel image for Step ${step.stepNumber}: ${step.title}`);
+          console.log(`Target craft: ${promptContext}`);
+          console.log(`Category: ${category}`);
 
-              // Combine descriptions for grouped steps
-              const groupDescription = group.combinedDescription;
-              // Pass the first step number in the group (for 4K resolution on step 1)
-              const firstStepNumber = group.stepNumbers[0];
-              const stepImageUrl = await generateStepImage(imageUrl, groupDescription, category, undefined, firstStepNumber);
+          try {
+            // Generate image with full image as reference to match exact style/appearance
+            const stepImageUrl = await generateStepImage(
+              imageUrl, // Use full image as style reference
+              `${step.title}: ${step.description}`,
+              category,
+              undefined, // No specific object label for full craft dissection
+              step.stepNumber // Pass step number
+            );
 
-              console.log('✓ Image generated successfully');
-              console.log('Updating nodes for step numbers:', group.stepNumbers);
+            console.log(`✅ Successfully generated image for Step ${step.stepNumber}`);
 
-              // Update all nodes in this group with the same generated image
-              setNodes((nds) => {
-                const updated = nds.map((node) => {
-                  if (node.id.startsWith(`${nodeId}-step-`)) {
-                    const nodeStepNumber = parseInt(node.id.split('-step-')[1]);
-                    if (!isNaN(nodeStepNumber) && group.stepNumbers.includes(nodeStepNumber)) {
-                      console.log(`  → Updated node ${node.id} (step ${nodeStepNumber})`);
-                      return {
-                        ...node,
-                        data: {
-                          ...node.data,
-                          imageUrl: stepImageUrl,
-                          isGeneratingImage: false
-                        }
-                      };
+            // Update node with generated image
+            setNodes((nds) =>
+              nds.map((node) => {
+                if (node.id === stepNodeId) {
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      imageUrl: stepImageUrl,
+                      isGeneratingImage: false
                     }
-                  }
-                  return node;
-                });
-                return updated;
-              });
-            } catch (error) {
-              console.error(`✗ Failed to generate image for step group ${group.stepNumbers.join(', ')}:`, error);
-              setNodes((nds) =>
-                nds.map((node) => {
-                  if (node.id.startsWith(`${nodeId}-step-`)) {
-                    const nodeStepNumber = parseInt(node.id.split('-step-')[1]);
-                    if (!isNaN(nodeStepNumber) && group.stepNumbers.includes(nodeStepNumber)) {
-                      console.log(`  → Cleared loading state for node ${node.id} (step ${nodeStepNumber})`);
-                      return { ...node, data: { ...node.data, isGeneratingImage: false } };
+                  };
+                }
+                return node;
+              })
+            );
+          } catch (error) {
+            console.error(`❌ Failed to generate image for Step ${step.stepNumber}:`, error);
+            // Clear loading state on error
+            setNodes((nds) =>
+              nds.map((node) => {
+                if (node.id === stepNodeId) {
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      isGeneratingImage: false
                     }
-                  }
-                  return node;
-                })
-              );
-            }
+                  };
+                }
+                return node;
+              })
+            );
           }
-          console.log('=== DISSECT FULL CRAFT COMPLETE ===\n');
-        };
+        }
 
-        processImagesSequentially();
-
+        console.log('=== DISSECT FULL CRAFT COMPLETE ===\n');
     } catch (error) {
         console.error("Dissection error", error);
         setNodes((nds) =>
@@ -1240,6 +1704,8 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         onDissect: handleDissect,
         onContextMenu: handleNodeContextMenu,
         onDissectSelected: handleDissectSelected,
+        onSelect: handleMasterNodeSelect,
+        onDeselect: handleMasterNodeDeselect,
         isDissecting: false,
         isDissected: false,
       },
@@ -1267,6 +1733,109 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
     saveProject(newProject);
   }, [setNodes, readOnly, saveProject]);
+
+  /**
+   * Handle image-to-craft conversion
+   */
+  const handleImageToCraftConvert = useCallback(async () => {
+    if (readOnly) return;
+
+    // Validate category selection
+    if (!craftStyleMenu.selectedCategory) {
+      console.error('No category selected');
+      return;
+    }
+
+    // Get the selected ImageNode
+    const selectedNode = nodes.find(n => n.id === craftStyleMenu.nodeId);
+    if (!selectedNode || selectedNode.type !== 'imageNode') {
+      console.error('Selected node not found or not an image node');
+      return;
+    }
+
+    const imageUrl = selectedNode.data.imageUrl as string;
+    const category = craftStyleMenu.selectedCategory;
+
+    // Set loading state
+    setIsConvertingImage(true);
+
+    try {
+      // Call Gemini API to generate craft image
+      const craftImageUrl = await generateCraftFromImage(imageUrl, category);
+
+      // Create MasterNode with generated craft image
+      // Position it near the original ImageNode
+      const masterNodeId = `master-${Date.now()}`;
+      const newMasterNode: Node = {
+        id: masterNodeId,
+        type: 'masterNode',
+        position: {
+          x: selectedNode.position.x + 400, // Position to the right of the image
+          y: selectedNode.position.y,
+        },
+        data: {
+          label: `${category} Craft`,
+          imageUrl: craftImageUrl,
+          category,
+          onDissect: handleDissect,
+          onContextMenu: handleNodeContextMenu,
+          onDissectSelected: handleDissectSelected,
+          onSelect: handleMasterNodeSelect,
+          onDeselect: handleMasterNodeDeselect,
+          isDissecting: false,
+          isDissected: false,
+        },
+      };
+
+      // Add the new master node
+      setNodes((nds) => [...nds, newMasterNode]);
+
+      // Close the menu
+      handleCloseCraftStyleMenu();
+
+      // Switch to select tool
+      setActiveTool('select');
+
+      // Create and save new project
+      const newProject = {
+        id: `project-${Date.now()}`,
+        name: `${category} Craft from Image`,
+        category,
+        prompt: `Converted from uploaded image`,
+        masterImageUrl: craftImageUrl,
+        dissection: null,
+        stepImages: new Map(),
+        createdAt: new Date(),
+        lastModified: new Date(),
+        canvasState: {
+          nodes: [...nodes, newMasterNode],
+          edges: edges,
+          viewport: { x: 0, y: 0, zoom: 1 }
+        }
+      };
+
+      saveProject(newProject);
+
+    } catch (error) {
+      console.error('Image-to-craft conversion failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to convert image to craft');
+    } finally {
+      // Clear loading state
+      setIsConvertingImage(false);
+    }
+  }, [
+    readOnly,
+    craftStyleMenu,
+    nodes,
+    edges,
+    setNodes,
+    setActiveTool,
+    handleCloseCraftStyleMenu,
+    handleDissect,
+    handleNodeContextMenu,
+    handleDissectSelected,
+    saveProject,
+  ]);
 
   // Context menu items
   const contextMenuItems: ContextMenuItem[] = [
@@ -1323,7 +1892,41 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         onSelectMode={handleSelectPencilMode}
       />
 
-      <div 
+      {/* Craft Style Menu for Image-to-Craft Conversion */}
+      <CraftStyleMenu
+        visible={craftStyleMenu.visible}
+        position={craftStyleMenu.position}
+        selectedCategory={craftStyleMenu.selectedCategory}
+        onSelectCategory={handleCraftCategorySelect}
+        onConvert={handleImageToCraftConvert}
+        onClose={handleCloseCraftStyleMenu}
+        onMouseEnter={handleMenuMouseEnter}
+        onMouseLeave={handleMenuMouseLeave}
+        isConverting={isConvertingImage}
+      />
+
+      {/* Master Node Actions Menu */}
+      <MasterNodeActionsMenu
+        visible={masterNodeActionsMenu.visible}
+        position={masterNodeActionsMenu.position}
+        onCreateSVGPattern={handleCreateSVGPattern}
+        onCreateStepInstructions={handleCreateStepInstructions}
+        onDownload={handleDownloadImage}
+        onShare={handleShareImage}
+        onMouseEnter={handleMenuMouseEnter}
+        onMouseLeave={handleMenuMouseLeave}
+      />
+
+      <ImageNodeActionsMenu
+        visible={imageNodeActionsMenu.visible}
+        position={imageNodeActionsMenu.position}
+        onDownload={handleDownloadImageNode}
+        onShare={handleShareImageNode}
+        onMouseEnter={handleMenuMouseEnter}
+        onMouseLeave={handleMenuMouseLeave}
+      />
+
+      <div
         className="w-full h-full"
         onMouseDown={drawingMode ? handlePaneMouseDown : undefined}
         onMouseMove={drawingMode ? handlePaneMouseMove : undefined}
