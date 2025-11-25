@@ -1,9 +1,11 @@
 import React from 'react';
 import { Download, Share2, FileImage, Scissors } from 'lucide-react';
+import { CraftCategory } from '../../types';
 
 interface MasterNodeActionsMenuProps {
   visible: boolean;
   position: { x: number; y: number };
+  category?: CraftCategory;
   onCreateSVGPattern: () => void;
   onCreateStepInstructions: () => void;
   onDownload: () => void;
@@ -12,9 +14,19 @@ interface MasterNodeActionsMenuProps {
   onMouseLeave?: () => void;
 }
 
+// Categories that use cutting templates/patterns
+const PATTERN_CATEGORIES = [
+  CraftCategory.PAPERCRAFT,
+  CraftCategory.FABRIC_SEWING,
+  CraftCategory.COSTUME_PROPS,
+  CraftCategory.WOODCRAFT,
+  CraftCategory.KIDS_CRAFTS,
+];
+
 export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
   visible,
   position,
+  category,
   onCreateSVGPattern,
   onCreateStepInstructions,
   onDownload,
@@ -23,6 +35,9 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
   onMouseLeave,
 }) => {
   if (!visible) return null;
+
+  // Check if this category should show pattern button
+  const showPatternButton = category && PATTERN_CATEGORIES.includes(category);
 
   return (
     <div
@@ -35,18 +50,22 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
       }}
     >
       <div className="flex items-center gap-1 px-2 py-2">
-        {/* Create SVG Pattern Sheet Button */}
-        <button
-          onClick={onCreateSVGPattern}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-full transition-colors"
-          title="Create SVG Pattern Sheet"
-        >
-          <FileImage className="w-4 h-4" />
-          <span className="font-medium">SVG Pattern</span>
-        </button>
+        {/* Create Pattern Sheet Button - Only for categories that need cutting templates */}
+        {showPatternButton && (
+          <>
+            <button
+              onClick={onCreateSVGPattern}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-full transition-colors"
+              title="Create Pattern Sheet"
+            >
+              <FileImage className="w-4 h-4" />
+              <span className="font-medium">Pattern Sheet</span>
+            </button>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-gray-200" />
+            {/* Divider */}
+            <div className="w-px h-6 bg-gray-200" />
+          </>
+        )}
 
         {/* Create Step Instructions Button */}
         <button

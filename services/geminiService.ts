@@ -873,8 +873,16 @@ FINAL REMINDERS:
 };
 
 /**
- * Generates a comprehensive SVG-style pattern sheet showing all components
+ * Generates a comprehensive pattern sheet showing all components
  * of the craft organized by element (hair, head, dress, props, etc.)
+ *
+ * This generates different types of pattern sheets based on the category:
+ * - Papercraft: 3D unwrapped patterns with fold lines
+ * - Fabric/Sewing: Fabric pattern pieces with seam allowances
+ * - Costume/Props: EVA foam pieces with beveling guides
+ * - Woodcraft: Wood cutting templates with grain direction
+ * - Kids Crafts: Simple cutting templates
+ * - Clay/Jewelry/Tabletop: Not applicable (no cutting templates needed)
  */
 export const generateSVGPatternSheet = async (
   originalImageBase64: string,
@@ -900,12 +908,39 @@ export const generateSVGPatternSheet = async (
   const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
   console.log('✅ Base64 cleaned, length:', cleanBase64.length);
 
+  // Category-specific pattern type
+  const getCategoryPatternType = (cat: CraftCategory): string => {
+    switch (cat) {
+      case CraftCategory.PAPERCRAFT:
+        return 'papercraft pattern template with 3D unwrapped patterns (UV-mapped like 3D modeling)';
+      case CraftCategory.CLAY:
+        return 'clay sculpting reference sheet showing required clay pieces, colors, and assembly guide';
+      case CraftCategory.FABRIC_SEWING:
+        return 'sewing pattern template with fabric pieces, seam allowances, and stitch guides';
+      case CraftCategory.COSTUME_PROPS:
+        return 'foam armor/prop pattern template showing EVA foam pieces, beveled edges, and heat-forming guides';
+      case CraftCategory.WOODCRAFT:
+        return 'woodworking pattern sheet with cut pieces, grain direction, and assembly order';
+      case CraftCategory.JEWELRY:
+        return 'jewelry assembly diagram showing beads, wire wrapping steps, and component layout';
+      case CraftCategory.KIDS_CRAFTS:
+        return 'simple craft template with easy-to-cut shapes and minimal assembly';
+      case CraftCategory.TABLETOP_FIGURES:
+        return 'miniature figure pattern with base, pose guide, and painting reference';
+      default:
+        return 'craft pattern template';
+    }
+  };
+
+  const patternType = getCategoryPatternType(category);
+
   const prompt = `
-🎯 YOUR TASK: Create a comprehensive SVG-style papercraft pattern template sheet for the entire craft shown in the reference image.
+🎯 YOUR TASK: Create a comprehensive SVG-style ${patternType} for the entire craft shown in the reference image.
 
 📷 REFERENCE IMAGE: Study this completed craft to understand all elements and components.
 
 ${craftLabel ? `🎨 CRAFT: ${craftLabel}` : ''}
+📦 CATEGORY: ${category}
 
 🚨 CRITICAL REQUIREMENTS:
 
@@ -933,9 +968,10 @@ Generate ONE comprehensive pattern sheet image containing ALL elements organized
 │ (pieces) │ (pieces) │ (pieces) │ (pieces)  │
 └──────────┴──────────┴──────────┴───────────┘
 
-4️⃣ PATTERN REQUIREMENTS:
+4️⃣ PATTERN REQUIREMENTS (${category}-specific):
 
-For EACH component:
+${category === CraftCategory.PAPERCRAFT ? `
+For EACH component (PAPERCRAFT):
 ✓ Show as 3D unwrapped patterns (UV-mapped like 3D modeling)
 ✓ ROUNDED shapes (heads, bodies) → unwrap into petal gores or segments
 ✓ CYLINDRICAL shapes (limbs, tubes) → unwrap into curved rectangles
@@ -944,7 +980,51 @@ For EACH component:
 ✓ Add glue tabs for assembly
 ✓ Label each piece clearly (e.g., "HEAD - Front", "ARM L", "SKIRT - Panel 1")
 ✓ Match EXACT colors from reference image
-✓ Show scale/size indicators
+✓ Show scale/size indicators` : ''}
+
+${category === CraftCategory.COSTUME_PROPS ? `
+For EACH component (COSTUME & PROPS - EVA FOAM):
+✓ Show foam pieces with thickness indicators (2mm, 6mm, 10mm)
+✓ BEVELED EDGES marked with angle indicators (45°)
+✓ Heat-forming zones marked with temperature guides
+✓ Layering order numbered (Base → Detail → Top)
+✓ Contact cement gluing surfaces marked
+✓ Strapping/attachment points indicated
+✓ Label each piece (e.g., "CHEST PLATE - Base 10mm", "SHOULDER - Detail 2mm")
+✓ Match EXACT colors from reference image
+✓ Show scale/size indicators and weathering zones` : ''}
+
+${category === CraftCategory.CLAY ? `
+For EACH component (CLAY SCULPTING):
+✓ Show clay ball/coil sizes needed (pea-sized, walnut-sized, etc.)
+✓ Color mixing ratios if needed
+✓ Shape forming steps (roll, pinch, blend)
+✓ Tool marks and texture techniques
+✓ Assembly order with blending zones
+✓ Support structure if needed (armature wire)
+✓ Label each piece (e.g., "BODY - Walnut size green")
+✓ Match EXACT colors from reference image
+✓ Show final size dimensions` : ''}
+
+${category === CraftCategory.FABRIC_SEWING ? `
+For EACH component (FABRIC/SEWING):
+✓ Show pattern pieces with grain line arrows
+✓ Seam allowances marked (1/4", 1/2")
+✓ Notches for alignment
+✓ Stitch type indicators (straight, zigzag, hand-stitch)
+✓ Interfacing or stabilizer needs
+✓ Label each piece (e.g., "FRONT PANEL - Cut 2", "SLEEVE - Cut 2")
+✓ Match EXACT fabric type and color from reference
+✓ Show finished size dimensions` : ''}
+
+${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS, CraftCategory.TABLETOP_FIGURES].includes(category) ? `
+For EACH component:
+✓ Show clear pattern/template outlines
+✓ Material specifications
+✓ Assembly/connection points
+✓ Scale and dimensions
+✓ Label each piece clearly
+✓ Match colors from reference image` : ''}
 
 5️⃣ ORGANIZATION BY CATEGORY:
 
@@ -981,14 +1061,48 @@ Before finalizing, verify you included patterns for:
 ✓ Connection tabs for assembly
 ✓ Base or stand (if applicable)
 
-8️⃣ PAPER-ONLY CONSTRUCTION:
+8️⃣ MATERIAL-SPECIFIC CONSTRUCTION:
 
-🚨 CRITICAL: ALL patterns must be paper-constructible:
+${category === CraftCategory.PAPERCRAFT ? `
+🚨 CRITICAL (PAPERCRAFT): ALL patterns must be paper-constructible:
 ✓ Use LOW-POLY GEOMETRIC approach for curves
 ✓ Curves achieved through faceted folds, NOT soft materials
 ✓ Round shapes = angular segments that approximate curves
 ✓ NO foam, fabric, wire, or soft materials
-✓ Pure papercraft = everything folds/rolls from flat sheets
+✓ Pure papercraft = everything folds/rolls from flat sheets` : ''}
+
+${category === CraftCategory.COSTUME_PROPS ? `
+🚨 CRITICAL (COSTUME & PROPS - EVA FOAM):
+✓ Show foam thickness layers clearly (thin 2mm details on thick 10mm base)
+✓ Beveled edges at 45° angles for seamless joints
+✓ Heat-forming curves with heat gun (marked zones)
+✓ Contact cement for permanent bonds
+✓ Layering technique: Base → Detail → Surface
+✓ NO paper, NO clay - EVA foam and heat-forming only` : ''}
+
+${category === CraftCategory.CLAY ? `
+🚨 CRITICAL (CLAY SCULPTING):
+✓ Start with basic shapes (balls, coils, slabs)
+✓ Build up volume, don't carve down
+✓ Blend seams with water/slip
+✓ Support heavy parts with hidden armature wire
+✓ NO pre-made molds - hand-sculpting only
+✓ Polymer clay texture (matte, NOT glossy)` : ''}
+
+${category === CraftCategory.FABRIC_SEWING ? `
+🚨 CRITICAL (FABRIC/SEWING):
+✓ All seams must have allowances
+✓ Fabric grain direction matters for drape
+✓ Interface structured areas
+✓ Hand-stitch curves for control
+✓ NO glue - stitching only for fabric joins
+✓ Stuff with polyfil for dimension` : ''}
+
+${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS, CraftCategory.TABLETOP_FIGURES].includes(category) ? `
+🚨 CRITICAL:
+✓ Follow material-appropriate construction methods
+✓ Clear assembly sequence
+✓ Safe techniques suitable for skill level` : ''}
 
 EXAMPLE CATEGORIES (for a princess character):
 ┌────────────────────────────────────────────┐

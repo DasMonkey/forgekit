@@ -97,6 +97,57 @@ const groupStepsForImageGeneration = (steps: InstructionStep[]): StepGroup[] => 
   return groups;
 };
 
+/**
+ * Find an empty position on the canvas to place a new node
+ * Checks existing nodes and finds a spot that doesn't overlap
+ */
+const findEmptyPosition = (
+  existingNodes: Node[],
+  sourceNode: Node,
+  offsetX: number,
+  offsetY: number,
+  nodeWidth: number = 600,
+  nodeHeight: number = 400
+): { x: number; y: number } => {
+  const padding = 50; // Space between nodes
+  const maxAttempts = 20;
+
+  // Try the preferred position first
+  let x = sourceNode.position.x + offsetX;
+  let y = sourceNode.position.y + offsetY;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Check if this position overlaps with any existing node
+    const hasOverlap = existingNodes.some((node) => {
+      const nodeW = (node.data?.width as number) || 300;
+      const nodeH = (node.data?.height as number) || 200;
+
+      // Check rectangle overlap
+      return !(
+        x + nodeWidth + padding < node.position.x ||
+        x > node.position.x + nodeW + padding ||
+        y + nodeHeight + padding < node.position.y ||
+        y > node.position.y + nodeH + padding
+      );
+    });
+
+    if (!hasOverlap) {
+      return { x, y };
+    }
+
+    // Try different positions in a spiral pattern
+    if (attempt % 2 === 0) {
+      x += 700; // Try moving right
+    } else {
+      x = sourceNode.position.x + offsetX;
+      y += 500; // Try moving down
+    }
+  }
+
+  // If all attempts fail, just use the original offset (shouldn't happen often)
+  return { x: sourceNode.position.x + offsetX, y: sourceNode.position.y + offsetY };
+};
+
 // Define custom node types outside component to prevent re-renders
 const nodeTypes = {
   masterNode: MasterNode,
@@ -198,10 +249,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     visible: boolean;
     position: { x: number; y: number };
     nodeId: string | null;
+    category?: CraftCategory;
   }>({
     visible: false,
     position: { x: 0, y: 0 },
     nodeId: null,
+    category: undefined,
   });
 
   // State for ImageNode actions menu (download/share)
@@ -320,7 +373,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       if (!isHoveringMenu) {
         handleCloseCraftStyleMenu();
       }
-    }, 200); // 200ms delay
+    }, 50); // 50ms delay for fast response
   }, [isHoveringMenu]);
 
   /**
@@ -343,7 +396,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     // Close menu after a short delay
     menuHoverTimeoutRef.current = setTimeout(() => {
       handleCloseCraftStyleMenu();
-    }, 200);
+    }, 50);
   }, []);
 
   /**
@@ -396,13 +449,18 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       menuHoverTimeoutRef.current = null;
     }
 
+    // Get the node's category
+    const node = nodes.find(n => n.id === nodeId);
+    const category = node?.data?.category as CraftCategory | undefined;
+
     const position = calculateCraftMenuPosition(element);
     setMasterNodeActionsMenu({
       visible: true,
       position,
       nodeId,
+      category,
     });
-  }, [readOnly]);
+  }, [readOnly, nodes]);
 
   /**
    * Handle master node deselection (mouse leave)
@@ -413,7 +471,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       if (!isHoveringMenu) {
         handleCloseMasterNodeActionsMenu();
       }
-    }, 200); // 200ms delay
+    }, 50); // 50ms delay for fast response
   }, [isHoveringMenu]);
 
   /**
@@ -424,6 +482,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       visible: false,
       position: { x: 0, y: 0 },
       nodeId: null,
+      category: undefined,
     });
   }, []);
 
@@ -456,7 +515,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       if (!isHoveringMenu) {
         handleCloseImageNodeActionsMenu();
       }
-    }, 200); // 200ms delay
+    }, 50); // 50ms delay for fast response
   }, [isHoveringMenu]);
 
   /**
@@ -555,13 +614,14 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
     // Create placeholder node immediately so user knows where it will appear
     const patternNodeId = `pattern-${Date.now()}`;
+
+    // Find empty position to avoid overlapping with existing nodes
+    const position = findEmptyPosition(nodes, node, -600, -100, 600, 338);
+
     const placeholderNode: Node = {
       id: patternNodeId,
       type: 'imageNode',
-      position: {
-        x: node.position.x - 600, // Position to the left
-        y: node.position.y - 100,
-      },
+      position,
       data: {
         imageUrl: '', // Empty for now
         fileName: `${label} - Pattern Sheet.png`,
@@ -1341,12 +1401,18 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         const newNodes: Node[] = [];
         const newEdges: Edge[] = [];
 
-        // 4a. Materials Node (Left side)
+        if (!masterNode) {
+            console.error('Master node not found for positioning');
+            return;
+        }
+
+        // 4a. Materials Node (Left side) - find empty position
         const matNodeId = `${nodeId}-mat`;
+        const matPosition = findEmptyPosition(nodes, masterNode, -400, 0, 300, 200);
         newNodes.push({
             id: matNodeId,
             type: 'materialNode',
-            position: { x: -400, y: 0 },
+            position: matPosition,
             data: { items: dissection.materials },
         });
         newEdges.push({
@@ -1358,8 +1424,8 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         });
 
         // 4b. Instruction Nodes (Right side, Grid/List layout)
-        const startX = 500;
-        const startY = -100;
+        // Find empty position for the first instruction node
+        const firstStepPosition = findEmptyPosition(nodes, masterNode, 500, -100, 350, 400);
         const gapY = 500;
         const gapX = 400;
 
@@ -1372,8 +1438,8 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
                 id: stepNodeId,
                 type: 'instructionNode',
                 position: {
-                    x: startX + (col * gapX),
-                    y: startY + (row * gapY) - ((dissection.steps.length * gapY)/4)
+                    x: firstStepPosition.x + (col * gapX),
+                    y: firstStepPosition.y + (row * gapY) - ((dissection.steps.length * gapY)/4)
                 },
                 data: {
                     stepNumber: step.stepNumber,
@@ -1909,6 +1975,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       <MasterNodeActionsMenu
         visible={masterNodeActionsMenu.visible}
         position={masterNodeActionsMenu.position}
+        category={masterNodeActionsMenu.category}
         onCreateSVGPattern={handleCreateSVGPattern}
         onCreateStepInstructions={handleCreateStepInstructions}
         onDownload={handleDownloadImage}
