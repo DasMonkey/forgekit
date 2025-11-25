@@ -23,9 +23,8 @@ import { ContextMenu, ContextMenuItem } from '../components/ContextMenu';
 import { UploadSubmenu } from '../components/UploadSubmenu';
 import { ShapesSubmenu, ShapeType } from '../components/ShapesSubmenu';
 import { PencilSubmenu, PencilMode } from '../components/PencilSubmenu';
-import { CraftStyleMenu } from '../src/components/CraftStyleMenu';
+import { ImageNodeUnifiedMenu } from '../src/components/ImageNodeUnifiedMenu';
 import { MasterNodeActionsMenu } from '../src/components/MasterNodeActionsMenu';
-import { ImageNodeActionsMenu } from '../src/components/ImageNodeActionsMenu';
 import { calculateNodeMenuPosition, calculateCraftMenuPosition } from '../utils/contextMenuPosition';
 import { handleFileUpload } from '../utils/fileUpload';
 import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject, generateCraftFromImage, generateSVGPatternSheet } from '../services/geminiService';
@@ -257,16 +256,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     category: undefined,
   });
 
-  // State for ImageNode actions menu (download/share)
-  const [imageNodeActionsMenu, setImageNodeActionsMenu] = useState<{
-    visible: boolean;
-    position: { x: number; y: number };
-    nodeId: string | null;
-  }>({
-    visible: false,
-    position: { x: 0, y: 0 },
-    nodeId: null,
-  });
 
   // Track the current drawing node ID and start position
   const [currentDrawingNodeId, setCurrentDrawingNodeId] = useState<string | null>(null);
@@ -355,7 +344,8 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       menuHoverTimeoutRef.current = null;
     }
 
-    const position = calculateCraftMenuPosition(element);
+    // ImageNode unified menu width: Download + Share + Style dropdown + Convert ≈ 480px
+    const position = calculateCraftMenuPosition(element, 480);
     setCraftStyleMenu({
       visible: true,
       position,
@@ -440,7 +430,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   /**
    * Handle master node selection for actions menu
    */
-  const handleMasterNodeSelect = useCallback((nodeId: string, element: HTMLElement) => {
+  const handleMasterNodeSelect = useCallback((nodeId: string, element: HTMLElement, category?: CraftCategory) => {
     if (readOnly) return;
 
     // Clear any pending timeout
@@ -449,18 +439,28 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       menuHoverTimeoutRef.current = null;
     }
 
-    // Get the node's category
-    const node = nodes.find(n => n.id === nodeId);
-    const category = node?.data?.category as CraftCategory | undefined;
+    console.log('🎯 MasterNode hover - nodeId:', nodeId, 'category:', category);
 
-    const position = calculateCraftMenuPosition(element);
+    // Use appropriate menu width based on whether pattern button will show
+    // Pattern button adds ~140px, base menu is ~300px
+    const PATTERN_CATEGORIES = [
+      CraftCategory.PAPERCRAFT,
+      CraftCategory.FABRIC_SEWING,
+      CraftCategory.COSTUME_PROPS,
+      CraftCategory.WOODCRAFT,
+      CraftCategory.KIDS_CRAFTS,
+    ];
+    const hasPatternButton = category && PATTERN_CATEGORIES.includes(category);
+    const menuWidth = hasPatternButton ? 480 : 340;
+
+    const position = calculateCraftMenuPosition(element, menuWidth);
     setMasterNodeActionsMenu({
       visible: true,
       position,
       nodeId,
       category,
     });
-  }, [readOnly, nodes]);
+  }, [readOnly]);
 
   /**
    * Handle master node deselection (mouse leave)
@@ -486,54 +486,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     });
   }, []);
 
-  /**
-   * Handle ImageNode hover to show download/share menu
-   */
-  const handleImageNodeActionsSelect = useCallback((nodeId: string, element: HTMLElement) => {
-    if (readOnly) return;
-
-    // Clear any pending timeout
-    if (menuHoverTimeoutRef.current) {
-      clearTimeout(menuHoverTimeoutRef.current);
-      menuHoverTimeoutRef.current = null;
-    }
-
-    const position = calculateCraftMenuPosition(element);
-    setImageNodeActionsMenu({
-      visible: true,
-      position,
-      nodeId,
-    });
-  }, [readOnly]);
-
-  /**
-   * Handle ImageNode mouse leave
-   */
-  const handleImageNodeActionsDeselect = useCallback(() => {
-    // Delay closing to allow moving to the menu
-    menuHoverTimeoutRef.current = setTimeout(() => {
-      if (!isHoveringMenu) {
-        handleCloseImageNodeActionsMenu();
-      }
-    }, 50); // 50ms delay for fast response
-  }, [isHoveringMenu]);
-
-  /**
-   * Close image node actions menu
-   */
-  const handleCloseImageNodeActionsMenu = useCallback(() => {
-    setImageNodeActionsMenu({
-      visible: false,
-      position: { x: 0, y: 0 },
-      nodeId: null,
-    });
-  }, []);
 
   /**
    * Download image from ImageNode
    */
   const handleDownloadImageNode = useCallback(() => {
-    const nodeId = imageNodeActionsMenu.nodeId;
+    const nodeId = craftStyleMenu.nodeId;
     if (!nodeId) return;
 
     // Find the image node
@@ -547,7 +505,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     const fileName = node.data.fileName as string || 'image.png';
 
     // Close menu immediately
-    handleCloseImageNodeActionsMenu();
+    handleCloseCraftStyleMenu();
 
     try {
       // Create a temporary link and trigger download
@@ -562,13 +520,13 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       console.error('Failed to download image:', error);
       alert('Failed to download image');
     }
-  }, [imageNodeActionsMenu.nodeId, nodes]);
+  }, [craftStyleMenu.nodeId, nodes, handleCloseCraftStyleMenu]);
 
   /**
    * Share image from ImageNode (placeholder)
    */
   const handleShareImageNode = useCallback(() => {
-    const nodeId = imageNodeActionsMenu.nodeId;
+    const nodeId = craftStyleMenu.nodeId;
     if (!nodeId) return;
 
     // Find the image node
@@ -579,12 +537,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     }
 
     // Close menu immediately
-    handleCloseImageNodeActionsMenu();
+    handleCloseCraftStyleMenu();
 
     // Placeholder for share functionality
     alert('Share functionality coming soon!');
     console.log('Share requested for:', node.data.fileName);
-  }, [imageNodeActionsMenu.nodeId, nodes]);
+  }, [craftStyleMenu.nodeId, nodes, handleCloseCraftStyleMenu]);
 
   /**
    * Handle action button clicks from MasterNode menu
@@ -631,8 +589,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         isGeneratingImage: true, // Show loading state
         onSelect: handleImageNodeSelect,
         onDeselect: handleImageNodeDeselect,
-        onActionsMenuSelect: handleImageNodeActionsSelect,
-        onActionsMenuDeselect: handleImageNodeActionsDeselect,
       },
     };
 
@@ -751,7 +707,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     if (projectId) {
       const project = projectsState.projects.find(p => p.id === projectId);
       if (project && project.canvasState) {
-        // Add handlers to text nodes and image nodes when loading
+        // Add handlers to all node types when loading
         const nodesWithHandlers = (project.canvasState.nodes || []).map(node => {
           if (node.type === 'textNode') {
             return {
@@ -774,13 +730,27 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               },
             };
           }
+          if (node.type === 'masterNode') {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                onDissect: handleDissect,
+                onContextMenu: handleNodeContextMenu,
+                onDissectSelected: handleDissectSelected,
+                onSelect: handleMasterNodeSelect,
+                onDeselect: handleMasterNodeDeselect,
+              },
+            };
+          }
           return node;
         });
         setNodes(nodesWithHandlers);
         setEdges(project.canvasState.edges || []);
       }
     }
-  }, [projectId, projectsState.projects, setNodes, setEdges, handleImageNodeSelect, handleImageNodeDeselect]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, projectsState.projects, setNodes, setEdges, handleImageNodeSelect, handleImageNodeDeselect, handleMasterNodeSelect, handleMasterNodeDeselect]);
 
   // Auto-save canvas state when nodes or edges change
   useEffect(() => {
@@ -961,8 +931,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               isSelected: false,
               onSelect: handleImageNodeSelect,
               onDeselect: handleImageNodeDeselect,
-              onActionsMenuSelect: handleImageNodeActionsSelect,
-              onActionsMenuDeselect: handleImageNodeActionsDeselect,
             },
           };
 
@@ -1958,13 +1926,15 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         onSelectMode={handleSelectPencilMode}
       />
 
-      {/* Craft Style Menu for Image-to-Craft Conversion */}
-      <CraftStyleMenu
+      {/* Unified Image Node Menu (Download, Share, Convert) */}
+      <ImageNodeUnifiedMenu
         visible={craftStyleMenu.visible}
         position={craftStyleMenu.position}
         selectedCategory={craftStyleMenu.selectedCategory}
         onSelectCategory={handleCraftCategorySelect}
         onConvert={handleImageToCraftConvert}
+        onDownload={handleDownloadImageNode}
+        onShare={handleShareImageNode}
         onClose={handleCloseCraftStyleMenu}
         onMouseEnter={handleMenuMouseEnter}
         onMouseLeave={handleMenuMouseLeave}
@@ -1980,15 +1950,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         onCreateStepInstructions={handleCreateStepInstructions}
         onDownload={handleDownloadImage}
         onShare={handleShareImage}
-        onMouseEnter={handleMenuMouseEnter}
-        onMouseLeave={handleMenuMouseLeave}
-      />
-
-      <ImageNodeActionsMenu
-        visible={imageNodeActionsMenu.visible}
-        position={imageNodeActionsMenu.position}
-        onDownload={handleDownloadImageNode}
-        onShare={handleShareImageNode}
         onMouseEnter={handleMenuMouseEnter}
         onMouseLeave={handleMenuMouseLeave}
       />

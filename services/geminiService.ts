@@ -197,466 +197,217 @@ export const generateCraftFromImage = async (
 
 /**
  * Get category-specific visual rules for step image generation.
- * All 8 categories now use multi-panel format for detailed instructions.
+ * Simplified rules focusing on essential multi-panel format per category.
  */
 const getCategorySpecificRules = (category: CraftCategory): string => {
   const categoryRules: Record<string, string> = {
     'Papercraft': `
-🎨 MULTI-PANEL INSTRUCTION FORMAT (2-4 PANELS PER IMAGE):
-The image MUST be divided into 2-4 clear panels showing detailed sub-steps:
+PAPERCRAFT MULTI-PANEL FORMAT (2-4 PANELS):
 
-PANEL LAYOUT OPTIONS:
-OPTION 1 (4 panels for complex steps):
-┌─────────────┬─────────────┐
-│   PANEL 1   │   PANEL 2   │
-│  CUTOUTS    │  ASSEMBLY   │
-├─────────────┼─────────────┤
-│   PANEL 3   │   PANEL 4   │
-│ ADD DETAILS │  FINISHED   │
-└─────────────┴─────────────┘
+PANEL 1 - PATTERN SHEETS (KNOLLING LAYOUT):
+- Show flat pattern pieces laid out side-by-side (never stacked)
+- Include: Cut lines (solid), Fold lines (dashed), Glue tabs
+- Label each piece with numbers/letters
+- Use LOW-POLY geometric style for 3D forms
+- 100% PAPER only - no foam, wire, or fabric
+- Match EXACT colors from reference image
 
-OPTION 2 (2-3 panels for simpler steps):
-┌─────────────┬─────────────┐
-│   PANEL 1   │   PANEL 2   │
-│  PREPARE    │  ASSEMBLE   │
-└─────────────┴─────────────┘
+PANEL 2 - ASSEMBLY:
+- Show hands folding/gluing pieces
+- BOLD ARROWS showing fold direction
+- Text labels: "FOLD", "GLUE TAB", "ALIGN"
 
-PANEL CONTENT REQUIREMENTS:
+PANEL 3 - DETAILS (if needed):
+- Show adding decorative elements
+- Arrows pointing to attachment points
 
-PANEL 1 - COMPLETE PATTERN SHEETS (FLAT KNOLLING LAYOUT):
-🎯 THIS IS THE MOST IMPORTANT PANEL - FULL BUILDABLE 3D PATTERN TEMPLATES:
-- Show COMPLETE, FULL-DETAIL pattern sheets that can be printed and used to build the craft
-- These must be ACTUAL TEMPLATES, not sketches or simplified versions
-- Layout: ALL sheets laid FLAT side-by-side in organized knolling arrangement (NEVER stacked)
-- View: Perfect top-down view as if looking at sheets on a cutting mat with grid background
+PANEL 4 - RESULT:
+- Show completed component for this step only
+- Match reference image appearance exactly
 
-🚨 CRITICAL PATTERN TYPE DETECTION:
-There are TWO types of papercraft patterns - choose the appropriate type based on the reference image:
-
-TYPE 1 - 3D FOLDED PAPERCRAFT (for objects with curved/dimensional forms):
-✓ Patterns must be properly UNWRAPPED like UV maps in 3D modeling
-✓ ROUNDED/CURVED shapes (heads, bodies, limbs) unwrap into flattened geometric patterns
-✓ A spherical head unwraps into petal-like segments or gores (like a globe map)
-✓ A cylindrical body unwraps into a curved rectangle that wraps around to form a tube
-✓ Curved limbs unwrap into elongated shapes with proper curvature to fold into 3D tubes
-✓ Fold lines (dashed) show where the flat pattern folds to create the 3D form
-✓ The unwrapped pattern geometry must be mathematically correct to assemble into the 3D shape
-
-🚨 CRITICAL MATERIAL REQUIREMENT - PAPER ONLY (100% PAPER):
-✓ EVERY SINGLE COMPONENT must be made from PAPER - no foam, fabric, wire, pipe cleaners, clay, terracotta, or soft materials
-✓ Use LOW-POLY STYLE geometric folding for curved shapes (like origami/low-poly 3D models)
-✓ Curves are achieved through strategic folds and facets, NOT soft rounded materials
-✓ Example: A round mouth/lips should be angular paper facets that create the illusion of curves
-✓ Stems/supports = rolled paper tubes, NOT pipe cleaners or wire
-✓ Pots/containers = folded/rolled paper, NOT clay or terracotta
-✓ Base filler = paper strips or crumpled paper, NOT fabric or fuzzy material
-✓ Use paper thickness and layering to create depth, NOT soft padding materials
-✓ This is PURE PAPERCRAFT - 100% paper construction, everything folds/rolls from flat paper sheets
-
-TYPE 2 - 2D LAYERED PAPERCRAFT (for flat shapes with stacked layers):
-✓ Patterns are flat 2D shapes that stack on top of each other
-✓ Multiple layers create depth and "body" through thickness
-✓ Each layer is a complete flat outline (no folding required)
-✓ Layers are glued/stacked to build up dimension (like a 3D relief)
-✓ Show ALL layers separately: base layer, middle layers, detail layers, top layer
-✓ Each layer should be clearly labeled (Layer 1, Layer 2, etc.) with thickness indication
-✓ Layers may be slightly offset or sized differently to create contours
-
-EACH PATTERN SHEET MUST INCLUDE (based on type):
-FOR 3D FOLDED PAPERCRAFT:
-✓ Complete outlines with proper 3D unwrapping geometry
-✓ Cut lines (solid black lines) showing where to cut
-✓ Fold lines (dashed lines) showing where the flat pattern folds to create 3D curves
-✓ Glue tabs clearly marked (small flaps extending from edges for assembly)
-✓ Piece labels/numbers (1, 2, 3, A, B, C) on each component
-✓ Small assembly arrows or symbols showing how pieces connect
-
-FOR 2D LAYERED PAPERCRAFT:
-✓ Complete flat outlines for EACH layer (no fold lines needed)
-✓ Cut lines (solid black lines) showing where to cut
-✓ Layer numbers clearly marked (Layer 1, Layer 2, Layer 3, etc.)
-✓ Indication of stacking order or which side faces up
-✓ Small registration marks showing how layers align
-✓ Optional: foam spacer indicators between layers for extra depth
-
-BOTH TYPES:
-✓ Scale indicators or measurements for size reference
-✓ Colors matching EXACT colors from Reference craft object
-
-VISUAL REQUIREMENTS:
-- MAXIMUM PRECISION: Lines must be clean, clear, and accurate
-- Colors: Match EXACT colors from the Reference craft object
-- Background: White paper with subtle grid lines (like cutting mat)
-- Spacing: Sheets arranged neatly with small gaps between them
-- Text label at top: "PATTERN SHEETS" or "TEMPLATES"
-
-CRITICAL: Someone should be able to print Panel 1, cut out the pieces, and successfully assemble them into the craft matching the reference image. The patterns must be geometrically correct for the appropriate type (3D folded OR 2D layered).
-
-PANEL 2 - ASSEMBLY PROCESS:
-- Show hands/fingers actively assembling pieces
-- Use LARGE BOLD ARROWS (→ ➜ ⬇) showing direction of movement
-- Add text annotations explaining what to do: "FOLD HERE", "GLUE TAB", "ALIGN EDGES"
-- Show partially assembled state
-- Include small numbered steps (①②③) if multiple actions
-- Add text label: "ASSEMBLY" or "HOW TO ATTACH"
-
-PANEL 3 - ADD DETAILS (if 4-panel layout):
-- Show hands adding decorative elements, layers, or final pieces
-- Use arrows pointing to where details should be placed
-- Show close-up of attachment points
-- Include text: "ADD LAYER", "ATTACH HERE", "GLUE POINT"
-- Add text label: "DETAILS" or "FINAL TOUCHES"
-
-PANEL 4 - FINISHED COMPONENT (if 4-panel layout):
-- Show the completed component from this step
-- Display from best viewing angle
-- Include scale reference if needed
-- Show how it looks when properly assembled
-- Add text label: "FINISHED" or "RESULT"
-
-🚨 CRITICAL VISUAL REQUIREMENTS:
-✓ Each panel MUST have a clear label/heading at the top
-✓ Use BOLD ARROWS (not thin lines) showing movement/direction
-✓ Add TEXT ANNOTATIONS explaining actions ("fold", "glue", "attach", "align")
-✓ Show HANDS/FINGERS in assembly panels to demonstrate technique
-✓ Use WHITE BACKGROUND with subtle grid lines (like blueprint paper)
-✓ EXACT color matching from Reference Image
-✓ Clear visual separation between panels (thin border lines)
-✓ NO ELECTRONIC PARTS - only handcraft materials (paper, glue, scissors)
-
-EXAMPLE WITH ANALYSIS - Piranha Plant - Step: "Create and Pot the Plants":
-ANALYSIS FIRST:
-- Pot: 3D cylinder → unwrap into curved rectangle with base circle
-- Needs: Base stability (reinforced bottom), connection tabs for stems
-- Surface: Brown paper texture, simple geometric form
-THEN CREATE:
-Panel 1: Pattern sheets showing pot unwrapped cylinder + circular base + small support tabs for stem insertion points
-Panel 2: Hands rolling cylinder and gluing seam, text "FORM CYLINDER"
-Panel 3: Hands attaching base circle to bottom of cylinder, arrows showing tab fold
-Panel 4: Completed pot with stem holes visible at top
-
-EXAMPLE WITH ANALYSIS - Piranha Plant - Step: "Assemble Stems and Leaves":
-ANALYSIS FIRST:
-- Stems: Long thin tubes → need internal paper support (rolled tight paper rod inside)
-- Leaves: Flat shapes with slight curve → simple cutouts with subtle center fold for 3D effect
-- Connection: Stems insert into pot holes, leaves attach to stem sides
-THEN CREATE:
-Panel 1: Pattern sheets showing ONLY stem rectangles (for rolling), inner support strips, leaf shapes - laid flat
-Panel 2: Hands rolling stem around inner support tube, text "ROLL TIGHTLY"
-Panel 3: Hands folding leaf center line and gluing to stem, arrows showing attachment
-Panel 4: Completed stem with leaves attached, ready to insert into pot
-
-EXAMPLE WITH ANALYSIS - Character - Step: "Assemble body":
-ANALYSIS FIRST:
-- Body: Cylindrical torso → unwrap into curved rectangle
-- Has: Rounded belly (slight curve in pattern), connection points top/bottom for head/legs
-- Needs: Glue tabs on vertical seam, neck opening at top
-THEN CREATE:
-Panel 1: Pattern sheets showing ONLY BODY: torso unwrapped curved rectangle with belly curve, connection tabs - NO head, NO limbs shown
-Panel 2: Hands folding body piece along dashed lines, arrows showing fold direction
-Panel 3: Hands gluing body tabs to close cylinder, text "GLUE SEAM"
-Panel 4: Completed body cylinder only - no other parts attached yet`,
+BACKGROUND: White with subtle grid
+MATERIALS: Paper only, no electronics`,
 
     'Clay': `
-🎨 MULTI-PANEL CLAY INSTRUCTION FORMAT (2-4 PANELS):
-The image MUST be divided into clear panels showing detailed sculpting sub-steps:
-
-PANEL LAYOUT (choose based on step complexity):
-┌─────────────┬─────────────┐
-│   PANEL 1   │   PANEL 2   │
-│  PREPARE    │  SHAPE      │
-├─────────────┼─────────────┤
-│   PANEL 3   │   PANEL 4   │
-│  ATTACH     │  FINISHED   │
-└─────────────┴─────────────┘
-
-PANEL CONTENT:
+CLAY MULTI-PANEL FORMAT (2-4 PANELS):
 
 PANEL 1 - CLAY PIECES (KNOLLING):
-- Show ALL clay pieces needed, organized in knolling layout
-- Include size references: "pea-sized", "walnut-sized", or ruler measurements
-- Display pre-formed shapes: balls, cylinders, slabs, coils
-- Label each piece: "Body", "Arms (x2)", "Head", etc.
-- Match EXACT colors from Reference Image
-- Text label: "MATERIALS" or "CLAY PIECES"
+- Show clay pieces organized flat
+- Include size references: "pea-sized", "walnut-sized"
+- Label: "Body", "Arms (x2)", "Head"
+- Match EXACT colors from reference image
 
-PANEL 2 - SHAPING/TECHNIQUE:
-- Show HANDS/FINGERS actively shaping clay
-- Use ARROWS showing pinch, roll, or blend directions
-- Add text annotations: "ROLL INTO CYLINDER", "PINCH TOP", "SMOOTH EDGES"
-- Show tool placement if using sculpting tools
-- Include motion arrows (curved arrows for rolling)
-- Text label: "SHAPE" or "SCULPT"
+PANEL 2 - SHAPING:
+- Show hands sculpting clay
+- ARROWS showing pinch/roll directions
+- Text: "ROLL", "PINCH", "SMOOTH"
 
-PANEL 3 - ASSEMBLY/ATTACHMENT:
-- Show hands attaching pieces together
-- Large arrows showing where pieces connect
-- Text annotations: "PRESS FIRMLY", "BLEND SEAM", "ATTACH HERE"
-- Show blending technique with finger marks
-- Numbered sequence if multiple attachments (①②③)
-- Text label: "ATTACH" or "ASSEMBLE"
-
-PANEL 4 - FINISHED COMPONENT:
-- Show completed component from this step
-- Display best viewing angle
-- Show how it should look when properly assembled
-- Include any texture details added
-- Text label: "RESULT" or "FINISHED"
-
-🚨 CRITICAL REQUIREMENTS:
-✓ Panel labels at top of each section
-✓ BOLD ARROWS showing movement and attachment points
-✓ TEXT ANNOTATIONS for every action
-✓ Show HANDS/FINGERS demonstrating techniques
-✓ WHITE BACKGROUND with soft even lighting
-✓ Matte polymer clay texture (NOT shiny/glossy)
-✓ EXACT color matching from Reference Image
-✓ NO ELECTRONIC PARTS - only handcraft clay sculpting
-
-EXAMPLE - Dinosaur "Shape body and legs" step:
-Panel 1: Green clay body ball, 4 leg cylinders, tail cylinder (knolling, labeled with sizes)
-Panel 2: Hands shaping body into oval, arrows showing pinch direction, text "FORM OVAL BODY"
-Panel 3: Hand attaching legs, arrows pointing to connection points, text "ATTACH LEGS ①②③④"
-Panel 4: Body with attached legs, front/side view showing proper alignment`,
-
-    'Fabric/Sewing': `
-🎨 MULTI-PANEL FABRIC/SEWING FORMAT (2-4 PANELS):
-Divide the image into clear instructional panels:
-
-PANEL 1 - PATTERN/MATERIALS:
-- Show fabric pieces, pattern templates in knolling layout
-- Label each piece: "Front panel", "Back panel", "Sleeve (x2)"
-- Include measurements or seam allowances
-- Match fabric color/texture from Reference Image
-- Text label: "MATERIALS" or "CUT PIECES"
-
-PANEL 2 - TECHNIQUE/SEWING:
-- Show hands positioning fabric or sewing
-- ARROWS showing stitch direction or fabric alignment
-- Text annotations: "SEW SEAM", "1/4 INCH ALLOWANCE", "PIN HERE"
-- Show close-up of seam or stitch technique
-- Text label: "SEW" or "TECHNIQUE"
-
-PANEL 3 - ASSEMBLY (if needed):
-- Show pieces being attached or stuffed
-- Arrows pointing to connection points
-- Text: "ATTACH PANELS", "STUFF OPENING", "CLOSE SEAM"
-- Text label: "ASSEMBLE"
+PANEL 3 - ATTACHMENT:
+- Show hands connecting pieces
+- Arrows to connection points
+- Text: "BLEND SEAM", "PRESS FIRMLY"
 
 PANEL 4 - RESULT:
 - Show completed component
-- Display proper shape and form
-- Text label: "FINISHED"
+- Matte clay texture (not glossy)
 
-🚨 REQUIREMENTS:
-✓ Panel labels, BOLD ARROWS, text annotations
-✓ Show HANDS/FINGERS demonstrating technique
-✓ WHITE BACKGROUND, no tools visible
-✓ Match fabric weave, color, stitch density from Reference
-✓ NO ELECTRONIC PARTS - handcraft only`,
+BACKGROUND: White, soft lighting
+MATERIALS: Clay only, no electronics`,
 
-    'Costume & Props': `
-🎨 MULTI-PANEL COSTUME/PROPS FORMAT (2-4 PANELS):
+    'Fabric/Sewing': `
+FABRIC MULTI-PANEL FORMAT (2-4 PANELS):
 
-PANEL 1 - MATERIALS (KNOLLING):
-- Foam pieces, beveled cuts, thermoplastic sections
-- Label each: "Base foam", "Detail layer", "Edge trim"
-- Show thickness measurements
-- Match colors from Reference Image
-- Text label: "MATERIALS"
+PANEL 1 - PATTERN PIECES (KNOLLING):
+- Show fabric pieces laid flat
+- Label: "Front", "Back", "Sleeve (x2)"
+- Include seam allowance markings
+- Match fabric color/texture from reference
 
-PANEL 2 - CUTTING/SHAPING:
-- Show hands cutting, heating, or beveling
-- ARROWS showing cut lines or heat direction
-- Text: "BEVEL EDGE", "HEAT TO 300°F", "CUT ALONG LINE"
-- Text label: "SHAPE"
-
-PANEL 3 - ASSEMBLY/ATTACHMENT:
-- Hands gluing or attaching pieces
-- Arrows to connection points
-- Text: "GLUE HERE", "PRESS 30 SEC", "ALIGN EDGES"
-- Text label: "ATTACH"
-
-PANEL 4 - RESULT:
-- Finished component
-- Text label: "FINISHED"
-
-🚨 REQUIREMENTS:
-✓ Labels, BOLD ARROWS, annotations
-✓ Show HANDS demonstrating technique
-✓ WHITE BACKGROUND
-✓ Match foam density, surface, thickness from Reference
-✓ NO ELECTRONIC PARTS - handcraft only`,
-
-    'Woodcraft': `
-🎨 MULTI-PANEL WOODCRAFT FORMAT (2-4 PANELS):
-
-PANEL 1 - WOOD PIECES (KNOLLING):
-- Cut boards, dowels, joints laid out
-- Label pieces with measurements: "12 inch board", "1/2 inch dowel"
-- Show wood grain direction
-- Match wood type/color from Reference
-- Text label: "MATERIALS"
-
-PANEL 2 - CUTTING/JOINING:
-- Hands working with wood (no power tools visible)
-- ARROWS showing joint alignment or assembly direction
-- Text: "ALIGN GRAIN", "DOWEL JOINT", "SAND SMOOTH"
-- Text label: "JOIN"
+PANEL 2 - SEWING:
+- Show hands positioning/sewing
+- ARROWS showing stitch direction
+- Text: "SEW SEAM", "PIN HERE"
 
 PANEL 3 - ASSEMBLY:
-- Hands attaching pieces
+- Show pieces being joined/stuffed
 - Arrows to connection points
-- Text: "INSERT DOWEL", "GLUE JOINT", "CLAMP HERE"
-- Text label: "ASSEMBLE"
 
 PANEL 4 - RESULT:
-- Finished component showing joinery
-- Text label: "FINISHED"
+- Show completed component
 
-🚨 REQUIREMENTS:
-✓ Labels, BOLD ARROWS, annotations
-✓ Show HANDS (no power tools visible)
-✓ WHITE BACKGROUND, even lighting
-✓ Match wood grain, color, thickness from Reference
-✓ NO ELECTRONIC PARTS - traditional handcraft`,
+BACKGROUND: White
+MATERIALS: Fabric, thread only`,
+
+    'Costume & Props': `
+COSTUME/PROPS MULTI-PANEL FORMAT (2-4 PANELS):
+
+PANEL 1 - FOAM PIECES (KNOLLING):
+- Show foam/thermoplastic pieces laid out
+- Label with thickness: "10mm base", "2mm detail"
+- Show bevel angles (45°)
+- Match colors from reference
+
+PANEL 2 - SHAPING:
+- Show cutting/heating/beveling
+- ARROWS showing cut lines
+- Text: "BEVEL EDGE", "HEAT FORM"
+
+PANEL 3 - ASSEMBLY:
+- Show gluing pieces together
+- Arrows to connection points
+
+PANEL 4 - RESULT:
+- Show completed component
+
+BACKGROUND: White
+MATERIALS: EVA foam, no electronics`,
+
+    'Woodcraft': `
+WOODCRAFT MULTI-PANEL FORMAT (2-4 PANELS):
+
+PANEL 1 - WOOD PIECES (KNOLLING):
+- Show cut boards, dowels laid out
+- Label with measurements
+- Show grain direction
+- Match wood type from reference
+
+PANEL 2 - JOINING:
+- Show hands working wood
+- ARROWS showing joint alignment
+- Text: "ALIGN GRAIN", "SAND SMOOTH"
+
+PANEL 3 - ASSEMBLY:
+- Show attaching pieces
+- Arrows to joints
+
+PANEL 4 - RESULT:
+- Show completed component
+
+BACKGROUND: White
+MATERIALS: Wood only, no power tools visible`,
 
     'Jewelry': `
-🎨 MULTI-PANEL JEWELRY FORMAT (2-4 PANELS):
+JEWELRY MULTI-PANEL FORMAT (2-4 PANELS):
 
 PANEL 1 - COMPONENTS (KNOLLING):
-- Beads, charms, jump rings, wire cuts, chain segments
-- Label each component with quantity
-- Organized flat-lay arrangement
-- Match metal color, bead clarity from Reference
-- Text label: "MATERIALS"
+- Show beads, wire, findings laid out
+- Label with quantities
+- Match metal color, bead clarity from reference
 
-PANEL 2 - WIRE/ASSEMBLY TECHNIQUE:
-- Hands forming loops, opening jump rings
-- ARROWS showing wire bending direction
-- Text: "BEND WIRE", "OPEN RING", "THREAD BEAD"
-- Macro close-up of technique
-- Text label: "TECHNIQUE"
+PANEL 2 - TECHNIQUE:
+- Show hands forming loops/connections
+- ARROWS showing wire bending
+- Text: "BEND WIRE", "OPEN RING"
 
-PANEL 3 - ATTACHMENT:
-- Hands connecting components
+PANEL 3 - CONNECTION:
+- Show attaching components
 - Arrows to connection points
-- Text: "ATTACH CHARM", "CLOSE RING", "SECURE CLASP"
-- Text label: "CONNECT"
 
 PANEL 4 - RESULT:
-- Finished component or section
-- Text label: "FINISHED"
+- Show completed section
 
-🚨 REQUIREMENTS:
-✓ Labels, BOLD ARROWS, annotations
-✓ Show HANDS/FINGERS with tools
-✓ WHITE BACKGROUND, soft lighting
-✓ Match metal color, bead clarity, shine from Reference
-✓ NO ELECTRONIC PARTS - traditional handcraft`,
+BACKGROUND: White, soft lighting
+MATERIALS: Beads, wire, findings only`,
 
     'Kids Crafts': `
-🎨 MULTI-PANEL KIDS CRAFTS FORMAT (2-4 PANELS):
-
-PANEL 1 - COLORFUL MATERIALS (KNOLLING):
-- Felt, foam, pipe cleaners, simple paper shapes
-- Label pieces: "Red circle", "Blue star", "Green pipe cleaner"
-- Bright, playful arrangement
-- Match colors from Reference
-- Text label: "MATERIALS"
-
-PANEL 2 - SIMPLE ASSEMBLY:
-- Hands (possibly child-sized) assembling pieces
-- BIG BOLD ARROWS showing where to glue/attach
-- Simple text: "GLUE HERE", "STICK TOGETHER", "FOLD"
-- Text label: "MAKE"
-
-PANEL 3 - ADD DETAILS (if needed):
-- Hands adding decorations, eyes, features
-- Arrows showing placement
-- Text: "ADD EYES", "GLUE DECORATION"
-- Text label: "DECORATE"
-
-PANEL 4 - RESULT:
-- Finished craft, bright and cheerful
-- Text label: "DONE!"
-
-🚨 REQUIREMENTS:
-✓ Simple labels, BIG ARROWS, easy text
-✓ Show HANDS demonstrating
-✓ WHITE BACKGROUND
-✓ Match playful colors, simple shapes from Reference
-✓ NO ELECTRONIC PARTS - safe kid-friendly handcraft`,
-
-    'Tabletop Figures': `
-🎨 MULTI-PANEL MINIATURE FORMAT (2-4 PANELS):
-
-PANEL 1 - MINIATURE PARTS (KNOLLING):
-- Arms, heads, weapons, torso, legs, base pieces
-- Label each: "Torso", "Arms (x2)", "Weapon", "Base"
-- Show scale reference: "28mm scale"
-- Include primer/paint colors if relevant
-- Text label: "PARTS"
-
-PANEL 2 - ASSEMBLY TECHNIQUE:
-- Hands positioning/gluing miniature parts
-- ARROWS showing connection points
-- Text: "GLUE JOINT", "ALIGN PIN", "PRESS 10 SEC"
-- Macro close-up of connection
-- Text label: "ATTACH"
-
-PANEL 3 - SUB-ASSEMBLY (if needed):
-- Show partially assembled section
-- Arrows indicating next attachments
-- Text: "ADD ARM TO TORSO", "ATTACH BASE"
-- Text label: "BUILD"
-
-PANEL 4 - RESULT:
-- Completed assembly step
-- Show proper miniature pose/alignment
-- Text label: "ASSEMBLED"
-
-🚨 REQUIREMENTS:
-✓ Labels, BOLD ARROWS, annotations
-✓ Show HANDS with parts (macro view)
-✓ WHITE BACKGROUND with subtle texture
-✓ High-clarity lighting showing sculpt detail
-✓ Match primer/paint colors from Reference
-✓ NO ELECTRONIC PARTS - traditional miniature assembly`,
-  };
-
-  // Return category-specific rules or default generic rules
-  return categoryRules[category] || `
-🎨 MULTI-PANEL GENERIC FORMAT (2-4 PANELS):
+KIDS CRAFTS MULTI-PANEL FORMAT (2-4 PANELS):
 
 PANEL 1 - MATERIALS (KNOLLING):
-- Show all materials/components for this step in organized knolling layout
-- Label each component
-- Match colors/textures from Reference Image
-- Text label: "MATERIALS"
+- Show felt, foam, paper shapes laid out
+- Label: "Red circle", "Blue star"
+- Bright, playful colors
+- Match colors from reference
 
-PANEL 2 - TECHNIQUE/PROCESS:
-- Show hands demonstrating the technique
-- BOLD ARROWS showing movement/direction
-- Text annotations explaining actions
-- Text label: "PROCESS"
+PANEL 2 - ASSEMBLY:
+- Show hands assembling
+- BIG BOLD ARROWS showing where to glue
+- Simple text: "GLUE HERE", "FOLD"
 
-PANEL 3 - ASSEMBLY (if needed):
-- Show components being attached
-- Arrows to connection points
-- Text annotations
-- Text label: "ASSEMBLE"
+PANEL 3 - DECORATE:
+- Show adding eyes, details
+- Arrows showing placement
 
 PANEL 4 - RESULT:
-- Show finished component
-- Text label: "FINISHED"
+- Show finished craft
 
-🚨 REQUIREMENTS:
-✓ Panel labels, BOLD ARROWS, text annotations
-✓ Show HANDS demonstrating technique
-✓ WHITE BACKGROUND, evenly lit
-✓ Match exact textures, colors from Reference
-✓ NO ELECTRONIC PARTS - handcraft only`;
+BACKGROUND: White
+MATERIALS: Safe, kid-friendly only`,
+
+    'Tabletop Figures': `
+MINIATURE MULTI-PANEL FORMAT (2-4 PANELS):
+
+PANEL 1 - PARTS (KNOLLING):
+- Show miniature parts laid out
+- Label: "Torso", "Arms (x2)", "Base"
+- Show scale reference (28mm)
+- Match primer/paint colors from reference
+
+PANEL 2 - ASSEMBLY:
+- Show hands gluing parts
+- ARROWS to connection points
+- Text: "GLUE JOINT", "ALIGN PIN"
+
+PANEL 3 - SUB-ASSEMBLY:
+- Show partial assembly
+- Arrows for next attachments
+
+PANEL 4 - RESULT:
+- Show completed assembly step
+
+BACKGROUND: White
+MATERIALS: Miniature parts, glue only`,
+  };
+
+  return categoryRules[category] || `
+MULTI-PANEL FORMAT (2-4 PANELS):
+
+PANEL 1 - MATERIALS: Show components in knolling layout, labeled
+PANEL 2 - TECHNIQUE: Show hands demonstrating, with arrows and text
+PANEL 3 - ASSEMBLY: Show connecting parts
+PANEL 4 - RESULT: Show completed component
+
+Match EXACT colors from reference image.
+WHITE BACKGROUND, no electronics.`;
 };
 
 /**
@@ -692,126 +443,57 @@ export const generateStepImage = async (
   console.log(`   Resolution: 1K (default)`);
 
   const prompt = `
-🎯 YOUR TASK: Create a MULTI-PANEL instructional image for this step: "${stepDescription}"
+📷 REFERENCE IMAGE MATCHING (MANDATORY):
+The attached image is your ONLY style guide. You MUST:
+✓ Match EXACT colors - Sample RGB values directly from the reference
+✓ Match EXACT textures - Paper grain, clay matte, fabric weave as shown
+✓ Match EXACT proportions - Character features match reference exactly
+✓ Match EXACT style - Same artistic approach, same level of detail
 
-📷 REFERENCE IMAGE PROVIDED: This shows the finished craft (colors, materials, style to match exactly)
+DO NOT:
+✗ Invent new colors not in the reference image
+✗ Change the art style or aesthetic
+✗ Add elements not visible in the reference
+✗ Use different materials than shown
+
 ${focusInstructions}
 
-🧠 BEFORE GENERATING PATTERNS - ANALYZE THE COMPONENT:
-Ask yourself these questions about the component in "${stepDescription}":
-1. **Is this a 3D or 2D structure?**
-   - Does it have volume/depth (head, body, limbs, pot) = 3D → needs unwrapping
-   - Is it flat with stacked layers (shield, badge, sign) = 2D → needs layer sheets
+🎯 TASK: Create a MULTI-PANEL instruction image for this step:
+STEP: "${stepDescription}"
 
-2. **If 3D - What is the base shape?**
-   - Sphere/rounded (head, ball) → unwrap into petal gores like a globe
-   - Cylinder (body, limbs, tube, pot) → unwrap into curved rectangle
-   - Cone (hat, nose) → unwrap into pie-slice fan shape
-   - Box (base, platform) → unwrap into cross/net with 6 faces
-   - Complex organic → break into geometric segments and unwrap each
+This step focuses on ONE body part group. Show ONLY the components mentioned above.
+Do NOT include parts from other steps (no head parts in body step, no clothing in limbs step, etc.)
 
-3. **Does it need structural support?**
-   - Tall/thin parts (stems, legs, necks) → add internal rolled paper tubes for rigidity
-   - Heavy parts (pot, base) → reinforce edges with doubled paper
-   - Hanging parts (leaves, petals) → add small paper tabs for support
+📐 MULTI-PANEL FORMAT (2-4 PANELS):
+┌─────────────┬─────────────┐
+│  PANEL 1    │  PANEL 2    │
+│  MATERIALS  │  ASSEMBLY   │
+├─────────────┼─────────────┤
+│  PANEL 3    │  PANEL 4    │
+│  DETAILS    │  RESULT     │
+└─────────────┴─────────────┘
 
-4. **How will it connect to other parts?**
-   - Add glue tabs at connection points
-   - Ensure tab placement allows proper assembly
-   - Match connection size to adjacent component
+PANEL REQUIREMENTS:
+1. PANEL 1 - MATERIALS/PATTERN: Show components in knolling layout, labeled
+2. PANEL 2 - ASSEMBLY: Show hands working, BOLD ARROWS, text labels
+3. PANEL 3 - DETAILS: Show adding finishing touches (if needed)
+4. PANEL 4 - RESULT: Show completed component matching reference exactly
 
-5. **What's the surface detail?**
-   - Spots/patterns → print directly on pattern sheet
-   - Teeth/features → separate small pieces to glue on
-   - Texture → indicate with fold lines or scored paper
-
-ANALYZE THE REFERENCE IMAGE NOW and determine the answers to these questions before creating the pattern sheets.
-
-🚨 CRITICAL SCOPE REQUIREMENT:
-This step image must ONLY show components and actions mentioned in the step description: "${stepDescription}"
-- If the step is "Assemble body", show ONLY body pieces (no head, no clothes, no hair, no accessories)
-- If the step is "Attach head", show ONLY head pieces and neck connection (no body, no limbs)
-- If the step is "Add clothing details", show ONLY clothing pieces being attached (no underlying body)
-- DO NOT show components from other steps - stay strictly within this step's scope
-- The panels should focus exclusively on the specific parts mentioned in this step
-
-🎨 CRITICAL MULTI-PANEL REQUIREMENTS:
-You MUST create an image divided into 2-4 clear panels showing sub-steps within this main step.
-
-MANDATORY ELEMENTS IN YOUR IMAGE:
-1️⃣ PANEL DIVISIONS: Clear visual separation between panels (thin border lines or spacing)
-2️⃣ PANEL LABELS: Each panel MUST have a text heading at the top ("PATTERN SHEETS", "MATERIALS", "ASSEMBLE", "FINISHED", etc.)
-3️⃣ BOLD ARROWS: Use large, clearly visible arrows (→ ➜ ⬇ ↑) showing movement, direction, or connections
-4️⃣ TEXT ANNOTATIONS: Add instructional text explaining actions ("FOLD HERE", "GLUE TAB", "ATTACH HERE", "ALIGN EDGES")
-5️⃣ HANDS/FINGERS: Show hands demonstrating techniques in assembly/process panels
-6️⃣ DETAILED INFORMATION: Pack each panel with visual details - this should look like a professional craft instruction manual
-
-🚨 SPECIAL REQUIREMENT FOR STEP 1 / PATTERN SHEETS PANEL:
-FOR PAPERCRAFT CATEGORY - FIRST STEP IMAGE REQUIREMENTS:
-- Panel 1 is THE MOST CRITICAL - it must contain COMPLETE, PRECISE 3D pattern sheets for the selected craft object
-- Show FULL pattern templates that someone could actually print and use to build this craft
-
-🎯 CRITICAL PATTERN TYPE SELECTION:
-Examine the reference image carefully to determine which type of papercraft this is:
-
-TYPE 1 - 3D FOLDED PAPERCRAFT (if object has curved/rounded forms that need folding):
-  * Patterns must be properly unwrapped like UV maps in 3D modeling
-  * A ROUNDED HEAD unwraps into petal-like segments/gores (like peeling an orange)
-  * A CYLINDRICAL BODY unwraps into a curved rectangle that wraps around to form a tube
-  * CURVED LIMBS unwrap into elongated curved shapes with fold lines to create 3D tubes
-  * SPHERICAL shapes unwrap into geometric patterns with strategic fold lines
-  * Include dashed fold lines showing where to fold
-  * The unwrapped geometry must be mathematically correct to fold into the 3D shape
-
-  🚨 PAPER-ONLY REQUIREMENT:
-  * ALL parts must be made from PAPER - no foam, fabric, wire, or soft materials
-  * Use LOW-POLY GEOMETRIC STYLE for curves (like low-poly 3D models)
-  * Curves created through angular paper facets and strategic folds, NOT soft materials
-  * Example: Round lips/mouth = angular paper segments that approximate the curve
-  * This is PURE PAPERCRAFT - everything constructed from flat paper with folds
-
-TYPE 2 - 2D LAYERED PAPERCRAFT (if object uses flat stacked layers for depth):
-  * Patterns are flat 2D shapes that stack on top of each other
-  * Show MULTIPLE LAYERS separately (base, middle, detail, top layers)
-  * Each layer is a complete flat outline with no fold lines
-  * Layers stack vertically to create "body" and thickness
-  * Label each layer clearly (Layer 1 - Base, Layer 2 - Middle, etc.)
-  * Layers may be slightly different sizes/shapes to create contoured depth
-  * Include small spacers or foam tape indicators between layers if needed
-
-- Each pattern sheet must display:
-  * Complete outlines with proper 3D unwrapping geometry (NOT just simple flat shapes)
-  * Cut lines (solid) showing where to cut
-  * Fold lines (dashed) showing where flat patterns fold to create 3D curves
-  * Glue tabs where pieces connect (flaps extending from edges)
-  * Piece numbers or labels (1, 2, 3, A, B, C, etc.)
-  * Scale reference or measurements
-- Layout: Spread ALL sheets FLAT side-by-side in knolling arrangement (NOT stacked)
-- View: Top-down view as if sheets are laid on a cutting mat with grid background
-- Detail level: MAXIMUM PRECISION - patterns must be accurate and buildable
-- Colors: Match EXACT colors from the reference craft object
-- Background: White with subtle grid lines (like blueprint/cutting mat paper)
-
-CRITICAL: These are ACTUAL 3D-UNWRAPPED PATTERN TEMPLATES. Someone should be able to print, cut, score fold lines, and assemble into a 3D craft matching the reference image. The unwrapped geometry must be correct for 3D assembly.
-
-🚨 ABSOLUTE PROHIBITIONS:
-❌ NO ELECTRONIC PARTS (no circuits, LEDs, batteries, wires, motors)
-❌ NO POWER TOOLS visible in frame
-❌ FOR PAPERCRAFT: NO FOAM, NO FABRIC, NO WIRE, NO SOFT MATERIALS - PAPER ONLY
-❌ FOR PAPERCRAFT: NO smooth rounded curves - use LOW-POLY GEOMETRIC FACETS instead
-✅ PAPERCRAFT must be PURE PAPER with angular/geometric folds (low-poly style)
-✅ Simple hand tools are OK (scissors, glue - but focus on the craft, not the tools)
+MANDATORY ELEMENTS:
+✓ Clear panel divisions with labels at top
+✓ BOLD ARROWS (→ ➜ ⬇) showing direction/movement
+✓ TEXT ANNOTATIONS: "FOLD", "GLUE", "ATTACH", "ALIGN"
+✓ HANDS/FINGERS demonstrating technique
+✓ WHITE BACKGROUND with subtle grid
 
 ${categoryRules}
 
-FINAL REMINDERS:
-1. This MUST be a multi-panel image with labels, arrows, text annotations, and hands demonstrating the technique
-2. Reference the original image's colors and style exactly
-3. 🚨 MOST IMPORTANT: Show ONLY the components mentioned in this step: "${stepDescription}"
-   - Do NOT include components from other steps
-   - Focus strictly on the parts needed for THIS specific step
-   - If the step is about the body, show ONLY body pieces (no head, limbs, clothes, etc.)
-   - If the step is about attaching one part to another, show ONLY those two parts and their connection
+🚨 CRITICAL RULES:
+1. Colors MUST match reference image exactly
+2. Show ONLY components for this step: "${stepDescription}"
+3. Multi-panel format with labels, arrows, annotations
+4. Professional instruction manual quality
+5. No electronics, no power tools
   `;
 
   return retryWithBackoff(async () => {
@@ -1325,7 +1007,6 @@ export const dissectSelectedObject = async (
     - YOU MUST CREATE INSTRUCTIONS FOR EXACTLY ONE OBJECT: "${objectLabel}"
     - If you see multiple characters or objects in the images, create instructions ONLY for "${objectLabel}"
     - DO NOT create instructions for other characters, objects, accessories, or display elements
-    - EXAMPLE: If the full image shows "Link, Zelda, and Ganondorf" and I selected "Link", create instructions ONLY for Link figure, NOT Zelda, NOT Ganondorf, NOT the shield, NOT the sword accessories
     - The first image may contain some background elements due to imperfect selection - IGNORE them
     - Focus EXCLUSIVELY on: "${objectLabel}"
 
@@ -1333,31 +1014,46 @@ export const dissectSelectedObject = async (
 
     1. Determine the complexity (Simple, Moderate, Complex) and a score 1-10 FOR "${objectLabel}" ONLY.
     2. List the essential materials needed FOR "${objectLabel}" ONLY.
-    3. Break down the construction into logical steps FOR "${objectLabel}" ONLY.
+    3. Break down the construction into EXACTLY 4 STEPS grouped by body parts.
 
-    🚨 CRITICAL STEP COUNT AND CHARACTER LIMIT RULES 🚨
-    - MAXIMUM 4 STEPS TOTAL - This is a hard limit!
-    - MAXIMUM 2 CHARACTERS per craft (NOT counting props/accessories)
-    - Props and accessories (swords, shields, hats, pots, stands, bases) DO NOT count toward character limit
-    - If "${objectLabel}" contains more than 2 characters, intelligently select the 2 most important/iconic ones
-    - Examples:
-      * "Mario and Luigi" = 2 characters ✓ (allowed)
-      * "Mario, Luigi, and Peach" = 3 characters ✗ (pick 2 most iconic: Mario + Luigi)
-      * "Link with Master Sword and Shield" = 1 character + 2 props ✓ (allowed, props don't count)
-      * "Piranha Plant in Pot with Stand" = 1 character + 2 props ✓ (allowed)
+    🚨 MANDATORY 4-STEP BODY PART GROUPING 🚨
+    You MUST create EXACTLY 4 steps, each focusing on a specific body part group:
 
-    STEP COUNT RULES:
-    - Do NOT create a "gather materials" step - start with actual construction
-    - Combine related substeps into single steps (e.g., "Cut and shape base pieces" instead of two steps)
-    - Focus on MAJOR construction phases only, not every tiny detail
-    - Each step should represent a significant milestone in the build
-    - Focus ONLY on "${objectLabel}", ignore all other objects in both images
+    STEP 1 - HEAD GROUP:
+    - Head shape, face, facial features (eyes, nose, mouth)
+    - Hair (all hair pieces, bangs, ponytail, curls)
+    - Head accessories (crown, hat, earrings, glasses, headband, horns)
+    - Title format: "Create head, face, and hair" or similar
 
-    EXAMPLE - Good step breakdown for a papercraft figure (4 steps):
-    Step 1: Cut out all pattern pieces and score fold lines
-    Step 2: Assemble the main body structure
-    Step 3: Attach limbs and head
-    Step 4: Add final details and decorative elements
+    STEP 2 - BODY GROUP:
+    - Torso/chest/main body structure
+    - Back piece, neck connection
+    - Core body shape and form
+    - Title format: "Assemble body and torso" or similar
+
+    STEP 3 - CLOTHING/SURFACE GROUP:
+    - All clothing items (dress, shirt, pants, jacket, armor, cape)
+    - Surface details, patterns, textures on body
+    - Belts, buttons, collars, pockets
+    - Title format: "Add clothing and surface details" or similar
+
+    STEP 4 - LIMBS & PROPS GROUP:
+    - Arms and hands (both left and right)
+    - Legs and feet/shoes
+    - Props (weapons, tools, bags, items held)
+    - Base/stand/platform
+    - Title format: "Attach limbs, props, and base" or similar
+
+    GROUPING RULES:
+    - If the craft doesn't have all parts (e.g., no clothing on an animal), combine related groups
+    - Each step's image will show ONLY that group's components
+    - Keep related items together (e.g., head + hair + crown = Step 1)
+    - Props held in hands go with Step 4 (limbs), not with the body part they're near
+
+    EXAMPLES:
+    - Princess character: Step 1 (head+hair+tiara), Step 2 (body), Step 3 (dress+jewelry), Step 4 (arms+legs+wand)
+    - Animal (no clothes): Step 1 (head+ears+face), Step 2 (body), Step 3 (fur texture+markings), Step 4 (legs+tail+base)
+    - Robot: Step 1 (head+sensors+antenna), Step 2 (torso+core), Step 3 (armor plates+lights), Step 4 (arms+legs+weapons)
 
     Return strict JSON matching this schema.
   `;
@@ -1470,31 +1166,48 @@ export const dissectCraft = async (
 
     1. Determine the complexity (Simple, Moderate, Complex) and a score 1-10.
     2. List the essential materials visible or implied.
-    3. Break down the construction into logical, step-by-step instructions.
+    3. Break down the construction into EXACTLY 4 STEPS grouped by body parts.
 
-    🚨 CRITICAL STEP COUNT AND CHARACTER LIMIT RULES 🚨
-    - MAXIMUM 4 STEPS TOTAL - This is a hard limit!
-    - MAXIMUM 2 CHARACTERS per craft (NOT counting props/accessories)
-    - Props and accessories (swords, shields, hats, pots, stands, bases) DO NOT count toward character limit
-    - If the project contains more than 2 distinct characters, intelligently select the 2 most important/iconic ones
-    - Examples:
-      * "Mario and Luigi" = 2 characters ✓ (allowed)
-      * "Mario, Luigi, Peach, and Bowser" = 4 characters ✗ (pick 2 most iconic: Mario + Bowser)
-      * "Link with Master Sword and Hylian Shield" = 1 character + 2 props ✓ (allowed, props don't count)
-      * "Three Piranha Plants in Pots" = 3 characters ✗ (reduce to 2 plants, keep all pots as props)
+    🚨 MANDATORY 4-STEP BODY PART GROUPING 🚨
+    You MUST create EXACTLY 4 steps, each focusing on a specific body part group:
 
-    STEP COUNT RULES:
-    - Do NOT create a "gather materials" or "prepare materials" step - materials list is captured separately
-    - Start directly with the first actual construction/assembly step
-    - Combine related substeps into single steps (e.g., "Cut and shape base pieces" instead of two steps)
-    - Focus on MAJOR construction phases only, not every tiny detail
-    - Each step should represent a significant milestone in the build
+    STEP 1 - HEAD GROUP:
+    - Head shape, face, facial features (eyes, nose, mouth)
+    - Hair (all hair pieces, bangs, ponytail, curls)
+    - Head accessories (crown, hat, earrings, glasses, headband, horns)
+    - Title format: "Create head, face, and hair" or similar
 
-    WHAT COUNTS AS A CHARACTER vs PROP:
-    - Character: Standalone figure, person, creature, or main object (Mario, Link, Piranha Plant, dinosaur)
-    - Prop: Accessory, weapon, container, base, or support item (sword, pot, stand, shield, hat, platform)
-    - Complex example: "Link figure" = 1 character, "Master Sword" = 1 prop, "Hylian Shield" = 1 prop, "Display base" = 1 prop
-    - If unclear, ask: "Can this exist independently as the main focus?" Yes = Character, No = Prop
+    STEP 2 - BODY GROUP:
+    - Torso/chest/main body structure
+    - Back piece, neck connection
+    - Core body shape and form
+    - Title format: "Assemble body and torso" or similar
+
+    STEP 3 - CLOTHING/SURFACE GROUP:
+    - All clothing items (dress, shirt, pants, jacket, armor, cape)
+    - Surface details, patterns, textures on body
+    - Belts, buttons, collars, pockets
+    - Title format: "Add clothing and surface details" or similar
+
+    STEP 4 - LIMBS & PROPS GROUP:
+    - Arms and hands (both left and right)
+    - Legs and feet/shoes
+    - Props (weapons, tools, bags, items held)
+    - Base/stand/platform
+    - Title format: "Attach limbs, props, and base" or similar
+
+    GROUPING RULES:
+    - If the craft doesn't have all parts (e.g., no clothing on an animal), combine related groups
+    - Each step's image will show ONLY that group's components
+    - Keep related items together (e.g., head + hair + crown = Step 1)
+    - Props held in hands go with Step 4 (limbs), not with the body part they're near
+    - Do NOT create a "gather materials" step - materials list is captured separately
+
+    EXAMPLES:
+    - Princess character: Step 1 (head+hair+tiara), Step 2 (body), Step 3 (dress+jewelry), Step 4 (arms+legs+wand)
+    - Animal (no clothes): Step 1 (head+ears+face), Step 2 (body), Step 3 (fur texture+markings), Step 4 (legs+tail+base)
+    - Robot: Step 1 (head+sensors+antenna), Step 2 (torso+core), Step 3 (armor plates+lights), Step 4 (arms+legs+weapons)
+    - Plant (Piranha Plant): Step 1 (head+mouth+teeth), Step 2 (stem+leaves), Step 3 (spots+details), Step 4 (pot+base)
 
     Return strict JSON matching this schema.
   `;

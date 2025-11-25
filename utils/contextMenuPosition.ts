@@ -106,23 +106,23 @@ export const calculateNodeMenuPosition = (
 };
 
 /**
- * Calculate position for the CraftStyleMenu below an ImageNode
- * Ensures the menu stays within viewport bounds
+ * Calculate position for menus below nodes (ImageNode, MasterNode)
+ * Ensures the menu stays within viewport bounds and is centered
  */
 export const calculateCraftMenuPosition = (
   nodeElement: HTMLElement,
-  menuWidth = 280, // Compact menu bar width
+  menuWidth = 400, // Default menu bar width, can be overridden
   menuHeight = 50, // Single row menu bar height
 ): MenuPosition => {
   const rect = nodeElement.getBoundingClientRect();
-  
+
   // Center the menu horizontally below the image
   const x = rect.left + (rect.width - menuWidth) / 2;
   const y = rect.bottom + 8; // Small offset below the image
-  
+
   // Ensure menu stays within viewport
   const viewportWidth = window.innerWidth;
   const adjustedX = Math.max(8, Math.min(x, viewportWidth - menuWidth - 8));
-  
+
   return { x: adjustedX, y };
 };

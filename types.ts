@@ -31,7 +31,7 @@ export interface MasterNodeData {
   onDissectSelected?: (id: string, selectedObjectImageUrl: string, fullImageUrl: string, label: string) => void;
   isDissecting: boolean;
   isDissected: boolean;
-  onSelect?: (nodeId: string, element: HTMLElement) => void;
+  onSelect?: (nodeId: string, element: HTMLElement, category?: CraftCategory) => void;
   onDeselect?: () => void;
 }
 
@@ -57,8 +57,6 @@ export interface ImageNodeData {
   isGeneratingImage?: boolean;
   onSelect?: (nodeId: string, element: HTMLElement) => void;
   onDeselect?: () => void;
-  onActionsMenuSelect?: (nodeId: string, element: HTMLElement) => void;
-  onActionsMenuDeselect?: () => void;
 }
 
 export interface ShapeNodeData {

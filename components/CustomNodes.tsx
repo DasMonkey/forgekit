@@ -8,7 +8,7 @@ import { initSegmenter, segmentImage, extractSelectedObject, filterLargestRegion
  * The Central "Master" Node displaying the generated image with Interactive Segmentation.
  */
 export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
-  const { label, imageUrl, isDissecting, isDissected, onContextMenu, onDissectSelected, onSelect, onDeselect } = data as MasterNodeData;
+  const { label, imageUrl, isDissecting, isDissected, onContextMenu, onDissectSelected, onSelect, onDeselect, category } = data as MasterNodeData;
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -123,9 +123,9 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
   };
 
   const handleNodeHover = () => {
-      // Trigger selection callback on hover if provided
+      // Trigger selection callback on hover if provided, passing category for menu
       if (onSelect && nodeRef.current) {
-        onSelect(id, nodeRef.current);
+        onSelect(id, nodeRef.current, category);
       }
   };
 
@@ -369,7 +369,7 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
  * Node for uploaded images
  */
 export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
-  const { imageUrl, fileName, width, height, isSelected, isGeneratingImage, onSelect, onDeselect, onActionsMenuSelect, onActionsMenuDeselect } = data as ImageNodeData;
+  const { imageUrl, fileName, width, height, isSelected, isGeneratingImage, onSelect, onDeselect } = data as ImageNodeData;
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -390,24 +390,16 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
   }, []);
 
   const handleNodeHover = () => {
-      // Trigger both craft style menu and actions menu callbacks on hover if provided
-      if (nodeRef.current) {
-        if (onSelect) {
-          onSelect(id, nodeRef.current);
-        }
-        if (onActionsMenuSelect) {
-          onActionsMenuSelect(id, nodeRef.current);
-        }
+      // Trigger unified menu callback on hover if provided
+      if (nodeRef.current && onSelect) {
+        onSelect(id, nodeRef.current);
       }
   };
 
   const handleNodeLeave = () => {
-      // Trigger both deselect callbacks when mouse leaves
+      // Trigger deselect callback when mouse leaves
       if (onDeselect) {
         onDeselect();
-      }
-      if (onActionsMenuDeselect) {
-        onActionsMenuDeselect();
       }
   };
 
