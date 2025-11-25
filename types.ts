@@ -33,6 +33,7 @@ export interface MasterNodeData {
   isDissected: boolean;
   onSelect?: (nodeId: string, element: HTMLElement, category?: CraftCategory) => void;
   onDeselect?: () => void;
+  magicSelectEnabled?: boolean;
 }
 
 export interface InstructionNodeData {

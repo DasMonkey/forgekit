@@ -8,7 +8,7 @@ import { initSegmenter, segmentImage, extractSelectedObject, filterLargestRegion
  * The Central "Master" Node displaying the generated image with Interactive Segmentation.
  */
 export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
-  const { label, imageUrl, isDissecting, isDissected, onContextMenu, onDissectSelected, onSelect, onDeselect, category } = data as MasterNodeData;
+  const { label, imageUrl, isDissecting, isDissected, onDissectSelected, onSelect, onDeselect, category, magicSelectEnabled = false } = data as MasterNodeData;
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,9 +34,13 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
   }, []);
 
   const handleImageClick = async (e: React.MouseEvent) => {
-      // Don't segment if we are clicking the dissect button (handled by e.stopPropagation there ideally, but just in case)
+      // Don't segment if magic select is disabled or we are clicking the dissect button
       // Also ensure segmenter is ready
-      if (!isSegmenterReady || !imgRef.current || !canvasRef.current || isProcessingMask) return;
+      console.log('🖱️ handleImageClick - magicSelectEnabled:', magicSelectEnabled, 'isSegmenterReady:', isSegmenterReady);
+      if (!magicSelectEnabled || !isSegmenterReady || !imgRef.current || !canvasRef.current || isProcessingMask) {
+        console.log('❌ Blocked - magicSelectEnabled:', magicSelectEnabled, 'isSegmenterReady:', isSegmenterReady);
+        return;
+      }
 
       setIsProcessingMask(true);
       try {
@@ -102,7 +106,14 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
 
   const handleDissectSelected = async (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!selectionData || !imgRef.current || !onDissectSelected) return;
+      console.log('🔍 handleDissectSelected called');
+      console.log('  - selectionData:', selectionData);
+      console.log('  - imgRef.current:', !!imgRef.current);
+      console.log('  - onDissectSelected:', !!onDissectSelected);
+      if (!selectionData || !imgRef.current || !onDissectSelected) {
+        console.log('❌ Early return - missing data');
+        return;
+      }
 
       try {
           // Extract the selected object with expanded context
@@ -143,9 +154,11 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
       onMouseLeave={handleNodeLeave}
       className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[300px]"
     >
-      {/* Connection Handle */}
-      <Handle type="source" position={Position.Right} className="!bg-indigo-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} className="!bg-indigo-500 !w-3 !h-3" />
+      {/* Connection Handles */}
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-indigo-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-indigo-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-indigo-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-indigo-500 !w-3 !h-3" />
 
       {/* Header */}
       <div className="px-4 py-2 bg-indigo-600/20 border-b border-indigo-500/30 flex justify-between items-center">
@@ -157,7 +170,7 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
       </div>
 
       {/* Image & Interactive Area */}
-      <div className="relative aspect-square w-full bg-slate-950 cursor-crosshair">
+      <div className={`relative aspect-square w-full bg-slate-950 ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
         <img
           ref={imgRef}
           src={imageUrl}
@@ -173,8 +186,8 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
             className="absolute inset-0 z-20 pointer-events-none w-full h-full mix-blend-screen"
         />
 
-        {/* Loading Indicator for AI Model */}
-        {!hasSelection && isSegmenterLoading && (
+        {/* Loading Indicator for AI Model - only show when magic select is enabled */}
+        {magicSelectEnabled && !hasSelection && isSegmenterLoading && (
           <div className="absolute top-2 right-2 z-30 pointer-events-none">
                <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
                    <Loader2 className="w-3 h-3 animate-spin" />
@@ -183,8 +196,8 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
           </div>
         )}
 
-        {/* Hover Hint for Selection */}
-        {!hasSelection && !isSegmenterLoading && (
+        {/* Hover Hint for Selection - only show when magic select is enabled */}
+        {magicSelectEnabled && !hasSelection && !isSegmenterLoading && (
           <div className={`absolute top-2 right-2 z-30 pointer-events-none transition-opacity duration-300 ${isSegmenterReady ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}>
                <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
                    <MousePointerClick className="w-3 h-3" />
@@ -206,34 +219,7 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
           </div>
         )}
 
-        {/* Dissect Button - Floating at bottom */}
-        {!isDissected && !hasSelection && onContextMenu && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 transition-transform duration-300 transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
-            <button
-              onClick={(e) => {
-                  e.stopPropagation();
-                  const target = e.currentTarget as HTMLElement;
-                  onContextMenu(id, target);
-              }}
-              disabled={isDissecting}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full font-bold shadow-lg shadow-black/50 hover:shadow-indigo-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {isDissecting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Dissecting...
-                </>
-              ) : (
-                <>
-                  <Scissors className="w-4 h-4" />
-                  Dissect Craft
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Dissect Selected Object Button - Shows when object is selected */}
+        {/* Break Down Selected Object Button - Shows when object is selected */}
         {!isDissected && hasSelection && onDissectSelected && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
             <button
@@ -244,12 +230,12 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
               {isDissecting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Dissecting...
+                  Breaking Down...
                 </>
               ) : (
                 <>
                   <Scissors className="w-4 h-4" />
-                  Dissect Selected
+                  Break Down Selected
                 </>
               )}
             </button>
@@ -263,7 +249,8 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
   return (
     prevProps.data.isDissecting === nextProps.data.isDissecting &&
     prevProps.data.isDissected === nextProps.data.isDissected &&
-    prevProps.data.imageUrl === nextProps.data.imageUrl
+    prevProps.data.imageUrl === nextProps.data.imageUrl &&
+    prevProps.data.magicSelectEnabled === nextProps.data.magicSelectEnabled
   );
 });
 
@@ -275,7 +262,7 @@ export const InstructionNode = memo(({ data }: NodeProps<any>) => {
 
   return (
     <div className="w-[300px] md:w-[320px] bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg smooth-transition hover:shadow-xl overflow-hidden">
-      <Handle type="target" position={Position.Left} className="!bg-emerald-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-emerald-500 !w-3 !h-3" />
       
       {/* Step number badge */}
       <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-emerald-600 text-white text-sm font-bold shadow-lg">
@@ -341,7 +328,7 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
 
   return (
     <div className="w-[230px] md:w-[250px] bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl">
-      <Handle type="target" position={Position.Right} className="!bg-blue-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-blue-500 !w-3 !h-3" />
       
       <div className="px-3 py-2.5 flex items-center gap-2">
         <List className="w-4 h-4 text-blue-400" />
@@ -378,6 +365,9 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
   const [isProcessingMask, setIsProcessingMask] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
 
+  // Magic select is disabled for ImageNode (uploaded images)
+  const magicSelectEnabled = false;
+
   // Initialize Segmenter on mount
   useEffect(() => {
     setIsSegmenterLoading(true);
@@ -404,7 +394,8 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
   };
 
   const handleImageClick = async (e: React.MouseEvent) => {
-      if (!isSegmenterReady || !imgRef.current || !canvasRef.current || isProcessingMask) return;
+      // Magic select is disabled for uploaded images
+      if (!magicSelectEnabled || !isSegmenterReady || !imgRef.current || !canvasRef.current || isProcessingMask) return;
 
       setIsProcessingMask(true);
       try {
@@ -412,11 +403,10 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
 
           if (result) {
               let { uint8Array, width, height } = result;
-              
+
               // Filter to keep only the largest connected region
-              // This removes small disconnected areas like parts of display stands
               uint8Array = filterLargestRegion(uint8Array, width, height);
-              
+
               const ctx = canvasRef.current.getContext('2d');
               if (ctx) {
                   canvasRef.current.width = width;
@@ -471,8 +461,10 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
           : 'border-purple-500/50'
       }`}
     >
-      <Handle type="source" position={Position.Right} className="!bg-purple-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} className="!bg-purple-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-purple-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-purple-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-purple-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-purple-500 !w-3 !h-3" />
 
       {/* Header */}
       <div className="px-4 py-2 bg-purple-600/20 border-b border-purple-500/30 flex justify-between items-center">
@@ -484,7 +476,7 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
       </div>
 
       {/* Image & Interactive Area */}
-      <div className="relative bg-white cursor-crosshair" style={{ width: `${width}px`, height: `${height}px` }}>
+      <div className={`relative bg-white ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`} style={{ width: `${width}px`, height: `${height}px` }}>
         {isGeneratingImage ? (
           // Loading placeholder while image is being generated
           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950">
@@ -512,8 +504,8 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
             className="absolute inset-0 z-20 pointer-events-none w-full h-full mix-blend-screen"
         />
 
-        {/* Loading Indicator for AI Model */}
-        {!hasSelection && isSegmenterLoading && (
+        {/* Loading Indicator for AI Model - only show when magic select is enabled */}
+        {magicSelectEnabled && !hasSelection && isSegmenterLoading && (
           <div className="absolute top-2 right-2 z-30 pointer-events-none">
                <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
                    <Loader2 className="w-3 h-3 animate-spin" />
@@ -522,8 +514,8 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
           </div>
         )}
 
-        {/* Hover Hint for Selection */}
-        {!hasSelection && !isSegmenterLoading && (
+        {/* Hover Hint for Selection - only show when magic select is enabled */}
+        {magicSelectEnabled && !hasSelection && !isSegmenterLoading && (
           <div className={`absolute top-2 right-2 z-30 pointer-events-none transition-opacity duration-300 ${isSegmenterReady ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}>
                <div className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
                    <MousePointerClick className="w-3 h-3" />
@@ -824,9 +816,11 @@ export const TextNode = memo(({ data, id }: NodeProps<any>) => {
       className="bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl overflow-hidden min-w-[150px]"
       onDoubleClick={handleDoubleClick}
     >
-      <Handle type="source" position={Position.Right} className="!bg-emerald-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} className="!bg-emerald-500 !w-3 !h-3" />
-      
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-emerald-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-emerald-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-emerald-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-emerald-500 !w-3 !h-3" />
+
       <div className="p-3">
         {isEditing ? (
           <textarea

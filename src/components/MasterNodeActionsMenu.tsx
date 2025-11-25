@@ -1,13 +1,16 @@
 import React from 'react';
-import { Download, Share2, FileImage, Scissors } from 'lucide-react';
+import { Download, Share2, FileImage, Scissors, MousePointerClick, RotateCcw } from 'lucide-react';
 import { CraftCategory } from '../../types';
 
 interface MasterNodeActionsMenuProps {
   visible: boolean;
   position: { x: number; y: number };
   category?: CraftCategory;
+  magicSelectEnabled: boolean;
+  onToggleMagicSelect: () => void;
   onCreateSVGPattern: () => void;
   onCreateStepInstructions: () => void;
+  onCreateTurnTable: () => void;
   onDownload: () => void;
   onShare: () => void;
   onMouseEnter?: () => void;
@@ -27,8 +30,11 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
   visible,
   position,
   category,
+  magicSelectEnabled,
+  onToggleMagicSelect,
   onCreateSVGPattern,
   onCreateStepInstructions,
+  onCreateTurnTable,
   onDownload,
   onShare,
   onMouseEnter,
@@ -75,6 +81,36 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
         >
           <Scissors className="w-4 h-4" />
           <span className="font-medium">Instructions</span>
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-6 bg-gray-200" />
+
+        {/* Turn Table Button - Generate left, right, back views */}
+        <button
+          onClick={onCreateTurnTable}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-full transition-colors"
+          title="Generate Turn Table Views (Left, Right, Back)"
+        >
+          <RotateCcw className="w-4 h-4" />
+          <span className="font-medium">Turn Table</span>
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-6 bg-gray-200" />
+
+        {/* Magic Select Toggle Button */}
+        <button
+          onClick={onToggleMagicSelect}
+          className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition-colors ${
+            magicSelectEnabled
+              ? 'bg-violet-100 text-violet-700'
+              : 'text-gray-700 hover:bg-violet-50 hover:text-violet-600'
+          }`}
+          title={magicSelectEnabled ? 'Disable Magic Select' : 'Enable Magic Select'}
+        >
+          <MousePointerClick className="w-4 h-4" />
+          <span className="font-medium">Magic Select</span>
         </button>
 
         {/* Divider */}

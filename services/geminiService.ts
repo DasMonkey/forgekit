@@ -443,14 +443,37 @@ export const generateStepImage = async (
   console.log(`   Resolution: 1K (default)`);
 
   const prompt = `
+🚨 CRITICAL: MATCH THE EXACT CRAFT CONSTRUCTION STYLE 🚨
+
+Look at the reference image VERY CAREFULLY and identify the construction style:
+- Is it FLAT/LAYERED (2D pieces stacked/layered together)?
+- Is it 3D BOX/CUBE style (folded into 3D shapes)?
+- Is it PIXEL ART style (blocky, square pixels)?
+- Is it SMOOTH/ROUNDED (curved surfaces)?
+
+YOU MUST MATCH THE EXACT SAME CONSTRUCTION METHOD.
+
+WRONG EXAMPLES (DO NOT DO):
+❌ Reference shows FLAT layered pixel art → You generate 3D cube boxes
+❌ Reference shows SMOOTH clay figure → You generate blocky pixel art
+❌ Reference shows 2D stacked paper → You generate 3D folded boxes
+
+CORRECT EXAMPLES:
+✓ Reference shows FLAT layered pixel art → Generate FLAT layered pieces
+✓ Reference shows 3D cube papercraft → Generate 3D folded cube pieces
+✓ Reference shows smooth clay → Generate smooth rounded shapes
+
 📷 REFERENCE IMAGE MATCHING (MANDATORY):
 The attached image is your ONLY style guide. You MUST:
+✓ Match EXACT construction method - If reference is flat/layered, generate flat/layered. If 3D, generate 3D.
 ✓ Match EXACT colors - Sample RGB values directly from the reference
 ✓ Match EXACT textures - Paper grain, clay matte, fabric weave as shown
 ✓ Match EXACT proportions - Character features match reference exactly
 ✓ Match EXACT style - Same artistic approach, same level of detail
 
 DO NOT:
+✗ Convert flat layered crafts into 3D box crafts
+✗ Convert 2D pixel art into 3D cubes
 ✗ Invent new colors not in the reference image
 ✗ Change the art style or aesthetic
 ✗ Add elements not visible in the reference
@@ -474,10 +497,10 @@ Do NOT include parts from other steps (no head parts in body step, no clothing i
 └─────────────┴─────────────┘
 
 PANEL REQUIREMENTS:
-1. PANEL 1 - MATERIALS/PATTERN: Show components in knolling layout, labeled
+1. PANEL 1 - MATERIALS/PATTERN: Show components in knolling layout, labeled. Use the SAME construction style as reference.
 2. PANEL 2 - ASSEMBLY: Show hands working, BOLD ARROWS, text labels
 3. PANEL 3 - DETAILS: Show adding finishing touches (if needed)
-4. PANEL 4 - RESULT: Show completed component matching reference exactly
+4. PANEL 4 - RESULT: Show completed component matching reference EXACTLY in style and construction method
 
 MANDATORY ELEMENTS:
 ✓ Clear panel divisions with labels at top
@@ -488,12 +511,13 @@ MANDATORY ELEMENTS:
 
 ${categoryRules}
 
-🚨 CRITICAL RULES:
-1. Colors MUST match reference image exactly
-2. Show ONLY components for this step: "${stepDescription}"
-3. Multi-panel format with labels, arrows, annotations
-4. Professional instruction manual quality
-5. No electronics, no power tools
+🚨 FINAL CHECK - ASK YOURSELF:
+1. Does my generated image use the SAME construction method as the reference? (flat vs 3D, layered vs folded)
+2. If reference is flat pixel art, am I generating flat layered pieces (NOT 3D cubes)?
+3. Colors match reference image exactly?
+4. Show ONLY components for this step: "${stepDescription}"
+5. Professional instruction manual quality
+6. No electronics, no power tools
   `;
 
   return retryWithBackoff(async () => {
@@ -617,199 +641,162 @@ export const generateSVGPatternSheet = async (
   const patternType = getCategoryPatternType(category);
 
   const prompt = `
-🎯 YOUR TASK: Create a comprehensive SVG-style ${patternType} for the entire craft shown in the reference image.
+🎯 YOUR TASK: Create a ${patternType} for the craft shown in the reference image.
 
-📷 REFERENCE IMAGE: Study this completed craft to understand all elements and components.
+📷 REFERENCE IMAGE: Study this completed 3D craft carefully.
 
 ${craftLabel ? `🎨 CRAFT: ${craftLabel}` : ''}
 📦 CATEGORY: ${category}
 
-🚨 CRITICAL REQUIREMENTS:
+${category === CraftCategory.PAPERCRAFT ? `
+═══════════════════════════════════════════════════════════════
+🚨 CRITICAL: 3D SHAPE → 2D PATTERN UNWRAPPING RULES
+═══════════════════════════════════════════════════════════════
 
-1️⃣ ANALYZE FIRST - Identify ALL Elements:
-Before creating patterns, carefully identify EVERY component in the craft:
-- Character parts: Head, torso, limbs, hands, feet
-- Hair elements: Base, bangs, curls, ponytail, etc.
-- Clothing: Dress, shirt, pants, skirt, sleeves, collar, etc.
-- Accessories: Crown, hat, jewelry, belt, buttons, etc.
-- Props: Weapons, tools, containers, stands, bases, etc.
+You MUST think about HOW each 3D shape unfolds into flat paper.
+A flat circle CANNOT become a 3D ball! You need proper unwrapping.
 
-List them mentally, then create patterns for ALL of them.
+STEP 1: IDENTIFY EACH PART'S 3D SHAPE
+For each component, determine its basic 3D geometry:
 
-2️⃣ SINGLE IMAGE OUTPUT:
-Generate ONE comprehensive pattern sheet image containing ALL elements organized by category.
+STEP 2: APPLY CORRECT UNWRAPPING METHOD
 
-3️⃣ LAYOUT STRUCTURE:
+┌─────────────────┬────────────────────────────────────────────┐
+│ 3D SHAPE        │ CORRECT 2D PATTERN (NOT just outline!)     │
+├─────────────────┼────────────────────────────────────────────┤
+│ SPHERE/BALL     │ 4-8 PETAL SEGMENTS (like orange peel)      │
+│ (hands, feet,   │ Each petal is a pointed oval/leaf shape    │
+│  head, eyes)    │ When glued together, they form a ball      │
+│                 │ Example: ◠◡◠◡◠◡ (6 petals around)          │
+├─────────────────┼────────────────────────────────────────────┤
+│ CYLINDER/TUBE   │ RECTANGLE + 2 CIRCLES (or faceted polygon) │
+│ (arms, legs,    │ Rectangle wraps around, circles cap ends   │
+│  neck, fingers) │ Height = cylinder length                   │
+│                 │ Width = circumference (π × diameter)       │
+├─────────────────┼────────────────────────────────────────────┤
+│ CONE            │ PIE/FAN SHAPE (partial circle)             │
+│ (hats, skirts,  │ Larger cone = larger arc angle             │
+│  dress bottom)  │ Rolls into cone shape when edges meet      │
+├─────────────────┼────────────────────────────────────────────┤
+│ CUBE/BOX        │ CROSS-SHAPED NET (6 connected squares)     │
+│ (torso, base,   │ Classic cube unfolding pattern             │
+│  head if boxy)  │ With fold lines and glue tabs              │
+├─────────────────┼────────────────────────────────────────────┤
+│ HALF-SPHERE     │ 4-6 HALF-PETALS + circular base            │
+│ (dome, bowl)    │ Like sphere but cut in half                │
+├─────────────────┼────────────────────────────────────────────┤
+│ OVAL/EGG        │ TAPERED PETAL SEGMENTS (wider at middle)   │
+│ (body, head)    │ Like sphere petals but asymmetric          │
+├─────────────────┼────────────────────────────────────────────┤
+│ PYRAMID         │ TRIANGLE PANELS from apex + base square    │
+│                 │ 4 triangles connected to square base       │
+└─────────────────┴────────────────────────────────────────────┘
+
+STEP 3: EXAMPLE - DORAEMON CHARACTER BREAKDOWN
+
+For Doraemon (round robot cat):
+• HEAD (sphere) → 6-8 petal segments in BLUE, forms round head
+• FACE (half-sphere) → 4 half-petals in WHITE
+• BODY (oval/egg) → 6-8 tapered segments in BLUE
+• BELLY (half-sphere) → 4 half-petals in WHITE
+• HANDS (spheres) → 4-6 petal segments each in TAN/BEIGE
+• FEET (oval spheres) → 4-6 segments each in TAN/BEIGE
+• COLLAR (ring/cylinder) → rectangle that wraps, in RED
+• BELL (small sphere) → 4 tiny segments in YELLOW
+• NOSE (small sphere) → 4 tiny segments in RED
+• EARS (none for Doraemon - he lost them!)
+• TAIL (small sphere) → 4 tiny segments in RED
+• POCKET (half-circle) → semicircle flat piece in WHITE
+
+❌ WRONG: Drawing a flat circle for hands/feet
+✅ RIGHT: Drawing 4-6 petal segments that fold into a ball
+
+STEP 4: PATTERN SHEET REQUIREMENTS
+
+Include for EACH piece:
+• Correct unwrapped shape (NOT just the 2D silhouette!)
+• Solid BLACK lines = CUT lines
+• Dashed BLUE lines = FOLD lines (mountain/valley)
+• Gray tabs = GLUE tabs on edges
+• Color fill matching reference image
+• Label: "HAND L - Petal 1 of 6" etc.
+• Match left + right pieces` : ''}
+
+${category === CraftCategory.FABRIC_SEWING ? `
+═══════════════════════════════════════════════════════════════
+🚨 CRITICAL: 3D SHAPE → 2D FABRIC PATTERN RULES
+═══════════════════════════════════════════════════════════════
+
+SPHERE/BALL (stuffed) → 4-6 FABRIC GORES with seam allowance
+CYLINDER → Rectangle panel + circular ends
+CONE → Pie-shaped panel
+BODY → Multiple curved panels with darts for shaping
+
+Include seam allowances, grain lines, and notch marks.` : ''}
+
+${category === CraftCategory.COSTUME_PROPS ? `
+═══════════════════════════════════════════════════════════════
+🚨 CRITICAL: 3D SHAPE → EVA FOAM PATTERN RULES
+═══════════════════════════════════════════════════════════════
+
+CURVED SURFACES → Multiple flat foam pieces, heat-formed to curve
+SPHERE → Segmented panels (like soccer ball) or half-shells
+CYLINDER → Flat rectangle, heat-curved around form
+Show foam thickness, bevel angles, and heat-forming zones.` : ''}
+
+${category === CraftCategory.CLAY ? `
+═══════════════════════════════════════════════════════════════
+CLAY COMPONENT GUIDE
+═══════════════════════════════════════════════════════════════
+
+Show basic clay shapes needed:
+• Ball sizes (pea, marble, walnut, egg)
+• Coil/rope lengths and thickness
+• Slab sizes for flat parts
+• Color mixing ratios
+• Assembly order` : ''}
+
+${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS, CraftCategory.TABLETOP_FIGURES].includes(category) ? `
+═══════════════════════════════════════════════════════════════
+PATTERN REQUIREMENTS
+═══════════════════════════════════════════════════════════════
+
+Show flat pattern pieces with:
+• Cut lines and material specifications
+• Assembly connection points
+• Scale indicators` : ''}
+
+═══════════════════════════════════════════════════════════════
+📋 OUTPUT FORMAT
+═══════════════════════════════════════════════════════════════
+
+Create ONE organized pattern sheet image with:
+
 ┌─────────────────────────────────────────────┐
-│  PATTERN SHEET - [CRAFT NAME]              │
-├──────────┬──────────┬──────────┬───────────┤
-│  HAIR    │  HEAD    │  BODY    │  CLOTHES  │
-│ (pieces) │ (pieces) │ (pieces) │ (pieces)  │
-├──────────┼──────────┼──────────┼───────────┤
-│  LIMBS   │  HANDS   │  PROPS   │  BASE     │
-│ (pieces) │ (pieces) │ (pieces) │ (pieces)  │
-└──────────┴──────────┴──────────┴───────────┘
+│  PATTERN SHEET - [CRAFT NAME]               │
+├─────────────────────────────────────────────┤
+│                                             │
+│  [HEAD patterns]    [BODY patterns]         │
+│  - Petal 1-6        - Petal 1-6             │
+│                                             │
+│  [LIMBS patterns]   [ACCESSORIES]           │
+│  - Arm cylinders    - Details               │
+│  - Hand petals                              │
+│                                             │
+│  [FEET patterns]    [BASE/STAND]            │
+│  - Foot petals      - Platform              │
+│                                             │
+└─────────────────────────────────────────────┘
 
-4️⃣ PATTERN REQUIREMENTS (${category}-specific):
+VISUAL STYLE:
+• PLAIN WHITE background (NO grid, NO cross pattern, NO texture)
+• Clean technical drawing style
+• All pieces labeled clearly
+• Colors matching reference image
+• Professional, printable layout
 
-${category === CraftCategory.PAPERCRAFT ? `
-For EACH component (PAPERCRAFT):
-✓ Show as 3D unwrapped patterns (UV-mapped like 3D modeling)
-✓ ROUNDED shapes (heads, bodies) → unwrap into petal gores or segments
-✓ CYLINDRICAL shapes (limbs, tubes) → unwrap into curved rectangles
-✓ CURVED surfaces → show how they flatten with fold lines
-✓ Include cut lines (solid) and fold lines (dashed)
-✓ Add glue tabs for assembly
-✓ Label each piece clearly (e.g., "HEAD - Front", "ARM L", "SKIRT - Panel 1")
-✓ Match EXACT colors from reference image
-✓ Show scale/size indicators` : ''}
-
-${category === CraftCategory.COSTUME_PROPS ? `
-For EACH component (COSTUME & PROPS - EVA FOAM):
-✓ Show foam pieces with thickness indicators (2mm, 6mm, 10mm)
-✓ BEVELED EDGES marked with angle indicators (45°)
-✓ Heat-forming zones marked with temperature guides
-✓ Layering order numbered (Base → Detail → Top)
-✓ Contact cement gluing surfaces marked
-✓ Strapping/attachment points indicated
-✓ Label each piece (e.g., "CHEST PLATE - Base 10mm", "SHOULDER - Detail 2mm")
-✓ Match EXACT colors from reference image
-✓ Show scale/size indicators and weathering zones` : ''}
-
-${category === CraftCategory.CLAY ? `
-For EACH component (CLAY SCULPTING):
-✓ Show clay ball/coil sizes needed (pea-sized, walnut-sized, etc.)
-✓ Color mixing ratios if needed
-✓ Shape forming steps (roll, pinch, blend)
-✓ Tool marks and texture techniques
-✓ Assembly order with blending zones
-✓ Support structure if needed (armature wire)
-✓ Label each piece (e.g., "BODY - Walnut size green")
-✓ Match EXACT colors from reference image
-✓ Show final size dimensions` : ''}
-
-${category === CraftCategory.FABRIC_SEWING ? `
-For EACH component (FABRIC/SEWING):
-✓ Show pattern pieces with grain line arrows
-✓ Seam allowances marked (1/4", 1/2")
-✓ Notches for alignment
-✓ Stitch type indicators (straight, zigzag, hand-stitch)
-✓ Interfacing or stabilizer needs
-✓ Label each piece (e.g., "FRONT PANEL - Cut 2", "SLEEVE - Cut 2")
-✓ Match EXACT fabric type and color from reference
-✓ Show finished size dimensions` : ''}
-
-${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS, CraftCategory.TABLETOP_FIGURES].includes(category) ? `
-For EACH component:
-✓ Show clear pattern/template outlines
-✓ Material specifications
-✓ Assembly/connection points
-✓ Scale and dimensions
-✓ Label each piece clearly
-✓ Match colors from reference image` : ''}
-
-5️⃣ ORGANIZATION BY CATEGORY:
-
-Group patterns by logical categories with clear labels:
-- HAIR SECTION: All hair pieces (base, curls, bangs, etc.)
-- HEAD SECTION: Face, ears, neck pieces
-- BODY SECTION: Torso front/back, belly, chest
-- CLOTHING SECTION: Dress panels, sleeves, collar, etc.
-- LIMBS SECTION: Arms, legs (left & right)
-- HANDS/FEET SECTION: Hand pieces, fingers, shoes
-- ACCESSORIES SECTION: Crown, jewelry, decorative elements
-- PROPS SECTION: Weapons, containers, tools
-- BASE/STAND SECTION: Platform, support pieces
-
-6️⃣ VISUAL STYLE:
-
-✓ Clean SVG/vector style with precise lines
-✓ White background with subtle grid
-✓ Black outlines for cut lines (solid)
-✓ Blue dashed lines for fold lines
-✓ Red dotted lines for glue tabs
-✓ Color fill matching reference image
-✓ Text labels in clean sans-serif font
-✓ Professional technical drawing aesthetic
-
-7️⃣ COMPLETENESS CHECK:
-
-Before finalizing, verify you included patterns for:
-✓ Every visible component in the reference image
-✓ Both left AND right limbs (if character has limbs)
-✓ All layers of clothing (if multi-layered)
-✓ Every hair component (base + curls + details)
-✓ All accessories and props
-✓ Connection tabs for assembly
-✓ Base or stand (if applicable)
-
-8️⃣ MATERIAL-SPECIFIC CONSTRUCTION:
-
-${category === CraftCategory.PAPERCRAFT ? `
-🚨 CRITICAL (PAPERCRAFT): ALL patterns must be paper-constructible:
-✓ Use LOW-POLY GEOMETRIC approach for curves
-✓ Curves achieved through faceted folds, NOT soft materials
-✓ Round shapes = angular segments that approximate curves
-✓ NO foam, fabric, wire, or soft materials
-✓ Pure papercraft = everything folds/rolls from flat sheets` : ''}
-
-${category === CraftCategory.COSTUME_PROPS ? `
-🚨 CRITICAL (COSTUME & PROPS - EVA FOAM):
-✓ Show foam thickness layers clearly (thin 2mm details on thick 10mm base)
-✓ Beveled edges at 45° angles for seamless joints
-✓ Heat-forming curves with heat gun (marked zones)
-✓ Contact cement for permanent bonds
-✓ Layering technique: Base → Detail → Surface
-✓ NO paper, NO clay - EVA foam and heat-forming only` : ''}
-
-${category === CraftCategory.CLAY ? `
-🚨 CRITICAL (CLAY SCULPTING):
-✓ Start with basic shapes (balls, coils, slabs)
-✓ Build up volume, don't carve down
-✓ Blend seams with water/slip
-✓ Support heavy parts with hidden armature wire
-✓ NO pre-made molds - hand-sculpting only
-✓ Polymer clay texture (matte, NOT glossy)` : ''}
-
-${category === CraftCategory.FABRIC_SEWING ? `
-🚨 CRITICAL (FABRIC/SEWING):
-✓ All seams must have allowances
-✓ Fabric grain direction matters for drape
-✓ Interface structured areas
-✓ Hand-stitch curves for control
-✓ NO glue - stitching only for fabric joins
-✓ Stuff with polyfil for dimension` : ''}
-
-${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS, CraftCategory.TABLETOP_FIGURES].includes(category) ? `
-🚨 CRITICAL:
-✓ Follow material-appropriate construction methods
-✓ Clear assembly sequence
-✓ Safe techniques suitable for skill level` : ''}
-
-EXAMPLE CATEGORIES (for a princess character):
-┌────────────────────────────────────────────┐
-│ PATTERN SHEET - Princess Peach Papercraft │
-├──────────┬─────────┬──────────┬───────────┤
-│ HAIR     │ HEAD    │ BODY     │ DRESS     │
-│ - Base   │ - Front │ - Torso  │ - Skirt   │
-│ - Curls  │ - Back  │ - Neck   │ - Bodice  │
-│ (orange) │ (skin)  │ (skin)   │ (green)   │
-├──────────┼─────────┼──────────┼───────────┤
-│ ARMS     │ HANDS   │ CROWN    │ BASE      │
-│ - L/R    │ - L/R   │ - 5 pts  │ - Circle  │
-│ (skin)   │ (skin)  │ (gold)   │ (brown)   │
-└──────────┴─────────┴──────────┴───────────┘
-
-📐 TECHNICAL PRECISION:
-- This is a buildable template - someone must be able to print, cut, and assemble
-- Patterns must be geometrically correct for 3D folding
-- All pieces must connect properly with tabs
-- Maintain proper proportions relative to reference image
-
-🎨 FINAL OUTPUT:
-One comprehensive, professionally organized pattern sheet with ALL elements labeled and ready to print.
-
-Category: ${category}
+Remember: The pattern pieces must actually fold/assemble into the 3D shape!
+A circle stays flat - use PETAL SEGMENTS to make spheres!
 `;
 
   console.log('🚀 Starting retryWithBackoff...');
@@ -1164,6 +1151,8 @@ export const dissectCraft = async (
   const prompt = `
     You are an expert maker. Analyze this image of a craft project: "${userPrompt}".
 
+    YOUR TASK: Create step-by-step instructions to build THIS craft.
+
     1. Determine the complexity (Simple, Moderate, Complex) and a score 1-10.
     2. List the essential materials visible or implied.
     3. Break down the construction into EXACTLY 4 STEPS grouped by body parts.
@@ -1228,6 +1217,9 @@ export const dissectCraft = async (
       },
       config: {
         responseMimeType: "application/json",
+        thinkingConfig: {
+          includeThoughts: true, // Enable thinking for better step planning
+        },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -1256,6 +1248,26 @@ export const dissectCraft = async (
       },
     });
 
+    // Extract thinking process - part.thought is a boolean flag
+    const candidate = response.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+
+    // Collect all thinking parts (where part.thought === true)
+    const thinkingTexts: string[] = [];
+
+    for (const part of parts) {
+      const partAny = part as any;
+      if (partAny.text && partAny.thought === true) {
+        thinkingTexts.push(partAny.text);
+      }
+    }
+
+    if (thinkingTexts.length > 0) {
+      console.log('\n💭 === AI THINKING PROCESS (Craft Breakdown) ===');
+      console.log(thinkingTexts.join('\n'));
+      console.log('=== END THINKING ===\n');
+    }
+
     const text = response.text;
     if (!text) {
       trackApiUsage('dissectCraft', false);
@@ -1265,6 +1277,122 @@ export const dissectCraft = async (
     return JSON.parse(text) as DissectionResponse;
   }).catch((error) => {
     trackApiUsage('dissectCraft', false);
+    throw error;
+  });
+};
+
+/**
+ * Turn Table view types
+ */
+export type TurnTableView = 'left' | 'right' | 'back';
+
+/**
+ * Generates a turn table view (left, right, or back) of the craft object
+ * Takes the original front-facing image and generates the specified view angle
+ */
+export const generateTurnTableView = async (
+  originalImageBase64: string,
+  view: TurnTableView,
+  craftLabel?: string
+): Promise<string> => {
+  // Check rate limit before making request
+  if (!imageGenerationLimiter.canMakeRequest()) {
+    const waitTime = imageGenerationLimiter.getTimeUntilNextRequest();
+    const waitSeconds = Math.ceil(waitTime / 1000);
+    throw new Error(`Rate limit exceeded. Please wait ${waitSeconds} seconds before generating another image.`);
+  }
+
+  const ai = getAiClient();
+  const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
+
+  // View-specific rotation descriptions
+  const viewDescriptions: Record<TurnTableView, string> = {
+    left: 'LEFT SIDE VIEW (90° rotation to the left) - Show the left profile of the object as if you rotated it 90 degrees counter-clockwise',
+    right: 'RIGHT SIDE VIEW (90° rotation to the right) - Show the right profile of the object as if you rotated it 90 degrees clockwise',
+    back: 'BACK VIEW (180° rotation) - Show the back/rear of the object as if you rotated it 180 degrees to see what\'s behind it',
+  };
+
+  const viewAngles: Record<TurnTableView, string> = {
+    left: 'left side profile, showing the left ear/arm/side details',
+    right: 'right side profile, showing the right ear/arm/side details',
+    back: 'back view, showing the back of head, back details, any tail or rear features',
+  };
+
+  const prompt = `
+🎯 YOUR TASK: Generate a ${view.toUpperCase()} VIEW of this exact same craft object.
+
+📷 REFERENCE IMAGE: This shows the FRONT VIEW of a craft/figure.
+${craftLabel ? `🎨 OBJECT: ${craftLabel}` : ''}
+
+═══════════════════════════════════════════════════════════════
+🔄 TURN TABLE VIEW GENERATION
+═══════════════════════════════════════════════════════════════
+
+You are creating a ${viewDescriptions[view]}.
+
+CRITICAL REQUIREMENTS:
+1. ✅ SAME OBJECT - Generate the EXACT SAME craft object, not a different one
+2. ✅ SAME STYLE - Match the exact same art style, materials, textures, and colors
+3. ✅ SAME SCALE - Keep the same size and proportions
+4. ✅ SAME LIGHTING - Use similar studio lighting and neutral background
+5. ✅ ROTATED VIEW - Show the ${viewAngles[view]}
+
+WHAT TO SHOW:
+- ${view === 'left' ? 'Left side profile - what you\'d see standing to the left of the object' : ''}
+- ${view === 'right' ? 'Right side profile - what you\'d see standing to the right of the object' : ''}
+- ${view === 'back' ? 'Back/rear view - what you\'d see standing behind the object' : ''}
+
+CONSISTENCY RULES:
+- All colors MUST match the reference exactly
+- All materials (paper, clay, fabric, etc.) MUST be the same
+- All proportions and details MUST be consistent
+- The style (photorealistic craft) MUST be maintained
+- Background should be similar neutral studio setting
+
+IMAGINE: You have the physical craft object on a turntable/lazy susan.
+You spin it ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'} and take another photo.
+Generate THAT view.
+
+DO NOT:
+- Change the character/object design
+- Add or remove features
+- Change colors or materials
+- Use a different art style
+- Show a different craft entirely
+`;
+
+  return retryWithBackoff(async () => {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: 'image/png',
+              data: cleanBase64,
+            },
+          },
+          { text: prompt },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: "1K",
+        },
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        trackApiUsage('generateTurnTableView', true);
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    trackApiUsage('generateTurnTableView', false);
+    throw new Error(`Failed to generate ${view} view`);
+  }).catch((error) => {
+    trackApiUsage('generateTurnTableView', false);
     throw error;
   });
 };

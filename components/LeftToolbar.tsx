@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MousePointer2, Plus, Square, Type, Pencil } from 'lucide-react';
+import React from 'react';
+import { MousePointer2, Plus, Square, Type, Pencil, Maximize } from 'lucide-react';
 import { ToolButton } from './ToolButton';
 
 export type ToolType = 'select' | 'upload' | 'shapes' | 'text' | 'pencil';
@@ -8,12 +8,14 @@ interface LeftToolbarProps {
   activeTool: ToolType;
   onToolChange: (tool: ToolType) => void;
   onToolSubmenuOpen?: (tool: ToolType, position: { x: number; y: number }) => void;
+  onFitView?: () => void;
 }
 
 export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   activeTool,
   onToolChange,
   onToolSubmenuOpen,
+  onFitView,
 }) => {
   const tools = [
     {
@@ -70,7 +72,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   };
 
   return (
-    <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40 animate-fade-in" data-toolbar>
+    <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40 animate-fade-in-opacity" data-toolbar>
       <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-2">
         <div className="flex flex-col gap-1">
           {tools.map((tool) => (
@@ -85,6 +87,20 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
               />
             </div>
           ))}
+
+          {/* Divider */}
+          <div className="h-px bg-slate-700/50 my-1" />
+
+          {/* Fit View Button */}
+          <div onClick={onFitView}>
+            <ToolButton
+              icon={Maximize}
+              label="Fit View"
+              isActive={false}
+              onClick={() => {}}
+              keyboardShortcut="0"
+            />
+          </div>
         </div>
       </div>
     </div>

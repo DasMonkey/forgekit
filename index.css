@@ -150,19 +150,6 @@
   display: none;
 }
 
-.react-flow__controls {
-  @apply shadow-xl;
-}
-
-.react-flow__controls-button {
-  @apply bg-slate-800 border-slate-700 text-slate-200;
-  @apply hover:bg-slate-700 transition-colors;
-}
-
-.react-flow__controls-button:hover {
-  @apply bg-slate-700;
-}
-
 /* Empty state styling */
 .empty-state {
   @apply flex flex-col items-center justify-center;
@@ -181,7 +168,22 @@
   }
 }
 
+/* Opacity-only fade in (for elements with existing transforms like -translate-x-1/2) */
+@keyframes fadeInOpacity {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Fade in animation utility */
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
+}
+
+/* Fade in without transform (use for elements with translate transforms) */
+.animate-fade-in-opacity {
+  animation: fadeInOpacity 0.3s ease-out;
 }

@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import {
   ReactFlow,
   Background,
-  Controls,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -14,12 +13,11 @@ import {
   BackgroundVariant,
   useReactFlow,
 } from '@xyflow/react';
-import { Sparkles, Keyboard, Scissors } from 'lucide-react';
+import { Sparkles, Keyboard } from 'lucide-react';
 import { MasterNode, InstructionNode, MaterialNode, ImageNode, ShapeNode, TextNode, DrawingNode } from '../components/CustomNodes';
 import { ChatInterface } from '../components/ChatInterface';
 import { FloatingMenuBar } from '../components/FloatingMenuBar';
 import { LeftToolbar, ToolType } from '../components/LeftToolbar';
-import { ContextMenu, ContextMenuItem } from '../components/ContextMenu';
 import { UploadSubmenu } from '../components/UploadSubmenu';
 import { ShapesSubmenu, ShapeType } from '../components/ShapesSubmenu';
 import { PencilSubmenu, PencilMode } from '../components/PencilSubmenu';
@@ -27,7 +25,7 @@ import { ImageNodeUnifiedMenu } from '../src/components/ImageNodeUnifiedMenu';
 import { MasterNodeActionsMenu } from '../src/components/MasterNodeActionsMenu';
 import { calculateNodeMenuPosition, calculateCraftMenuPosition } from '../utils/contextMenuPosition';
 import { handleFileUpload } from '../utils/fileUpload';
-import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject, generateCraftFromImage, generateSVGPatternSheet } from '../services/geminiService';
+import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject, generateCraftFromImage, generateSVGPatternSheet, generateTurnTableView, TurnTableView } from '../services/geminiService';
 import { CraftCategory, DissectionResponse } from '../types';
 import { useProjects } from '../contexts/ProjectsContext';
 import { useKeyboardShortcuts } from '../utils/useKeyboardShortcuts';
@@ -170,7 +168,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const projectId = propProjectId || urlProjectId;
   const { state: projectsState, saveProject, updateProject } = useProjects();
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -256,6 +254,8 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     category: undefined,
   });
 
+  // Track magic select enabled state per master node (default: true)
+  const [magicSelectEnabledMap, setMagicSelectEnabledMap] = useState<Record<string, boolean>>({});
 
   // Track the current drawing node ID and start position
   const [currentDrawingNodeId, setCurrentDrawingNodeId] = useState<string | null>(null);
@@ -383,10 +383,17 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
    */
   const handleMenuMouseLeave = useCallback(() => {
     setIsHoveringMenu(false);
-    // Close menu after a short delay
+    // Close menus after a short delay
     menuHoverTimeoutRef.current = setTimeout(() => {
       handleCloseCraftStyleMenu();
-    }, 50);
+      // Also close master node actions menu
+      setMasterNodeActionsMenu({
+        visible: false,
+        position: { x: 0, y: 0 },
+        nodeId: null,
+        category: undefined,
+      });
+    }, 150); // Slightly longer delay for smoother UX
   }, []);
 
   /**
@@ -442,7 +449,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     console.log('🎯 MasterNode hover - nodeId:', nodeId, 'category:', category);
 
     // Use appropriate menu width based on whether pattern button will show
-    // Pattern button adds ~140px, base menu is ~300px
+    // Pattern Sheet (~140px) + Instructions (~120px) + Turn Table (~130px) + Magic Select (~140px) + Download (~110px) + Share (~90px) + dividers/padding
     const PATTERN_CATEGORIES = [
       CraftCategory.PAPERCRAFT,
       CraftCategory.FABRIC_SEWING,
@@ -451,7 +458,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       CraftCategory.KIDS_CRAFTS,
     ];
     const hasPatternButton = category && PATTERN_CATEGORIES.includes(category);
-    const menuWidth = hasPatternButton ? 480 : 340;
+    const menuWidth = hasPatternButton ? 750 : 610;
 
     const position = calculateCraftMenuPosition(element, menuWidth);
     setMasterNodeActionsMenu({
@@ -486,6 +493,45 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     });
   }, []);
 
+  /**
+   * Toggle magic select for the current master node
+   */
+  const handleToggleMagicSelect = useCallback(() => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    console.log('🎯 handleToggleMagicSelect called, nodeId:', nodeId);
+    if (!nodeId) {
+      console.log('❌ No nodeId, returning early');
+      return;
+    }
+
+    // Use functional update to get the latest value from the map
+    setMagicSelectEnabledMap(prev => {
+      const currentValue = prev[nodeId] ?? false;
+      const newEnabled = !currentValue;
+      console.log('🔄 Toggling magic select:', currentValue, '->', newEnabled);
+
+      // Update the node data inside the same render cycle
+      setNodes(nds => nds.map(node => {
+        if (node.id === nodeId && node.type === 'masterNode') {
+          console.log('✅ Updating node data for:', nodeId, 'magicSelectEnabled:', newEnabled);
+          // Create a completely new data object to ensure React Flow detects the change
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              magicSelectEnabled: newEnabled,
+            },
+          };
+        }
+        return node;
+      }));
+
+      return {
+        ...prev,
+        [nodeId]: newEnabled,
+      };
+    });
+  }, [masterNodeActionsMenu.nodeId, setNodes]);
 
   /**
    * Download image from ImageNode
@@ -599,7 +645,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     const newEdge: Edge = {
       id: `e-${patternNodeId}-${nodeId}`,
       source: patternNodeId,
+      sourceHandle: 'source-right',
       target: nodeId,
+      targetHandle: 'target-left',
       animated: true,
       style: { stroke: '#8b5cf6', strokeWidth: 2 },
     };
@@ -638,16 +686,151 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     }
   }, [masterNodeActionsMenu.nodeId, nodes, readOnly, setNodes, setEdges, handleImageNodeSelect, handleImageNodeDeselect]);
 
-  const handleCreateStepInstructions = useCallback(() => {
+  const handleCreateStepInstructions = useCallback(async () => {
     const nodeId = masterNodeActionsMenu.nodeId;
-    if (!nodeId) return;
+    if (!nodeId || readOnly) return;
 
-    // TODO: This should trigger the dissect flow (same as clicking "Dissect Craft")
-    // For now, just show info
-    console.log('Create Step Instructions for node:', nodeId);
-    alert('This will trigger the dissect flow. Use the "Dissect Craft" button for now.');
+    // Find the master node to get its image URL
+    const masterNode = nodes.find(n => n.id === nodeId);
+    if (!masterNode || masterNode.type !== 'masterNode') {
+      console.error('Master node not found');
+      return;
+    }
+
+    const imageUrl = masterNode.data.imageUrl as string;
+    if (!imageUrl) {
+      console.error('No image URL found on master node');
+      return;
+    }
+
+    // Close the menu first
     handleCloseMasterNodeActionsMenu();
-  }, [masterNodeActionsMenu.nodeId]);
+
+    // Trigger the dissect flow (same as "Break Down Craft")
+    await handleDissect(nodeId, imageUrl);
+  }, [masterNodeActionsMenu.nodeId, nodes, readOnly, handleCloseMasterNodeActionsMenu]);
+
+  /**
+   * Handle Turn Table - Generate left, right, and back views of the craft
+   */
+  const handleCreateTurnTable = useCallback(async () => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId || readOnly) return;
+
+    // Find the master node
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type !== 'masterNode') {
+      console.error('Master node not found');
+      return;
+    }
+
+    const imageUrl = node.data.imageUrl as string;
+    const label = node.data.label as string;
+
+    // Close menu immediately
+    handleCloseMasterNodeActionsMenu();
+
+    console.log('🔄 Generating Turn Table views...');
+    console.log('Craft:', label);
+
+    // Define the 3 views to generate
+    const views: TurnTableView[] = ['left', 'right', 'back'];
+    const viewLabels: Record<TurnTableView, string> = {
+      left: 'Left Side',
+      right: 'Right Side',
+      back: 'Back View',
+    };
+
+    // Calculate positions for the 3 new nodes (arranged in a row below the master node)
+    const baseY = node.position.y + 400; // Position below master node
+    const spacing = 350; // Horizontal spacing between nodes
+    const startX = node.position.x - spacing; // Start from left
+
+    // Create placeholder nodes for all 3 views immediately
+    const placeholderNodes: Node[] = views.map((view, index) => {
+      const viewNodeId = `turntable-${view}-${Date.now()}-${index}`;
+      return {
+        id: viewNodeId,
+        type: 'imageNode',
+        position: { x: startX + (index * spacing), y: baseY },
+        data: {
+          imageUrl: '',
+          fileName: `${label} - ${viewLabels[view]}.png`,
+          width: 300,
+          height: 300, // 1:1 aspect ratio
+          isSelected: false,
+          isGeneratingImage: true,
+          onSelect: handleImageNodeSelect,
+          onDeselect: handleImageNodeDeselect,
+        },
+      };
+    });
+
+    // Add all placeholder nodes
+    setNodes((nds) => [...nds, ...placeholderNodes]);
+
+    // Create edges from master node to each view node
+    const newEdges: Edge[] = placeholderNodes.map((placeholderNode) => ({
+      id: `e-${nodeId}-${placeholderNode.id}`,
+      source: nodeId,
+      sourceHandle: 'source-right',
+      target: placeholderNode.id,
+      targetHandle: 'target-left',
+      animated: true,
+      style: { stroke: '#f59e0b', strokeWidth: 2 }, // Amber color for turn table edges
+    }));
+    setEdges((eds) => [...eds, ...newEdges]);
+
+    // Generate each view in parallel
+    const generatePromises = views.map(async (view, index) => {
+      const viewNodeId = placeholderNodes[index].id;
+      try {
+        console.log(`📸 Generating ${view} view...`);
+        const viewImageUrl = await generateTurnTableView(imageUrl, view, label);
+        console.log(`✅ ${view} view generated successfully!`);
+
+        // Update the specific node with the generated image
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id === viewNodeId) {
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  imageUrl: viewImageUrl,
+                  isGeneratingImage: false,
+                },
+              };
+            }
+            return n;
+          })
+        );
+      } catch (error) {
+        console.error(`Failed to generate ${view} view:`, error);
+        // Update node to show error state
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id === viewNodeId) {
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  imageUrl: '',
+                  isGeneratingImage: false,
+                  fileName: `${label} - ${viewLabels[view]} (Failed)`,
+                },
+              };
+            }
+            return n;
+          })
+        );
+      }
+    });
+
+    // Wait for all generations to complete (they run in parallel)
+    await Promise.allSettled(generatePromises);
+    console.log('🎉 Turn Table generation complete!');
+  }, [masterNodeActionsMenu.nodeId, nodes, readOnly, setNodes, setEdges, handleImageNodeSelect, handleImageNodeDeselect, handleCloseMasterNodeActionsMenu]);
 
   const handleDownloadImage = useCallback(() => {
     const nodeId = masterNodeActionsMenu.nodeId;
@@ -736,10 +919,10 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               data: {
                 ...node.data,
                 onDissect: handleDissect,
-                onContextMenu: handleNodeContextMenu,
                 onDissectSelected: handleDissectSelected,
                 onSelect: handleMasterNodeSelect,
                 onDeselect: handleMasterNodeDeselect,
+                magicSelectEnabled: magicSelectEnabledMap[node.id] ?? false,
               },
             };
           }
@@ -832,17 +1015,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       visible: true,
       position,
       nodeId,
-    });
-  }, []);
-
-  /**
-   * Close context menu
-   */
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu({
-      visible: false,
-      position: { x: 0, y: 0 },
-      nodeId: null,
     });
   }, []);
 
@@ -1092,6 +1264,16 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       handleCloseCraftStyleMenu();
     }
 
+    // Close master node actions menu if clicking on canvas background
+    if (masterNodeActionsMenu.visible) {
+      setMasterNodeActionsMenu({
+        visible: false,
+        position: { x: 0, y: 0 },
+        nodeId: null,
+        category: undefined,
+      });
+    }
+
     // Handle text creation
     if (!textCreationMode || readOnly) return;
 
@@ -1128,7 +1310,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
     // Switch back to select tool after creating text
     setActiveTool('select');
-  }, [textCreationMode, readOnly, setNodes, setActiveTool, toolSubmenu.visible, handleCloseToolSubmenu, craftStyleMenu.visible, handleCloseCraftStyleMenu, handleTextEdit, screenToFlowPosition]);
+  }, [textCreationMode, readOnly, setNodes, setActiveTool, toolSubmenu.visible, handleCloseToolSubmenu, craftStyleMenu.visible, handleCloseCraftStyleMenu, masterNodeActionsMenu.visible, handleTextEdit, screenToFlowPosition]);
 
   /**
    * Handle pane mouse down for drawing
@@ -1280,18 +1462,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   }, [drawingState]);
 
   /**
-   * Handle dissect action from context menu
-   */
-  const handleDissectFromMenu = useCallback(() => {
-    if (contextMenu.nodeId) {
-      const node = nodes.find(n => n.id === contextMenu.nodeId);
-      if (node && node.data.imageUrl) {
-        handleDissect(contextMenu.nodeId, node.data.imageUrl as string);
-      }
-    }
-  }, [contextMenu.nodeId, nodes]);
-
-  /**
    * Step 2a: Dissect a selected object from the image
    */
   const handleDissectSelected = async (
@@ -1386,7 +1556,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         newEdges.push({
             id: `e-${nodeId}-${matNodeId}`,
             source: nodeId,
+            sourceHandle: 'source-left',
             target: matNodeId,
+            targetHandle: 'target-right',
             animated: true,
             style: { stroke: '#3b82f6', strokeWidth: 2 },
         });
@@ -1422,7 +1594,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
             newEdges.push({
                 id: `e-${nodeId}-${stepNodeId}`,
                 source: nodeId,
+                sourceHandle: 'source-right',
                 target: stepNodeId,
+                targetHandle: 'target-left',
                 animated: true,
                 style: { stroke: '#10b981', strokeWidth: 2 },
             });
@@ -1586,7 +1760,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         newEdges.push({
             id: `e-${nodeId}-${matNodeId}`,
             source: nodeId,
+            sourceHandle: 'source-left',
             target: matNodeId,
+            targetHandle: 'target-right',
             animated: true,
             style: { stroke: '#3b82f6', strokeWidth: 2 },
         });
@@ -1622,7 +1798,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
             newEdges.push({
                 id: `e-${nodeId}-${stepNodeId}`,
                 source: nodeId,
+                sourceHandle: 'source-right',
                 target: stepNodeId,
+                targetHandle: 'target-left',
                 animated: true,
                 style: { stroke: '#10b981', strokeWidth: 2 },
             });
@@ -1736,7 +1914,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         imageUrl,
         category,
         onDissect: handleDissect,
-        onContextMenu: handleNodeContextMenu,
         onDissectSelected: handleDissectSelected,
         onSelect: handleMasterNodeSelect,
         onDeselect: handleMasterNodeDeselect,
@@ -1871,17 +2048,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     saveProject,
   ]);
 
-  // Context menu items
-  const contextMenuItems: ContextMenuItem[] = [
-    {
-      id: 'dissect',
-      label: 'Dissect Craft',
-      icon: Scissors,
-      onClick: handleDissectFromMenu,
-      disabled: false,
-    },
-  ];
-
   return (
     <div className="w-screen h-screen bg-slate-950 relative overflow-hidden">
       {/* Floating Menu Bar */}
@@ -1893,16 +2059,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           activeTool={activeTool}
           onToolChange={setActiveTool}
           onToolSubmenuOpen={handleToolSubmenuOpen}
+          onFitView={() => fitView({ padding: 0.2 })}
         />
       )}
-
-      {/* Context Menu */}
-      <ContextMenu
-        visible={contextMenu.visible}
-        position={contextMenu.position}
-        items={contextMenuItems}
-        onClose={handleCloseContextMenu}
-      />
 
       {/* Tool Submenus */}
       <UploadSubmenu
@@ -1946,8 +2105,11 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         visible={masterNodeActionsMenu.visible}
         position={masterNodeActionsMenu.position}
         category={masterNodeActionsMenu.category}
+        magicSelectEnabled={magicSelectEnabledMap[masterNodeActionsMenu.nodeId ?? ''] ?? false}
+        onToggleMagicSelect={handleToggleMagicSelect}
         onCreateSVGPattern={handleCreateSVGPattern}
         onCreateStepInstructions={handleCreateStepInstructions}
+        onCreateTurnTable={handleCreateTurnTable}
         onDownload={handleDownloadImage}
         onShare={handleShareImage}
         onMouseEnter={handleMenuMouseEnter}
@@ -1978,13 +2140,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           minZoom={0.1}
           maxZoom={8}
         >
-          <Background 
-              color="#334155" 
-              variant={BackgroundVariant.Dots} 
-              gap={24} 
-              size={2} 
+          <Background
+              color="#334155"
+              variant={BackgroundVariant.Dots}
+              gap={24}
+              size={2}
           />
-          <Controls className="bg-slate-800 border-slate-700 text-slate-200" />
         </ReactFlow>
       </div>
 

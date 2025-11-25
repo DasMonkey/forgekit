@@ -23,7 +23,7 @@ export const FloatingMenuBar: React.FC<FloatingMenuBarProps> = ({
   };
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in-opacity">
       <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-full shadow-2xl px-3 py-2 md:px-4 md:py-2.5">
         <div className="flex items-center gap-2 md:gap-4">
           {/* Logo/Brand */}
