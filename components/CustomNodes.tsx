@@ -8,7 +8,7 @@ import { initSegmenter, segmentImage, extractSelectedObject, filterLargestRegion
  * The Central "Master" Node displaying the generated image with Interactive Segmentation.
  */
 export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
-  const { label, imageUrl, isDissecting, isDissected, onDissectSelected, onSelect, onDeselect, category, magicSelectEnabled = false } = data as MasterNodeData;
+  const { label, imageUrl, isDissecting, isDissected, isGeneratingImage, onDissectSelected, onSelect, onDeselect, category, magicSelectEnabled = false } = data as MasterNodeData;
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -171,14 +171,25 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
 
       {/* Image & Interactive Area */}
       <div className={`relative aspect-square w-full bg-slate-950 ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
-        <img
-          ref={imgRef}
-          src={imageUrl}
-          alt={label}
-          crossOrigin="anonymous"
-          onClick={handleImageClick}
-          className="w-full h-full object-cover relative z-10"
-        />
+        {isGeneratingImage ? (
+          // Loading placeholder while image is being generated
+          <div className="w-full h-full flex flex-col items-center justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 bg-indigo-500 blur opacity-20 pulse-glow rounded-full"></div>
+              <Loader2 className="w-12 h-12 animate-spin text-indigo-500/50 relative z-10" />
+            </div>
+            <span className="text-sm text-indigo-500/70 pulse-glow font-medium mt-4">Generating craft image...</span>
+          </div>
+        ) : (
+          <img
+            ref={imgRef}
+            src={imageUrl}
+            alt={label}
+            crossOrigin="anonymous"
+            onClick={handleImageClick}
+            className="w-full h-full object-cover relative z-10"
+          />
+        )}
 
         {/* Segmentation Overlay Canvas */}
         <canvas
@@ -249,6 +260,7 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
   return (
     prevProps.data.isDissecting === nextProps.data.isDissecting &&
     prevProps.data.isDissected === nextProps.data.isDissected &&
+    prevProps.data.isGeneratingImage === nextProps.data.isGeneratingImage &&
     prevProps.data.imageUrl === nextProps.data.imageUrl &&
     prevProps.data.magicSelectEnabled === nextProps.data.magicSelectEnabled
   );

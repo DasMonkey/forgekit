@@ -31,6 +31,7 @@ export interface MasterNodeData {
   onDissectSelected?: (id: string, selectedObjectImageUrl: string, fullImageUrl: string, label: string) => void;
   isDissecting: boolean;
   isDissected: boolean;
+  isGeneratingImage?: boolean;
   onSelect?: (nodeId: string, element: HTMLElement, category?: CraftCategory) => void;
   onDeselect?: () => void;
   magicSelectEnabled?: boolean;

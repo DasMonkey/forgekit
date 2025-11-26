@@ -7,6 +7,9 @@ import { sanitizeText } from '../utils/security';
 
 interface ChatInterfaceProps {
   onGenerate: (imageUrl: string, prompt: string, category: CraftCategory) => void;
+  onStartGeneration?: (nodeId: string, prompt: string, category: CraftCategory) => void;
+  onGenerationComplete?: (nodeId: string, imageUrl: string) => void;
+  onGenerationError?: (nodeId: string) => void;
 }
 
 const LOADING_MESSAGES = [
@@ -17,7 +20,7 @@ const LOADING_MESSAGES = [
   "Finalizing the studio lighting..."
 ];
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStartGeneration, onGenerationComplete, onGenerationError }) => {
   const [prompt, setPrompt] = useState('');
   const [category, setCategory] = useState<CraftCategory>(CraftCategory.PAPERCRAFT);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -59,15 +62,34 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate }) => {
 
     setIsLoading(true);
 
+    // Sanitize prompt before sending to AI
+    const sanitizedPrompt = sanitizeText(prompt, 500);
+
+    // Generate node ID and create placeholder immediately
+    const nodeId = `master-${Date.now()}`;
+    if (onStartGeneration) {
+      onStartGeneration(nodeId, sanitizedPrompt, category);
+    }
+
+    // Clear input immediately for better UX
+    setPrompt('');
+    setIsCategoryOpen(false);
+
     try {
-      // Sanitize prompt before sending to AI
-      const sanitizedPrompt = sanitizeText(prompt, 500);
       const imageUrl = await generateCraftImage(sanitizedPrompt, category);
-      onGenerate(imageUrl, sanitizedPrompt, category);
-      setPrompt('');
-      setIsCategoryOpen(false); // Close menu if open
+
+      // Update the placeholder node with the generated image
+      if (onGenerationComplete) {
+        onGenerationComplete(nodeId, imageUrl);
+      } else {
+        // Fallback to original behavior if new callbacks not provided
+        onGenerate(imageUrl, sanitizedPrompt, category);
+      }
     } catch (error) {
       console.error("Generation failed:", error);
+      if (onGenerationError) {
+        onGenerationError(nodeId);
+      }
       alert("Failed to generate craft. Please check your connection and try again.");
     } finally {
       setIsLoading(false);

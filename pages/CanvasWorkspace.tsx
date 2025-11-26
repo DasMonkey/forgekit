@@ -473,13 +473,13 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
    * Handle master node deselection (mouse leave)
    */
   const handleMasterNodeDeselect = useCallback(() => {
-    // Delay closing to allow moving to the menu
+    // Small delay to allow moving to the menu, then close immediately
     menuHoverTimeoutRef.current = setTimeout(() => {
-      if (!isHoveringMenu) {
-        handleCloseMasterNodeActionsMenu();
-      }
-    }, 50); // 50ms delay for fast response
-  }, [isHoveringMenu]);
+      // Close the menu - if user moved to menu, handleMenuMouseEnter will have set isHoveringMenu
+      // and the menu visibility is controlled by onMouseEnter/onMouseLeave on the menu itself
+      handleCloseMasterNodeActionsMenu();
+    }, 100); // Small delay to allow mouse to reach menu
+  }, []);
 
   /**
    * Close master node actions menu
@@ -1946,6 +1946,83 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   }, [setNodes, readOnly, saveProject]);
 
   /**
+   * Create placeholder master node when generation starts
+   */
+  const handleStartGeneration = useCallback((nodeId: string, prompt: string, category: CraftCategory) => {
+    if (readOnly) return;
+
+    const newNode: Node = {
+      id: nodeId,
+      type: 'masterNode',
+      position: { x: 0, y: 0 },
+      data: {
+        label: prompt,
+        imageUrl: '',
+        category,
+        onDissect: handleDissect,
+        onDissectSelected: handleDissectSelected,
+        onSelect: handleMasterNodeSelect,
+        onDeselect: handleMasterNodeDeselect,
+        isDissecting: false,
+        isDissected: false,
+        isGeneratingImage: true,
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+  }, [setNodes, readOnly, handleDissect, handleDissectSelected, handleMasterNodeSelect, handleMasterNodeDeselect]);
+
+  /**
+   * Update placeholder node when generation completes
+   */
+  const handleGenerationComplete = useCallback((nodeId: string, imageUrl: string) => {
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === nodeId && n.type === 'masterNode') {
+          // Create and save new project now that we have the image
+          const prompt = n.data.label as string;
+          const category = n.data.category as CraftCategory;
+
+          const newProject = {
+            id: `project-${Date.now()}`,
+            name: prompt.substring(0, 50),
+            category,
+            prompt,
+            masterImageUrl: imageUrl,
+            dissection: null,
+            stepImages: new Map(),
+            createdAt: new Date(),
+            lastModified: new Date(),
+            canvasState: {
+              nodes: [{...n, data: { ...n.data, imageUrl, isGeneratingImage: false }}],
+              edges: [],
+              viewport: { x: 0, y: 0, zoom: 1 }
+            }
+          };
+          saveProject(newProject);
+
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              imageUrl,
+              isGeneratingImage: false,
+            },
+          };
+        }
+        return n;
+      })
+    );
+  }, [setNodes, saveProject]);
+
+  /**
+   * Remove placeholder node on generation error
+   */
+  const handleGenerationError = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+  }, [setNodes]);
+
+  /**
    * Handle image-to-craft conversion
    */
   const handleImageToCraftConvert = useCallback(async () => {
@@ -2186,7 +2263,14 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       )}
 
       {/* Chat Interface (hidden in readonly mode) */}
-      {!readOnly && <ChatInterface onGenerate={handleGenerate} />}
+      {!readOnly && (
+        <ChatInterface
+          onGenerate={handleGenerate}
+          onStartGeneration={handleStartGeneration}
+          onGenerationComplete={handleGenerationComplete}
+          onGenerationError={handleGenerationError}
+        />
+      )}
     </div>
   );
 };
