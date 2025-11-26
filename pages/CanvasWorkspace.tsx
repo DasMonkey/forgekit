@@ -168,7 +168,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const projectId = propProjectId || urlProjectId;
   const { state: projectsState, saveProject, updateProject } = useProjects();
-  const { screenToFlowPosition, fitView } = useReactFlow();
+  const { screenToFlowPosition, fitView, getViewport } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -446,8 +446,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       menuHoverTimeoutRef.current = null;
     }
 
-    console.log('🎯 MasterNode hover - nodeId:', nodeId, 'category:', category);
-
     // Use appropriate menu width based on whether pattern button will show
     // Pattern Sheet (~140px) + Instructions (~120px) + Turn Table (~130px) + Magic Select (~140px) + Download (~110px) + Share (~90px) + dividers/padding
     const PATTERN_CATEGORIES = [
@@ -639,6 +637,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         isGeneratingImage: true, // Show loading state
         onSelect: handleImageNodeSelect,
         onDeselect: handleImageNodeDeselect,
+        onDelete: handleDeleteImageNode,
       },
     };
 
@@ -766,6 +765,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           isGeneratingImage: true,
           onSelect: handleImageNodeSelect,
           onDeselect: handleImageNodeDeselect,
+          onDelete: handleDeleteImageNode,
         },
       };
     });
@@ -896,9 +896,10 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   // Track if canvas is ready to show (prevents flash of content at wrong position)
   const [isCanvasReady, setIsCanvasReady] = useState(!projectId);
 
-  // Load project from storage if projectId is provided (only once)
+  // Load project from storage if projectId is provided (only once on mount)
   useEffect(() => {
     if (projectId && !hasLoadedProjectRef.current) {
+      // Find project from current state snapshot
       const project = projectsState.projects.find(p => p.id === projectId);
       if (project && project.canvasState) {
         isLoadingProjectRef.current = true;
@@ -924,6 +925,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
                 isSelected: false,
                 onSelect: handleImageNodeSelect,
                 onDeselect: handleImageNodeDeselect,
+                onDelete: handleDeleteImageNode,
               },
             };
           }
@@ -953,10 +955,14 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           // Show the canvas now that it's properly positioned
           setIsCanvasReady(true);
         }, 50);
+      } else {
+        // No project found or no canvas state - mark as ready anyway
+        setIsCanvasReady(true);
       }
     }
+  // Only run once on mount - don't re-run when projects change (causes infinite loop with auto-save)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, projectsState.projects]);
+  }, [projectId]);
 
   // Auto-save canvas state when nodes or edges change (skip during initial load)
   useEffect(() => {
@@ -1087,6 +1093,21 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   }, []);
 
   /**
+   * Handle image node deletion
+   */
+  const handleDeleteImageNode = useCallback((nodeId: string) => {
+    if (readOnly) return;
+
+    // Remove the node
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    
+    // Remove any connected edges
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    
+    console.log('Deleted image node:', nodeId);
+  }, [readOnly, setNodes, setEdges]);
+
+  /**
    * Handle upload image action
    */
   const handleUploadImage = useCallback(() => {
@@ -1115,12 +1136,19 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
             height = height * ratio;
           }
 
+          // Calculate center of the viewport in flow coordinates using getViewport
+          // This avoids timing issues with screenToFlowPosition during async callbacks
+          const viewport = getViewport();
+          const centerX = (-viewport.x + window.innerWidth / 2) / viewport.zoom - width / 2;
+          const centerY = (-viewport.y + window.innerHeight / 2) / viewport.zoom - height / 2;
+          const centerPosition = { x: centerX, y: centerY };
+
           // Create new image node
           const id = `image-${Date.now()}`;
           const newNode: Node = {
             id,
             type: 'imageNode',
-            position: { x: 0, y: 0 }, // Will be centered in viewport
+            position: centerPosition,
             data: {
               imageUrl: dataUrl,
               fileName,
@@ -1129,6 +1157,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               isSelected: false,
               onSelect: handleImageNodeSelect,
               onDeselect: handleImageNodeDeselect,
+              onDelete: handleDeleteImageNode,
             },
           };
 
@@ -1149,7 +1178,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     };
 
     input.click();
-  }, [setNodes, setActiveTool]);
+  }, [setNodes, setActiveTool, getViewport, handleDeleteImageNode]);
 
   /**
    * Handle shape selection

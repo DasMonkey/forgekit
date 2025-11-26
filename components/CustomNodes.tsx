@@ -368,7 +368,7 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
  * Node for uploaded images
  */
 export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
-  const { imageUrl, fileName, width, height, isSelected, isGeneratingImage, onSelect, onDeselect } = data as ImageNodeData;
+  const { imageUrl, fileName, width, height, isSelected, isGeneratingImage, onSelect, onDeselect, onDelete } = data as ImageNodeData;
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -467,9 +467,9 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl border-2 overflow-hidden smooth-transition hover:shadow-xl ${
-        isSelected 
-          ? 'border-orange-500 shadow-orange-500/50 ring-2 ring-orange-500/30' 
+      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl border-2 overflow-hidden transition-shadow duration-300 hover:shadow-xl ${
+        isSelected
+          ? 'border-orange-500 shadow-orange-500/50 ring-2 ring-orange-500/30'
           : 'border-purple-500/50'
       }`}
     >
@@ -484,6 +484,18 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
         <div className="flex items-center gap-2">
             {isProcessingMask && <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />}
             <ImageIcon className="w-4 h-4 text-purple-400" />
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(id);
+                }}
+                className="ml-1 text-purple-300 hover:text-white hover:bg-purple-500/30 rounded transition-colors p-1"
+                title="Close image"
+              >
+                <span className="text-lg leading-none">×</span>
+              </button>
+            )}
         </div>
       </div>
 

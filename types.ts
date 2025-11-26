@@ -59,6 +59,7 @@ export interface ImageNodeData {
   isGeneratingImage?: boolean;
   onSelect?: (nodeId: string, element: HTMLElement) => void;
   onDeselect?: () => void;
+  onDelete?: (nodeId: string) => void;
 }
 
 export interface ShapeNodeData {
