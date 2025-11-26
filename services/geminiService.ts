@@ -412,6 +412,12 @@ WHITE BACKGROUND, no electronics.`;
 
 /**
  * Generates a visualization for a specific step using the master image as reference.
+ *
+ * OPTIMIZED PROMPT STRUCTURE (based on Turn Table success):
+ * 1. Reference image comes FIRST in the parts array
+ * 2. Consistency requirements are stated FIRST and repeatedly
+ * 3. Physical metaphor helps AI understand the task
+ * 4. Explicit negative constraints prevent common mistakes
  */
 export const generateStepImage = async (
   originalImageBase64: string,
@@ -425,72 +431,71 @@ export const generateStepImage = async (
 
   const categoryRules = getCategorySpecificRules(category);
 
-  // If target object is specified, add focus instructions
-  const focusInstructions = targetObjectLabel
-    ? `
-🎯 CRITICAL FOCUS RULE:
-- The reference image may show MULTIPLE objects or characters
-- You MUST generate a step image for ONLY: "${targetObjectLabel}"
-- IGNORE all other objects, characters, or accessories in the reference image
-- Generate materials/components that match "${targetObjectLabel}"'s style and color scheme ONLY
-- Do NOT include elements from other characters or objects
-`
-    : '';
-
   // Use default 1K resolution for all steps (no special handling)
   console.log(`🖼️ Generating image for: ${stepDescription}`);
   console.log(`   Step Number: ${stepNumber || 'N/A'}`);
   console.log(`   Resolution: 1K (default)`);
 
+  // Build the prompt with Turn Table's successful pattern:
+  // 1. CONSISTENCY FIRST - Reference image matching is THE PRIMARY GOAL
+  // 2. Physical metaphor - "photographing a craft kit"
+  // 3. Then the multi-panel format requirements
+  // 4. Explicit DO NOT constraints at the end
+
   const prompt = `
-🚨 CRITICAL: YOU MUST SHOW THE EXACT SAME CHARACTER FROM THE REFERENCE IMAGE 🚨
+🎯 YOUR TASK: Generate a MULTI-PANEL INSTRUCTION IMAGE for building this EXACT craft.
 
-The attached reference image shows a SPECIFIC character/craft. Your step image MUST show THIS EXACT SAME CHARACTER being built - not a generic version, not a similar one, but THE EXACT SAME ONE.
+📷 REFERENCE IMAGE: This is the FINISHED craft you are creating instructions for.
+${targetObjectLabel ? `🎨 CRAFT: ${targetObjectLabel}` : ''}
+📦 CATEGORY: ${category}
 
-📷 CHARACTER IDENTITY - COPY EXACTLY:
-Look at the reference image and identify ALL unique features:
-- Face: Eye shape, eye color, nose shape, mouth expression, facial markings
-- Body: Exact proportions, belly patches, texture patterns (like strawberry seed dots)
-- Colors: EXACT RGB values - sample directly from the reference
-- Accessories: Any props, clothing, items the character holds
-- Unique details: Leaf/stem on head, ear shape, paw design, etc.
+═══════════════════════════════════════════════════════════════
+🔒 CONSISTENCY REQUIREMENTS (CRITICAL - READ FIRST)
+═══════════════════════════════════════════════════════════════
 
-YOUR GENERATED IMAGE MUST SHOW THIS SAME CHARACTER at various stages of construction.
+You MUST preserve EXACT visual consistency with the reference image:
 
-🚨 WRONG - DO NOT DO:
-❌ Reference shows strawberry bear with leaf stem → You generate plain red bear without leaf
-❌ Reference shows character with purple nose → You generate character with pink nose
-❌ Reference shows specific eye style → You generate different cartoon eyes
-❌ Reference shows pink belly patch → You omit the belly patch
+1. ✅ SAME CHARACTER/OBJECT - This is the EXACT craft being built, not a similar one
+2. ✅ SAME COLORS - Match colors EXACTLY (sample RGB values from reference)
+3. ✅ SAME STYLE - Match the art style, materials, and textures precisely
+4. ✅ SAME PROPORTIONS - Keep all size ratios identical
+5. ✅ SAME UNIQUE FEATURES - Every detail matters (spots, patches, accessories, facial features)
 
-✅ CORRECT - MUST DO:
-✓ Copy EVERY visual detail from the reference character
-✓ The completed result panel MUST look identical to the reference
-✓ All assembly panels must show parts that will become THIS character
+IMAGINE: You have a craft kit in front of you with pre-made pieces that will assemble into THIS EXACT craft from the reference image. You're photographing the assembly process step-by-step. The pieces in your photos MUST match what's in the finished reference.
 
-🔧 CONSTRUCTION STYLE MATCHING:
-- Is it FLAT/LAYERED (2D pieces stacked)?
-- Is it 3D BOX/CUBE style (folded into 3D shapes)?
-- Is it PIXEL ART style (blocky)?
-- Is it SMOOTH/ROUNDED (curved surfaces)?
+🔴 CRITICAL - PARTS MUST MATCH REFERENCE:
+The arms, legs, head, body pieces you show MUST be parts of THIS EXACT character.
+- If the reference shows a RED strawberry bear → show RED arm pieces, RED leg pieces
+- If the reference has LOW-POLY faceted style → show LOW-POLY faceted arm/leg pieces
+- If the reference has spotted texture → the pieces must have that SAME spotted texture
+- The pieces are NOT generic - they are pre-cut/pre-made to become THIS character
 
-Match the EXACT construction method shown in the reference.
+CONSISTENCY RULES (REPEAT FOR EMPHASIS):
+- All colors MUST match the reference EXACTLY
+- All materials (paper, clay, fabric, etc.) MUST be the same
+- All unique details MUST be preserved (leaf on head, belly patch, ear shape, etc.)
+- Every component shown MUST look like it belongs to the reference character
+- Construction style MUST match (flat/layered vs 3D/folded vs rounded)
 
-DO NOT:
-✗ Change the character's appearance in any way
-✗ Simplify or modify unique features
-✗ Use different colors than shown
-✗ Create a "generic" version of the character
+${targetObjectLabel ? `
+🎯 FOCUS ON: "${targetObjectLabel}" ONLY
+- If reference shows multiple objects, create instructions for "${targetObjectLabel}" only
+- Match "${targetObjectLabel}"'s exact colors and features
+` : ''}
 
-${focusInstructions}
+═══════════════════════════════════════════════════════════════
+📋 STEP TO ILLUSTRATE
+═══════════════════════════════════════════════════════════════
 
-🎯 TASK: Create a MULTI-PANEL instruction image for this step:
-STEP: "${stepDescription}"
+CURRENT STEP: "${stepDescription}"
 
-This step focuses on ONE body part group. Show ONLY the components mentioned above.
-Do NOT include parts from other steps (no head parts in body step, no clothing in limbs step, etc.)
+Show ONLY the components mentioned in this step.
+Do NOT include parts from other steps.
 
-📐 MULTI-PANEL FORMAT (2-4 PANELS):
+═══════════════════════════════════════════════════════════════
+📐 MULTI-PANEL FORMAT (2-4 PANELS)
+═══════════════════════════════════════════════════════════════
+
 ┌─────────────┬─────────────┐
 │  PANEL 1    │  PANEL 2    │
 │  MATERIALS  │  ASSEMBLY   │
@@ -499,29 +504,31 @@ Do NOT include parts from other steps (no head parts in body step, no clothing i
 │  DETAILS    │  RESULT     │
 └─────────────┴─────────────┘
 
-PANEL REQUIREMENTS:
-1. PANEL 1 - MATERIALS/PATTERN: Show components in knolling layout, labeled. Use the SAME construction style as reference.
-2. PANEL 2 - ASSEMBLY: Show hands working, BOLD ARROWS, text labels
-3. PANEL 3 - DETAILS: Show adding finishing touches (if needed)
-4. PANEL 4 - RESULT: Show completed component matching reference EXACTLY in style and construction method
+PANEL 1 - MATERIALS: Show components in knolling layout, labeled
+PANEL 2 - ASSEMBLY: Show hands working with BOLD ARROWS and text labels
+PANEL 3 - DETAILS: Show finishing touches (combine with Panel 2 if simple)
+PANEL 4 - RESULT: Show completed component - MUST match reference exactly
 
 MANDATORY ELEMENTS:
-✓ Clear panel divisions with labels at top
-✓ BOLD ARROWS (→ ➜ ⬇) showing direction/movement
-✓ TEXT ANNOTATIONS: "FOLD", "GLUE", "ATTACH", "ALIGN"
-✓ HANDS/FINGERS demonstrating technique
-✓ PLAIN WHITE BACKGROUND - clean white surface/table with natural soft shadows, NO grid lines, NO cross lines, NO checkered patterns
+✓ Clear panel divisions with labels
+✓ BOLD ARROWS (→ ➜ ⬇) showing direction
+✓ TEXT ANNOTATIONS: "FOLD", "GLUE", "ATTACH"
+✓ HANDS demonstrating technique
+✓ WHITE BACKGROUND - clean, no grid patterns
 
 ${categoryRules}
 
-🚨 FINAL CHECK - ASK YOURSELF:
-1. Does the character in my generated image look IDENTICAL to the reference? Same face, same colors, same unique features?
-2. Would someone looking at my image and the reference recognize it as THE SAME character?
-3. Does my generated image use the SAME construction method as the reference? (flat vs 3D, layered vs folded)
-4. Colors match reference image exactly? (not similar - EXACTLY the same)
-5. Show ONLY components for this step: "${stepDescription}"
-6. Professional instruction manual quality
-7. No electronics, no power tools
+═══════════════════════════════════════════════════════════════
+🚫 DO NOT
+═══════════════════════════════════════════════════════════════
+
+- Change the character/craft appearance in ANY way
+- Use different colors than shown in reference
+- Simplify or modify unique features
+- Create a "generic" version instead of THIS EXACT craft
+- Add or remove features not in the reference
+- Include parts from other steps
+- Use electronics or power tools
   `;
 
   return retryWithBackoff(async () => {

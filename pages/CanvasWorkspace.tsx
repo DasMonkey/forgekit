@@ -168,7 +168,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const projectId = propProjectId || urlProjectId;
   const { state: projectsState, saveProject, updateProject } = useProjects();
-  const { screenToFlowPosition, fitView, getViewport } = useReactFlow();
+  const { screenToFlowPosition, fitView, getViewport, setCenter } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -1678,14 +1678,15 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         console.log('All steps:', dissection.steps.map(s => `${s.stepNumber}: ${s.title}`));
         console.log('Format: Multi-Panel with 4K resolution for Step 1');
 
-        // Generate step images with multi-panel format
+        // Generate ALL step images in PARALLEL for faster generation
         // Pass the identifiedLabel to ensure images focus on the selected object only
-        for (const step of dissection.steps) {
+        console.log(`\n🚀 Generating ${dissection.steps.length} step images IN PARALLEL...`);
+
+        const stepGenerationPromises = dissection.steps.map(async (step) => {
           const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
 
-          console.log(`\n🎨 Generating multi-panel image for Step ${step.stepNumber}: ${step.title}`);
-          console.log(`Target object: ${identifiedLabel}`);
-          console.log(`Category: ${category}`);
+          console.log(`🎨 Starting Step ${step.stepNumber}: ${step.title}`);
+          console.log(`   Target object: ${identifiedLabel} | Category: ${category}`);
 
           try {
             // Generate image with SELECTED OBJECT as reference to match exact style/appearance
@@ -1697,7 +1698,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               step.stepNumber // Pass step number for 4K resolution on step 1
             );
 
-            console.log(`✅ Successfully generated image for Step ${step.stepNumber}`);
+            console.log(`✅ Step ${step.stepNumber} complete`);
 
             // Update node with generated image
             setNodes((nds) =>
@@ -1715,8 +1716,10 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
                 return node;
               })
             );
+
+            return { stepNumber: step.stepNumber, success: true };
           } catch (error) {
-            console.error(`❌ Failed to generate image for Step ${step.stepNumber}:`, error);
+            console.error(`❌ Step ${step.stepNumber} failed:`, error);
             // Clear loading state on error
             setNodes((nds) =>
               nds.map((node) => {
@@ -1732,8 +1735,15 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
                 return node;
               })
             );
+
+            return { stepNumber: step.stepNumber, success: false, error };
           }
-        }
+        });
+
+        // Wait for all step images to complete (success or failure)
+        const results = await Promise.all(stepGenerationPromises);
+        const successCount = results.filter(r => r.success).length;
+        console.log(`\n📊 Parallel generation complete: ${successCount}/${results.length} steps succeeded`);
 
         console.log('=== DISSECT SELECTED COMPLETE ===\n');
     } catch (error) {
@@ -2006,19 +2016,15 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const handleStartGeneration = useCallback((nodeId: string, prompt: string, category: CraftCategory) => {
     if (readOnly) return;
 
-    // Calculate center of the viewport in flow coordinates
-    // Master node is 500px wide and ~550px tall (including header)
+    // Place node at fixed position (0, 0) and pan canvas to it
+    // This avoids the "pop to center" effect caused by position recalculation
     const nodeWidth = 500;
     const nodeHeight = 550;
-    const centerPosition = screenToFlowPosition({
-      x: window.innerWidth / 2 - nodeWidth / 2,
-      y: window.innerHeight / 2 - nodeHeight / 2,
-    });
 
     const newNode: Node = {
       id: nodeId,
       type: 'masterNode',
-      position: centerPosition,
+      position: { x: 0, y: 0 },
       data: {
         label: prompt,
         imageUrl: '',
@@ -2034,7 +2040,11 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     };
 
     setNodes((nds) => [...nds, newNode]);
-  }, [setNodes, readOnly, handleDissect, handleDissectSelected, handleMasterNodeSelect, handleMasterNodeDeselect, screenToFlowPosition]);
+
+    // Pan canvas to center on the node (accounting for node dimensions)
+    // setCenter targets the center point, so offset by half node size
+    setCenter(nodeWidth / 2, nodeHeight / 2, { zoom: 1, duration: 300 });
+  }, [setNodes, readOnly, handleDissect, handleDissectSelected, handleMasterNodeSelect, handleMasterNodeDeselect, setCenter]);
 
   /**
    * Update placeholder node when generation completes

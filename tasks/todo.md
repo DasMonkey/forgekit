@@ -1,58 +1,34 @@
-# Fix LocalStorage Quota and React State Errors
+# Optimize Step Instructions Prompt
 
 ## Problem Analysis
 
-There are 3 console errors occurring:
+The step instructions image generation (`generateStepImage`) was producing inconsistent results where the craft/character in the generated instruction panels didn't match the reference image exactly. The Turn Table feature had much better consistency.
 
-### Error 1: LocalStorage Quota Exceeded (rateLimiter.ts:96)
-```
-QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'craftus_api_usage' exceeded the quota.
-```
-**Cause:** The `trackApiUsage` function tries to save API usage data to localStorage, but storage is full (likely from base64 image data being stored in projects).
+### Why Turn Table Works Better
 
-### Error 2: LocalStorage Quota Exceeded (ProjectsContext.tsx:123)
-```
-QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'craftus_projects' exceeded the quota.
-```
-**Cause:** Projects are storing base64 image URLs directly in localStorage. Base64 images are ~1.37x larger than binary, so a few images quickly exceed the ~5-10MB localStorage limit.
+Analyzed `generateTurnTableView` (lines 1297-1402) and found these success patterns:
+1. **Consistency requirements come FIRST** - not buried in the middle
+2. **Physical metaphor** - "turntable/lazy susan" helps AI understand the task
+3. **Focused task** - ~40 lines, one clear goal
+4. **Repetition** - Consistency rules stated multiple times in different ways
+5. **Explicit negative constraints** - "DO NOT change colors/materials/design"
 
-### Error 3: setState During Render (ProjectsContext.tsx:242)
-```
-Cannot update a component (`ProjectsProvider`) while rendering a different component (`CanvasWorkspaceContent`).
-```
-**Cause:** In `handleGenerationComplete`, we call `saveProject()` inside the `setNodes()` callback, which is during render. This violates React's rules.
+### Problems with Old Step Instructions
+
+1. **Task overload** - ~110 lines trying to do too much at once
+2. **Consistency buried** - Important matching requirements scattered throughout
+3. **No physical metaphor** - AI doesn't understand it's building the SAME craft
+4. **Formatting first** - Panel layout prioritized over character consistency
 
 ---
 
 ## Fix Plan
 
-### Fix 1: Handle localStorage quota gracefully in rateLimiter.ts
-- [x] Add quota check before writing to localStorage
-- [x] Clear old data if quota is exceeded
-- [x] Make tracking optional/graceful failure
-
-### Fix 2: Fix the images storage problem in ProjectsContext.tsx
-- [x] Add graceful quota handling in saveToStorage (multi-tier fallback strategy)
-- [x] Clear old projects when quota is exceeded
-
-### Fix 3: Fix setState during render in CanvasWorkspace.tsx
-- [x] Move `saveProject()` call outside of the `setNodes()` callback
-- [x] Use `setTimeout` to save project after state update completes
-
----
-
-## Implementation Steps
-
-### Step 1: Fix rateLimiter.ts (quick fix)
-Make `trackApiUsage` silently fail if quota exceeded, and clear old data.
-
-### Step 2: Fix handleGenerationComplete in CanvasWorkspace.tsx
-Move `saveProject()` to after the setNodes completes using a ref or separate effect.
-
-### Step 3: Add quota handling to ProjectsContext.tsx
-- Add graceful quota exceeded handling
-- Consider clearing oldest projects or warn user
-- For long-term: migrate to IndexedDB for image storage
+- [x] Restructure `generateStepImage` prompt based on Turn Table pattern
+- [x] Put CONSISTENCY REQUIREMENTS FIRST (before panel format)
+- [x] Add physical metaphor: "craft kit with pre-made pieces"
+- [x] Simplify prompt while keeping multi-panel requirements
+- [x] Move DO NOT constraints to the end (like Turn Table)
 
 ---
 
@@ -60,21 +36,82 @@ Move `saveProject()` to after the setNodes completes using a ref or separate eff
 
 ### Changes Made
 
-**1. rateLimiter.ts (lines 80-114)**
-- Wrapped `localStorage.setItem` in try-catch specifically for QuotaExceededError
-- If quota exceeded: clears old data and retries with minimal entries (10)
-- Reduced max entries from 100 to 50 to save space
-- Silently fails if all recovery attempts fail (tracking is non-critical)
+**geminiService.ts - generateStepImage (lines 413-525)**
 
-**2. CanvasWorkspace.tsx (handleGenerationComplete, lines 1978-2027)**
-- Moved `saveProject()` call outside of the `setNodes()` callback
-- Used `setTimeout(..., 0)` to schedule project save after render completes
-- This fixes the "Cannot update component while rendering different component" React error
+Restructured the entire prompt to follow Turn Table's successful pattern:
 
-**3. ProjectsContext.tsx (saveToStorage, lines 112-185)**
-- Added multi-tier quota handling fallback strategy:
-  - First try: Save all projects normally
-  - If quota exceeded: Keep only 10 most recent projects
-  - If still exceeded: Keep only 5 most recent projects
-  - Final fallback: Clear all storage and save only the current project
-- This prevents complete data loss while managing storage limits
+1. **Header with context** (like Turn Table)
+   - Clear task definition: "Generate a MULTI-PANEL INSTRUCTION IMAGE"
+   - Reference image context: "This is the FINISHED craft"
+   - Craft label and category info
+
+2. **CONSISTENCY REQUIREMENTS FIRST** (the key change)
+   - 5 numbered requirements with checkmarks
+   - Physical metaphor: "You have a craft kit in front of you with pre-made pieces that will assemble into THIS EXACT craft"
+   - Repeated emphasis: "CONSISTENCY RULES (REPEAT FOR EMPHASIS)"
+
+3. **Step description** (middle section)
+   - Clear current step info
+   - Simple instruction to show only this step's components
+
+4. **Multi-panel format** (kept but simplified)
+   - Same 2x2 panel layout
+   - Simplified mandatory elements list
+   - Category-specific rules still included
+
+5. **DO NOT section at the end** (like Turn Table)
+   - Clean bulleted list of what to avoid
+   - No electronics/power tools reminder
+
+### Key Improvements
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Prompt structure | Consistency buried | Consistency FIRST |
+| Physical metaphor | None | "Craft kit assembly" |
+| Prompt length | ~110 lines verbose | ~80 lines focused |
+| Primary goal | Panel formatting | Reference matching |
+| DO NOT constraints | Scattered | Clean section at end |
+
+### Expected Results
+
+The optimized prompt should produce step instruction images where:
+- Colors match the reference image exactly
+- Unique features (spots, patches, accessories) are preserved
+- Construction style matches (flat vs 3D vs rounded)
+- The RESULT panel looks identical to the reference craft
+
+---
+
+## Additional Optimization: Parallel Step Generation
+
+### Change Made
+
+**CanvasWorkspace.tsx - handleDissectSelected (lines 1681-1746)**
+
+Changed from sequential `for` loop to parallel `Promise.all()`:
+
+| Before | After |
+|--------|-------|
+| Sequential `for` loop with `await` | Parallel `Promise.all()` with `.map()` |
+| Steps generated one-by-one | All 4 steps start simultaneously |
+| ~40+ seconds total (10s × 4) | ~10-15 seconds total |
+
+**Code change:**
+```typescript
+// BEFORE: Sequential (slow)
+for (const step of dissection.steps) {
+  const imageUrl = await generateStepImage(...);
+}
+
+// AFTER: Parallel (fast)
+const stepPromises = dissection.steps.map(async (step) => {
+  return await generateStepImage(...);
+});
+await Promise.all(stepPromises);
+```
+
+### Benefits
+- **4x faster** - All API calls run simultaneously instead of waiting
+- **Better UX** - User sees all step images appear around the same time
+- **Individual error handling** - One failed step doesn't block others
