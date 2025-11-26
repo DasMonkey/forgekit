@@ -109,7 +109,7 @@ const loadFromStorage = (): ProjectWithCanvas[] => {
   }
 };
 
-// Helper: Save to LocalStorage
+// Helper: Save to LocalStorage with quota handling
 const saveToStorage = (projects: ProjectWithCanvas[]) => {
   try {
     // Convert Map to object for JSON serialization and serialize canvas state
@@ -118,7 +118,67 @@ const saveToStorage = (projects: ProjectWithCanvas[]) => {
       stepImages: Object.fromEntries(p.stepImages),
       canvasState: serializeCanvasState(p.canvasState),
     }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+
+    const data = JSON.stringify(serializable);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, data);
+    } catch (quotaError) {
+      // If quota exceeded, try to reduce data size
+      if (quotaError instanceof DOMException && quotaError.name === 'QuotaExceededError') {
+        console.warn('LocalStorage quota exceeded, attempting to reduce data...');
+
+        // Strategy 1: Remove old projects (keep only most recent 10)
+        const recentProjects = projects.slice(-10);
+        const reducedData = JSON.stringify(recentProjects.map(p => ({
+          ...p,
+          stepImages: Object.fromEntries(p.stepImages),
+          canvasState: serializeCanvasState(p.canvasState),
+        })));
+
+        try {
+          localStorage.setItem(STORAGE_KEY, reducedData);
+          console.log('Saved with reduced project count (10 most recent)');
+          return;
+        } catch {
+          // Strategy 2: Keep only 5 most recent projects
+          const minimalProjects = projects.slice(-5);
+          const minimalData = JSON.stringify(minimalProjects.map(p => ({
+            ...p,
+            stepImages: Object.fromEntries(p.stepImages),
+            canvasState: serializeCanvasState(p.canvasState),
+          })));
+
+          try {
+            localStorage.setItem(STORAGE_KEY, minimalData);
+            console.log('Saved with minimal project count (5 most recent)');
+            return;
+          } catch {
+            // Final fallback: clear storage and save only current project
+            console.error('LocalStorage quota severely exceeded. Clearing old data.');
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem('craftus_api_usage');
+
+            // Try to save just the most recent project
+            if (projects.length > 0) {
+              const lastProject = projects[projects.length - 1];
+              const singleProject = JSON.stringify([{
+                ...lastProject,
+                stepImages: Object.fromEntries(lastProject.stepImages),
+                canvasState: serializeCanvasState(lastProject.canvasState),
+              }]);
+
+              try {
+                localStorage.setItem(STORAGE_KEY, singleProject);
+                console.log('Saved only the most recent project');
+              } catch {
+                console.error('Cannot save even a single project. Storage may be full.');
+              }
+            }
+          }
+        }
+      }
+    }
   } catch (error) {
     console.error('Failed to save projects to storage:', error);
   }

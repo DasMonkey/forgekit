@@ -443,41 +443,44 @@ export const generateStepImage = async (
   console.log(`   Resolution: 1K (default)`);
 
   const prompt = `
-🚨 CRITICAL: MATCH THE EXACT CRAFT CONSTRUCTION STYLE 🚨
+🚨 CRITICAL: YOU MUST SHOW THE EXACT SAME CHARACTER FROM THE REFERENCE IMAGE 🚨
 
-Look at the reference image VERY CAREFULLY and identify the construction style:
-- Is it FLAT/LAYERED (2D pieces stacked/layered together)?
+The attached reference image shows a SPECIFIC character/craft. Your step image MUST show THIS EXACT SAME CHARACTER being built - not a generic version, not a similar one, but THE EXACT SAME ONE.
+
+📷 CHARACTER IDENTITY - COPY EXACTLY:
+Look at the reference image and identify ALL unique features:
+- Face: Eye shape, eye color, nose shape, mouth expression, facial markings
+- Body: Exact proportions, belly patches, texture patterns (like strawberry seed dots)
+- Colors: EXACT RGB values - sample directly from the reference
+- Accessories: Any props, clothing, items the character holds
+- Unique details: Leaf/stem on head, ear shape, paw design, etc.
+
+YOUR GENERATED IMAGE MUST SHOW THIS SAME CHARACTER at various stages of construction.
+
+🚨 WRONG - DO NOT DO:
+❌ Reference shows strawberry bear with leaf stem → You generate plain red bear without leaf
+❌ Reference shows character with purple nose → You generate character with pink nose
+❌ Reference shows specific eye style → You generate different cartoon eyes
+❌ Reference shows pink belly patch → You omit the belly patch
+
+✅ CORRECT - MUST DO:
+✓ Copy EVERY visual detail from the reference character
+✓ The completed result panel MUST look identical to the reference
+✓ All assembly panels must show parts that will become THIS character
+
+🔧 CONSTRUCTION STYLE MATCHING:
+- Is it FLAT/LAYERED (2D pieces stacked)?
 - Is it 3D BOX/CUBE style (folded into 3D shapes)?
-- Is it PIXEL ART style (blocky, square pixels)?
+- Is it PIXEL ART style (blocky)?
 - Is it SMOOTH/ROUNDED (curved surfaces)?
 
-YOU MUST MATCH THE EXACT SAME CONSTRUCTION METHOD.
-
-WRONG EXAMPLES (DO NOT DO):
-❌ Reference shows FLAT layered pixel art → You generate 3D cube boxes
-❌ Reference shows SMOOTH clay figure → You generate blocky pixel art
-❌ Reference shows 2D stacked paper → You generate 3D folded boxes
-
-CORRECT EXAMPLES:
-✓ Reference shows FLAT layered pixel art → Generate FLAT layered pieces
-✓ Reference shows 3D cube papercraft → Generate 3D folded cube pieces
-✓ Reference shows smooth clay → Generate smooth rounded shapes
-
-📷 REFERENCE IMAGE MATCHING (MANDATORY):
-The attached image is your ONLY style guide. You MUST:
-✓ Match EXACT construction method - If reference is flat/layered, generate flat/layered. If 3D, generate 3D.
-✓ Match EXACT colors - Sample RGB values directly from the reference
-✓ Match EXACT textures - Paper grain, clay matte, fabric weave as shown
-✓ Match EXACT proportions - Character features match reference exactly
-✓ Match EXACT style - Same artistic approach, same level of detail
+Match the EXACT construction method shown in the reference.
 
 DO NOT:
-✗ Convert flat layered crafts into 3D box crafts
-✗ Convert 2D pixel art into 3D cubes
-✗ Invent new colors not in the reference image
-✗ Change the art style or aesthetic
-✗ Add elements not visible in the reference
-✗ Use different materials than shown
+✗ Change the character's appearance in any way
+✗ Simplify or modify unique features
+✗ Use different colors than shown
+✗ Create a "generic" version of the character
 
 ${focusInstructions}
 
@@ -507,17 +510,18 @@ MANDATORY ELEMENTS:
 ✓ BOLD ARROWS (→ ➜ ⬇) showing direction/movement
 ✓ TEXT ANNOTATIONS: "FOLD", "GLUE", "ATTACH", "ALIGN"
 ✓ HANDS/FINGERS demonstrating technique
-✓ WHITE BACKGROUND with subtle grid
+✓ PLAIN WHITE BACKGROUND - clean white surface/table with natural soft shadows, NO grid lines, NO cross lines, NO checkered patterns
 
 ${categoryRules}
 
 🚨 FINAL CHECK - ASK YOURSELF:
-1. Does my generated image use the SAME construction method as the reference? (flat vs 3D, layered vs folded)
-2. If reference is flat pixel art, am I generating flat layered pieces (NOT 3D cubes)?
-3. Colors match reference image exactly?
-4. Show ONLY components for this step: "${stepDescription}"
-5. Professional instruction manual quality
-6. No electronics, no power tools
+1. Does the character in my generated image look IDENTICAL to the reference? Same face, same colors, same unique features?
+2. Would someone looking at my image and the reference recognize it as THE SAME character?
+3. Does my generated image use the SAME construction method as the reference? (flat vs 3D, layered vs folded)
+4. Colors match reference image exactly? (not similar - EXACTLY the same)
+5. Show ONLY components for this step: "${stepDescription}"
+6. Professional instruction manual quality
+7. No electronics, no power tools
   `;
 
   return retryWithBackoff(async () => {

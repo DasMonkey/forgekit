@@ -152,7 +152,7 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[300px]"
+      className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[500px]"
     >
       {/* Connection Handles */}
       <Handle type="source" position={Position.Right} id="source-right" className="!bg-indigo-500 !w-3 !h-3" />

@@ -619,8 +619,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     // Create placeholder node immediately so user knows where it will appear
     const patternNodeId = `pattern-${Date.now()}`;
 
-    // Find empty position to avoid overlapping with existing nodes
-    const position = findEmptyPosition(nodes, node, -600, -100, 600, 338);
+    // Position pattern sheet to the LEFT of master node, on the same row (horizontally aligned)
+    // Master node is 300px wide, pattern sheet is 600px wide, add 50px gap
+    const position = {
+      x: node.position.x - 600 - 50, // 600px pattern width + 50px gap to the left
+      y: node.position.y, // Same Y position (same row)
+    };
 
     const placeholderNode: Node = {
       id: patternNodeId,
@@ -885,11 +889,21 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     }
   }, [activeTool]);
 
-  // Load project from storage if projectId is provided
+  // Track if we've loaded the project to prevent re-loading
+  const hasLoadedProjectRef = useRef(false);
+  const isLoadingProjectRef = useRef(false);
+
+  // Track if canvas is ready to show (prevents flash of content at wrong position)
+  const [isCanvasReady, setIsCanvasReady] = useState(!projectId);
+
+  // Load project from storage if projectId is provided (only once)
   useEffect(() => {
-    if (projectId) {
+    if (projectId && !hasLoadedProjectRef.current) {
       const project = projectsState.projects.find(p => p.id === projectId);
       if (project && project.canvasState) {
+        isLoadingProjectRef.current = true;
+        hasLoadedProjectRef.current = true;
+
         // Add handlers to all node types when loading
         const nodesWithHandlers = (project.canvasState.nodes || []).map(node => {
           if (node.type === 'textNode') {
@@ -930,13 +944,25 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         });
         setNodes(nodesWithHandlers);
         setEdges(project.canvasState.edges || []);
+
+        // Reset loading flag and center the view after nodes are rendered
+        setTimeout(() => {
+          isLoadingProjectRef.current = false;
+          // Center the view on the loaded content with more padding to zoom out (no animation)
+          fitView({ padding: 0.5, maxZoom: 0.8, duration: 0 });
+          // Show the canvas now that it's properly positioned
+          setIsCanvasReady(true);
+        }, 50);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, projectsState.projects, setNodes, setEdges, handleImageNodeSelect, handleImageNodeDeselect, handleMasterNodeSelect, handleMasterNodeDeselect]);
+  }, [projectId, projectsState.projects]);
 
-  // Auto-save canvas state when nodes or edges change
+  // Auto-save canvas state when nodes or edges change (skip during initial load)
   useEffect(() => {
+    // Skip auto-save during initial project load to prevent infinite loop
+    if (isLoadingProjectRef.current) return;
+
     if (projectId && nodes.length > 0) {
       const project = projectsState.projects.find(p => p.id === projectId);
       if (project) {
@@ -949,7 +975,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         });
       }
     }
-  }, [nodes, edges, projectId, projectsState.projects, updateProject]);
+  }, [nodes, edges, projectId, updateProject]);
 
   // Prevent body scrolling on canvas page
   useEffect(() => {
@@ -1951,10 +1977,19 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const handleStartGeneration = useCallback((nodeId: string, prompt: string, category: CraftCategory) => {
     if (readOnly) return;
 
+    // Calculate center of the viewport in flow coordinates
+    // Master node is 500px wide and ~550px tall (including header)
+    const nodeWidth = 500;
+    const nodeHeight = 550;
+    const centerPosition = screenToFlowPosition({
+      x: window.innerWidth / 2 - nodeWidth / 2,
+      y: window.innerHeight / 2 - nodeHeight / 2,
+    });
+
     const newNode: Node = {
       id: nodeId,
       type: 'masterNode',
-      position: { x: 0, y: 0 },
+      position: centerPosition,
       data: {
         label: prompt,
         imageUrl: '',
@@ -1970,20 +2005,31 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     };
 
     setNodes((nds) => [...nds, newNode]);
-  }, [setNodes, readOnly, handleDissect, handleDissectSelected, handleMasterNodeSelect, handleMasterNodeDeselect]);
+  }, [setNodes, readOnly, handleDissect, handleDissectSelected, handleMasterNodeSelect, handleMasterNodeDeselect, screenToFlowPosition]);
 
   /**
    * Update placeholder node when generation completes
    */
   const handleGenerationComplete = useCallback((nodeId: string, imageUrl: string) => {
-    setNodes((nds) =>
-      nds.map((n) => {
+    // First, extract data from the node we need to save
+    let projectToSave: Parameters<typeof saveProject>[0] | null = null;
+
+    setNodes((nds) => {
+      const updatedNodes = nds.map((n) => {
         if (n.id === nodeId && n.type === 'masterNode') {
-          // Create and save new project now that we have the image
+          // Prepare project data (but don't save yet - would cause setState during render)
           const prompt = n.data.label as string;
           const category = n.data.category as CraftCategory;
+          const updatedNode = {
+            ...n,
+            data: {
+              ...n.data,
+              imageUrl,
+              isGeneratingImage: false,
+            },
+          };
 
-          const newProject = {
+          projectToSave = {
             id: `project-${Date.now()}`,
             name: prompt.substring(0, 50),
             category,
@@ -1994,25 +2040,25 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
             createdAt: new Date(),
             lastModified: new Date(),
             canvasState: {
-              nodes: [{...n, data: { ...n.data, imageUrl, isGeneratingImage: false }}],
+              nodes: [updatedNode],
               edges: [],
               viewport: { x: 0, y: 0, zoom: 1 }
             }
           };
-          saveProject(newProject);
 
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              imageUrl,
-              isGeneratingImage: false,
-            },
-          };
+          return updatedNode;
         }
         return n;
-      })
-    );
+      });
+      return updatedNodes;
+    });
+
+    // Save project after state update using setTimeout to avoid setState during render
+    setTimeout(() => {
+      if (projectToSave) {
+        saveProject(projectToSave);
+      }
+    }, 0);
   }, [setNodes, saveProject]);
 
   /**
@@ -2194,7 +2240,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       />
 
       <div
-        className="w-full h-full"
+        className={`w-full h-full transition-opacity duration-0 ${isCanvasReady ? 'opacity-100' : 'opacity-0'}`}
         onMouseDown={drawingMode ? handlePaneMouseDown : undefined}
         onMouseMove={drawingMode ? handlePaneMouseMove : undefined}
         onMouseUp={drawingMode ? handlePaneMouseUp : undefined}
@@ -2208,7 +2254,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           onConnectEnd={readOnly ? undefined : onConnectEnd}
           onPaneClick={handleCanvasClick}
           nodeTypes={nodeTypes}
-          fitView
+          defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
           className={`bg-slate-950 ${getToolCursor(activeTool)}`}
           nodesDraggable={!readOnly && activeTool === 'select'}
           nodesConnectable={!readOnly && activeTool === 'select'}

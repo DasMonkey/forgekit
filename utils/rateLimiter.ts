@@ -79,6 +79,7 @@ export const uploadRateLimiter = new RateLimiter({
 
 /**
  * Track API usage for monitoring
+ * Silently fails if localStorage quota is exceeded
  */
 export const trackApiUsage = (operation: string, success: boolean) => {
   try {
@@ -89,10 +90,25 @@ export const trackApiUsage = (operation: string, success: boolean) => {
       timestamp: Date.now(),
     });
 
-    // Keep only last 100 entries
-    const recent = usage.slice(-100);
-    localStorage.setItem('craftus_api_usage', JSON.stringify(recent));
-  } catch (error) {
-    console.error('Failed to track API usage:', error);
+    // Keep only last 50 entries (reduced from 100 to save space)
+    const recent = usage.slice(-50);
+
+    try {
+      localStorage.setItem('craftus_api_usage', JSON.stringify(recent));
+    } catch (quotaError) {
+      // If quota exceeded, clear old data and try again with minimal data
+      if (quotaError instanceof DOMException && quotaError.name === 'QuotaExceededError') {
+        localStorage.removeItem('craftus_api_usage');
+        // Store only the most recent 10 entries
+        const minimal = recent.slice(-10);
+        try {
+          localStorage.setItem('craftus_api_usage', JSON.stringify(minimal));
+        } catch {
+          // If still failing, just skip tracking - not critical
+        }
+      }
+    }
+  } catch {
+    // Silently fail - tracking is not critical functionality
   }
 };

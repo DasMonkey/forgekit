@@ -30,14 +30,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
 
   // Close dropdown when clicking outside
   useEffect(() => {
+    if (!isCategoryOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsCategoryOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    // Use capture phase to intercept clicks before React Flow handles them
+    // Use setTimeout to avoid the click that opened the dropdown from immediately closing it
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside, true);
+    }, 0);
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside, true);
+    };
+  }, [isCategoryOpen]);
 
   // Cycle loading messages
   useEffect(() => {
