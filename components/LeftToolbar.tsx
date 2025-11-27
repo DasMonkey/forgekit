@@ -1,5 +1,6 @@
 import React from 'react';
-import { MousePointer2, Hand, Plus, Square, Type, Pencil, Maximize } from 'lucide-react';
+import { MousePointer2, Hand, Plus, Type, Maximize } from 'lucide-react';
+// TODO: Re-import when re-enabling tools: Square, Pencil
 import { ToolButton } from './ToolButton';
 
 export type ToolType = 'select' | 'hand' | 'upload' | 'shapes' | 'text' | 'pencil';
@@ -39,13 +40,14 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       shortcut: 'U',
       hasSubmenu: true,
     },
-    {
-      type: 'shapes' as ToolType,
-      icon: Square,
-      label: 'Shapes',
-      shortcut: 'S',
-      hasSubmenu: true,
-    },
+    // TODO: Temporarily hidden - shapes tool
+    // {
+    //   type: 'shapes' as ToolType,
+    //   icon: Square,
+    //   label: 'Shapes',
+    //   shortcut: 'S',
+    //   hasSubmenu: true,
+    // },
     {
       type: 'text' as ToolType,
       icon: Type,
@@ -53,13 +55,14 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       shortcut: 'T',
       hasSubmenu: false,
     },
-    {
-      type: 'pencil' as ToolType,
-      icon: Pencil,
-      label: 'Pencil',
-      shortcut: 'P',
-      hasSubmenu: true,
-    },
+    // TODO: Temporarily hidden - pencil tool
+    // {
+    //   type: 'pencil' as ToolType,
+    //   icon: Pencil,
+    //   label: 'Pencil',
+    //   shortcut: 'P',
+    //   hasSubmenu: true,
+    // },
   ];
 
   const handleToolClick = (tool: ToolType, hasSubmenu: boolean, event: React.MouseEvent) => {

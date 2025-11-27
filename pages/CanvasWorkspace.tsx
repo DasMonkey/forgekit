@@ -1382,11 +1382,14 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
     setNodes((nds) => [...nds, newNode]);
 
+    // Switch back to hand tool after creating text node
+    setActiveTool('hand');
+
     // Enable editing after the node has been positioned
     setTimeout(() => {
       handleTextEdit(id);
     }, 50);
-  }, [textCreationMode, readOnly, setNodes, toolSubmenu.visible, handleCloseToolSubmenu, craftStyleMenu.visible, handleCloseCraftStyleMenu, masterNodeActionsMenu.visible, handleTextEdit, screenToFlowPosition]);
+  }, [textCreationMode, readOnly, setNodes, toolSubmenu.visible, handleCloseToolSubmenu, craftStyleMenu.visible, handleCloseCraftStyleMenu, masterNodeActionsMenu.visible, handleTextEdit, screenToFlowPosition, setActiveTool]);
 
   /**
    * Handle pane mouse down for drawing

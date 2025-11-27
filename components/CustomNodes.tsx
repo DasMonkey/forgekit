@@ -471,7 +471,7 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl transition-none hover:shadow-xl flex flex-col ${
+      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl transition-none hover:shadow-xl ${
         selected
           ? 'border-4 border-indigo-500 shadow-indigo-500/50 ring-4 ring-indigo-500/30'
           : isSelected
@@ -499,6 +499,7 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
         }}
       />
 
+      {/* Connection handles - placed first like MasterNode for consistent positioning */}
       <Handle type="source" position={Position.Right} id="source-right" className="!bg-purple-500 !w-3 !h-3" />
       <Handle type="source" position={Position.Left} id="source-left" className="!bg-purple-500 !w-3 !h-3" />
       <Handle type="target" position={Position.Right} id="target-right" className="!bg-purple-500 !w-3 !h-3" />
@@ -525,8 +526,11 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
         </div>
       </div>
 
-      {/* Image & Interactive Area */}
-      <div className={`relative bg-white flex-1 min-h-0 overflow-hidden rounded-b-xl ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
+      {/* Image & Interactive Area - uses absolute positioning to fill space below header */}
+      <div
+        className={`absolute left-0 right-0 bottom-0 bg-white overflow-hidden rounded-b-xl ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}
+        style={{ top: '36px' }} /* Header height */
+      >
         {isGeneratingImage ? (
           // Loading placeholder while image is being generated
           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950">
