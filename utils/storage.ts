@@ -163,11 +163,12 @@ export const isStorageAvailable = (): boolean => {
 
 /**
  * Serialize node data for storage
- * Handles special cases for new node types (ImageNode, ShapeNode, TextNode, DrawingNode)
- * 
+ * Handles all node types: MasterNode, InstructionNode, MaterialNode, ImageNode, ShapeNode, TextNode, DrawingNode
+ *
  * This function ensures that all node data is properly formatted for JSON serialization
  * and includes validation to prevent storage of invalid data.
- * 
+ * For MasterNode, callback functions are stripped (they will be re-attached when loaded).
+ *
  * @param node - The node object to serialize
  * @returns Serialized node object safe for JSON storage
  */
@@ -214,19 +215,48 @@ export const serializeNodeData = (node: any): any => {
       strokeColor: node.data.strokeColor || '#ffffff',
       strokeWidth: node.data.strokeWidth || 2,
     };
+  } else if (node.type === 'masterNode' && node.data) {
+    // MasterNode: Serialize only data fields, strip callback functions
+    serialized.data = {
+      label: node.data.label || '',
+      imageUrl: node.data.imageUrl || '',
+      category: node.data.category,
+      isDissecting: false,
+      isDissected: node.data.isDissected || false,
+      isGeneratingImage: false,
+      magicSelectEnabled: false,
+      // Callbacks (onDissect, onDissectSelected, onSelect, onDeselect) are stripped
+      // They will be re-attached when the project is loaded
+    };
+  } else if (node.type === 'instructionNode' && node.data) {
+    // InstructionNode: Serialize step data including generated images
+    serialized.data = {
+      stepNumber: node.data.stepNumber || 0,
+      title: node.data.title || '',
+      description: node.data.description || '',
+      safetyWarning: node.data.safetyWarning || undefined,
+      imageUrl: node.data.imageUrl || '',
+      isGeneratingImage: false,
+    };
+  } else if (node.type === 'materialNode' && node.data) {
+    // MaterialNode: Serialize materials list
+    serialized.data = {
+      items: Array.isArray(node.data.items) ? node.data.items : [],
+    };
   }
-  
+
   return serialized;
 };
 
 /**
  * Deserialize node data from storage
- * Handles backward compatibility and validation for new node types
- * 
+ * Handles all node types: MasterNode, InstructionNode, MaterialNode, ImageNode, ShapeNode, TextNode, DrawingNode
+ *
  * This function validates and sanitizes stored node data to ensure it's safe to use.
  * It provides default values for missing fields and enforces limits on data sizes.
  * Backward compatibility: Old projects without new node types will continue to work.
- * 
+ * Note: MasterNode callbacks must be re-attached by CanvasWorkspace after loading.
+ *
  * @param node - The stored node object to deserialize
  * @returns Validated and sanitized node object
  */
@@ -269,9 +299,9 @@ export const deserializeNodeData = (node: any): any => {
     // DrawingNode: Validate and restore data
     const validTools = ['pencil', 'pen'];
     deserialized.data = {
-      paths: Array.isArray(node.data.paths) 
+      paths: Array.isArray(node.data.paths)
         ? node.data.paths.slice(0, 20).map((path: any) => ({
-            points: Array.isArray(path.points) 
+            points: Array.isArray(path.points)
               ? path.points.slice(0, 1000).map((p: any) => ({
                   x: Number(p.x) || 0,
                   y: Number(p.y) || 0,
@@ -283,8 +313,37 @@ export const deserializeNodeData = (node: any): any => {
       strokeColor: String(node.data.strokeColor || '#ffffff'),
       strokeWidth: Math.max(1, Math.min(Number(node.data.strokeWidth) || 2, 20)),
     };
+  } else if (node.type === 'masterNode' && node.data) {
+    // MasterNode: Validate and restore data (callbacks will be re-attached by CanvasWorkspace)
+    deserialized.data = {
+      label: String(node.data.label || ''),
+      imageUrl: String(node.data.imageUrl || ''),
+      category: node.data.category,
+      isDissecting: false,
+      isDissected: Boolean(node.data.isDissected),
+      isGeneratingImage: false,
+      magicSelectEnabled: false,
+      // Callbacks will be re-attached when loaded in CanvasWorkspace
+    };
+  } else if (node.type === 'instructionNode' && node.data) {
+    // InstructionNode: Validate and restore step data
+    deserialized.data = {
+      stepNumber: Number(node.data.stepNumber) || 0,
+      title: String(node.data.title || ''),
+      description: String(node.data.description || ''),
+      safetyWarning: node.data.safetyWarning ? String(node.data.safetyWarning) : undefined,
+      imageUrl: String(node.data.imageUrl || ''),
+      isGeneratingImage: false,
+    };
+  } else if (node.type === 'materialNode' && node.data) {
+    // MaterialNode: Validate and restore materials list
+    deserialized.data = {
+      items: Array.isArray(node.data.items)
+        ? node.data.items.map((item: any) => String(item)).slice(0, 100)
+        : [],
+    };
   }
-  
+
   return deserialized;
 };
 

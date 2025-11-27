@@ -970,23 +970,42 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  // Debounce timer ref for auto-save
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Auto-save canvas state when nodes or edges change (skip during initial load)
+  // Uses debouncing to prevent lag during dragging operations
   useEffect(() => {
     // Skip auto-save during initial project load to prevent infinite loop
     if (isLoadingProjectRef.current) return;
 
     if (projectId && nodes.length > 0) {
-      const project = projectsState.projects.find(p => p.id === projectId);
-      if (project) {
-        updateProject(projectId, {
-          canvasState: {
-            nodes,
-            edges,
-            viewport: { x: 0, y: 0, zoom: 1 }
-          }
-        });
+      // Clear any pending save
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
       }
+
+      // Debounce the save operation - wait 500ms after last change
+      autoSaveTimerRef.current = setTimeout(() => {
+        const project = projectsState.projects.find(p => p.id === projectId);
+        if (project) {
+          updateProject(projectId, {
+            canvasState: {
+              nodes,
+              edges,
+              viewport: { x: 0, y: 0, zoom: 1 }
+            }
+          });
+        }
+      }, 500);
     }
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
   }, [nodes, edges, projectId, updateProject]);
 
   // Prevent body scrolling on canvas page

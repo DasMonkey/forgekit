@@ -52,6 +52,11 @@ const initialState: ProjectsContextState = {
 // LocalStorage Key
 const STORAGE_KEY = 'craftus_projects';
 
+// Flag to prevent repeated quota handling attempts in the same session
+let isHandlingQuotaError = false;
+let lastSaveAttemptTime = 0;
+const SAVE_DEBOUNCE_MS = 1000; // Minimum time between save attempts after quota error
+
 // Helper: Load from LocalStorage with validation
 const loadFromStorage = (): ProjectWithCanvas[] => {
   try {
@@ -111,6 +116,12 @@ const loadFromStorage = (): ProjectWithCanvas[] => {
 
 // Helper: Save to LocalStorage with quota handling
 const saveToStorage = (projects: ProjectWithCanvas[]) => {
+  // Prevent rapid repeated save attempts after quota error
+  const now = Date.now();
+  if (isHandlingQuotaError && now - lastSaveAttemptTime < SAVE_DEBOUNCE_MS) {
+    return; // Skip this save attempt, we're already handling quota issues
+  }
+
   try {
     // Convert Map to object for JSON serialization and serialize canvas state
     const serializable = projects.map(p => ({
@@ -123,9 +134,19 @@ const saveToStorage = (projects: ProjectWithCanvas[]) => {
 
     try {
       localStorage.setItem(STORAGE_KEY, data);
+      // Reset quota handling flag on successful save
+      isHandlingQuotaError = false;
     } catch (quotaError) {
       // If quota exceeded, try to reduce data size
       if (quotaError instanceof DOMException && quotaError.name === 'QuotaExceededError') {
+        // Prevent repeated quota handling
+        if (isHandlingQuotaError) {
+          console.warn('Already handling quota error, skipping...');
+          return;
+        }
+
+        isHandlingQuotaError = true;
+        lastSaveAttemptTime = now;
         console.warn('LocalStorage quota exceeded, attempting to reduce data...');
 
         // Strategy 1: Remove old projects (keep only most recent 10)
@@ -139,6 +160,7 @@ const saveToStorage = (projects: ProjectWithCanvas[]) => {
         try {
           localStorage.setItem(STORAGE_KEY, reducedData);
           console.log('Saved with reduced project count (10 most recent)');
+          isHandlingQuotaError = false;
           return;
         } catch {
           // Strategy 2: Keep only 5 most recent projects
@@ -152,6 +174,7 @@ const saveToStorage = (projects: ProjectWithCanvas[]) => {
           try {
             localStorage.setItem(STORAGE_KEY, minimalData);
             console.log('Saved with minimal project count (5 most recent)');
+            isHandlingQuotaError = false;
             return;
           } catch {
             // Final fallback: clear storage and save only current project
@@ -171,8 +194,10 @@ const saveToStorage = (projects: ProjectWithCanvas[]) => {
               try {
                 localStorage.setItem(STORAGE_KEY, singleProject);
                 console.log('Saved only the most recent project');
+                isHandlingQuotaError = false;
               } catch {
                 console.error('Cannot save even a single project. Storage may be full.');
+                // Keep isHandlingQuotaError = true to prevent further spam
               }
             }
           }
