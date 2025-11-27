@@ -204,6 +204,9 @@ const getCategorySpecificRules = (category: CraftCategory): string => {
     'Papercraft': `
 PAPERCRAFT MULTI-PANEL FORMAT (2-4 PANELS):
 
+⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
+If the reference shows more than 2, focus on the main 1-2 characters only.
+
 PANEL 1 - PATTERN SHEETS (KNOLLING LAYOUT):
 - Show flat pattern pieces laid out side-by-side (never stacked)
 - Include: Cut lines (solid), Fold lines (dashed), Glue tabs
@@ -230,6 +233,9 @@ MATERIALS: Paper only, no electronics`,
 
     'Clay': `
 CLAY MULTI-PANEL FORMAT (2-4 PANELS):
+
+⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
+If the reference shows more than 2, focus on the main 1-2 characters only.
 
 PANEL 1 - CLAY PIECES (KNOLLING):
 - Show clay pieces organized flat
@@ -305,6 +311,9 @@ MATERIALS: EVA foam, no electronics`,
     'Woodcraft': `
 WOODCRAFT MULTI-PANEL FORMAT (2-4 PANELS):
 
+⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
+If the reference shows more than 2, focus on the main 1-2 characters only.
+
 PANEL 1 - WOOD PIECES (KNOLLING):
 - Show cut boards, dowels laid out
 - Label with measurements
@@ -352,6 +361,9 @@ MATERIALS: Beads, wire, findings only`,
     'Kids Crafts': `
 KIDS CRAFTS MULTI-PANEL FORMAT (2-4 PANELS):
 
+⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
+If the reference shows more than 2, focus on the main 1-2 characters only.
+
 PANEL 1 - MATERIALS (KNOLLING):
 - Show felt, foam, paper shapes laid out
 - Label: "Red circle", "Blue star"
@@ -375,6 +387,9 @@ MATERIALS: Safe, kid-friendly only`,
 
     'Tabletop Figures': `
 MINIATURE MULTI-PANEL FORMAT (2-4 PANELS):
+
+⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 figures per craft project.
+If the reference shows more than 2, focus on the main 1-2 figures only.
 
 PANEL 1 - PARTS (KNOLLING):
 - Show miniature parts laid out
@@ -400,6 +415,9 @@ MATERIALS: Miniature parts, glue only`,
 
   return categoryRules[category] || `
 MULTI-PANEL FORMAT (2-4 PANELS):
+
+⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
+If the reference shows more than 2, focus on the main 1-2 characters only.
 
 PANEL 1 - MATERIALS: Show components in knolling layout, labeled
 PANEL 2 - TECHNIQUE: Show hands demonstrating, with arrows and text
@@ -651,91 +669,107 @@ export const generateSVGPatternSheet = async (
 
   const patternType = getCategoryPatternType(category);
 
+  // Build the prompt with Turn Table's successful pattern:
+  // 1. CONSISTENCY FIRST - Reference image matching is THE PRIMARY GOAL
+  // 2. Per-part analysis - AI must analyze EACH part's 3D shape
+  // 3. Physical metaphor - "unwrapping/unfolding the actual craft"
+  // 4. Explicit DO NOT constraints at the end
+
   const prompt = `
-🎯 YOUR TASK: Create a ${patternType} for the craft shown in the reference image.
+🎯 YOUR TASK: Create a ${patternType} for THIS EXACT craft from the reference image.
 
-📷 REFERENCE IMAGE: Study this completed 3D craft carefully.
-
+📷 REFERENCE IMAGE: This is the FINISHED 3D craft you are creating patterns for.
 ${craftLabel ? `🎨 CRAFT: ${craftLabel}` : ''}
 📦 CATEGORY: ${category}
 
+═══════════════════════════════════════════════════════════════
+🔒 CONSISTENCY REQUIREMENTS (CRITICAL - READ FIRST)
+═══════════════════════════════════════════════════════════════
+
+You MUST preserve EXACT visual consistency with the reference image:
+
+1. ✅ SAME COLORS - Every pattern piece MUST use the EXACT colors from the reference
+2. ✅ SAME PROPORTIONS - Size ratios between parts MUST match the reference
+3. ✅ SAME DETAILS - Spots, stripes, patches, facial features MUST be on the pattern pieces
+4. ✅ SAME STYLE - If reference is low-poly/faceted, patterns should create that style
+5. ✅ SAME CHARACTER - These patterns will recreate THIS EXACT craft, not a generic version
+
+IMAGINE: You are carefully unwrapping/unfolding the ACTUAL physical craft from the reference image. Each piece you draw is literally peeled off THIS craft. The colors and details on your patterns come directly from what you see in the reference.
+
+🔴 CRITICAL - COLORS MUST MATCH:
+- If the reference shows a RED strawberry bear → ALL body pieces are RED
+- If the reference has GREEN leaves → leaf patterns are that EXACT GREEN
+- If the reference has spotted texture → spots appear ON the pattern pieces
+- Sample the actual RGB values from the reference image
+
+CONSISTENCY RULES (REPEAT FOR EMPHASIS):
+- Pattern colors MUST match the reference EXACTLY
+- Pattern proportions MUST create the same sized result
+- All unique details MUST appear on the relevant pattern pieces
+- The assembled result MUST look identical to the reference
+
+${craftLabel ? `
+🎯 FOCUS ON: "${craftLabel}" ONLY
+- Create patterns specifically for "${craftLabel}"
+- Match "${craftLabel}"'s exact colors and features
+` : ''}
+
+═══════════════════════════════════════════════════════════════
+🧠 PART-BY-PART ANALYSIS (THINK FOR EACH PART)
+═══════════════════════════════════════════════════════════════
+
+Before drawing ANY patterns, you MUST analyze EACH part of the craft:
+
+For EVERY visible component, ask yourself:
+1. What is this part? (head, body, arm, leg, ear, tail, accessory, etc.)
+2. What 3D SHAPE is it? (sphere, cylinder, cube, cone, oval, etc.)
+3. What COLOR is it in the reference?
+4. What DETAILS does it have? (spots, stripes, face, texture)
+5. How should this 3D shape UNWRAP into flat pieces?
+
 ${category === CraftCategory.PAPERCRAFT ? `
 ═══════════════════════════════════════════════════════════════
-🚨 CRITICAL: 3D SHAPE → 2D PATTERN UNWRAPPING RULES
+📐 3D SHAPE → 2D PATTERN UNWRAPPING GUIDE
 ═══════════════════════════════════════════════════════════════
 
-You MUST think about HOW each 3D shape unfolds into flat paper.
-A flat circle CANNOT become a 3D ball! You need proper unwrapping.
-
-STEP 1: IDENTIFY EACH PART'S 3D SHAPE
-For each component, determine its basic 3D geometry:
-
-STEP 2: APPLY CORRECT UNWRAPPING METHOD
+A flat circle CANNOT become a 3D ball! Use proper unwrapping:
 
 ┌─────────────────┬────────────────────────────────────────────┐
-│ 3D SHAPE        │ CORRECT 2D PATTERN (NOT just outline!)     │
+│ 3D SHAPE        │ CORRECT 2D UNWRAP PATTERN                  │
 ├─────────────────┼────────────────────────────────────────────┤
-│ SPHERE/BALL     │ 4-8 PETAL SEGMENTS (like orange peel)      │
-│ (hands, feet,   │ Each petal is a pointed oval/leaf shape    │
-│  head, eyes)    │ When glued together, they form a ball      │
-│                 │ Example: ◠◡◠◡◠◡ (6 petals around)          │
+│ SPHERE/BALL     │ 4-8 PETAL/GORE SEGMENTS (like orange peel) │
+│                 │ Pointed ovals that join at top and bottom  │
 ├─────────────────┼────────────────────────────────────────────┤
-│ CYLINDER/TUBE   │ RECTANGLE + 2 CIRCLES (or faceted polygon) │
-│ (arms, legs,    │ Rectangle wraps around, circles cap ends   │
-│  neck, fingers) │ Height = cylinder length                   │
-│                 │ Width = circumference (π × diameter)       │
+│ CYLINDER/TUBE   │ RECTANGLE (body) + 2 CIRCLES (caps)        │
+│                 │ Width = circumference, Height = length     │
 ├─────────────────┼────────────────────────────────────────────┤
-│ CONE            │ PIE/FAN SHAPE (partial circle)             │
-│ (hats, skirts,  │ Larger cone = larger arc angle             │
-│  dress bottom)  │ Rolls into cone shape when edges meet      │
+│ CONE            │ PIE/FAN WEDGE (partial circle)             │
+│                 │ Rolls into cone when edges meet            │
 ├─────────────────┼────────────────────────────────────────────┤
-│ CUBE/BOX        │ CROSS-SHAPED NET (6 connected squares)     │
-│ (torso, base,   │ Classic cube unfolding pattern             │
-│  head if boxy)  │ With fold lines and glue tabs              │
+│ CUBE/BOX        │ CROSS-SHAPED NET (6 connected faces)       │
+│                 │ Classic cube unfolding with glue tabs      │
 ├─────────────────┼────────────────────────────────────────────┤
-│ HALF-SPHERE     │ 4-6 HALF-PETALS + circular base            │
-│ (dome, bowl)    │ Like sphere but cut in half                │
+│ HALF-SPHERE     │ 4-6 HALF-PETAL segments + circular base    │
 ├─────────────────┼────────────────────────────────────────────┤
-│ OVAL/EGG        │ TAPERED PETAL SEGMENTS (wider at middle)   │
-│ (body, head)    │ Like sphere petals but asymmetric          │
+│ OVAL/EGG        │ TAPERED PETALS (wider at middle)           │
 ├─────────────────┼────────────────────────────────────────────┤
-│ PYRAMID         │ TRIANGLE PANELS from apex + base square    │
-│                 │ 4 triangles connected to square base       │
+│ PYRAMID         │ TRIANGLE PANELS + base polygon             │
 └─────────────────┴────────────────────────────────────────────┘
 
-STEP 3: EXAMPLE - DORAEMON CHARACTER BREAKDOWN
+EXAMPLE ANALYSIS - If reference shows a bear character:
+• HEAD: Sphere shape → 6 petal segments in [HEAD COLOR from reference]
+• EARS: Half-spheres → 3 half-petals each in [EAR COLOR from reference]
+• BODY: Oval/egg → 6 tapered petals in [BODY COLOR from reference]
+• ARMS: Cylinders → rectangles + circles in [ARM COLOR from reference]
+• LEGS: Cylinders → rectangles + circles in [LEG COLOR from reference]
+• SNOUT: Half-sphere → 3 half-petals in [SNOUT COLOR from reference]
 
-For Doraemon (round robot cat):
-• HEAD (sphere) → 6-8 petal segments in BLUE, forms round head
-• FACE (half-sphere) → 4 half-petals in WHITE
-• BODY (oval/egg) → 6-8 tapered segments in BLUE
-• BELLY (half-sphere) → 4 half-petals in WHITE
-• HANDS (spheres) → 4-6 petal segments each in TAN/BEIGE
-• FEET (oval spheres) → 4-6 segments each in TAN/BEIGE
-• COLLAR (ring/cylinder) → rectangle that wraps, in RED
-• BELL (small sphere) → 4 tiny segments in YELLOW
-• NOSE (small sphere) → 4 tiny segments in RED
-• EARS (none for Doraemon - he lost them!)
-• TAIL (small sphere) → 4 tiny segments in RED
-• POCKET (half-circle) → semicircle flat piece in WHITE
-
-❌ WRONG: Drawing a flat circle for hands/feet
-✅ RIGHT: Drawing 4-6 petal segments that fold into a ball
-
-STEP 4: PATTERN SHEET REQUIREMENTS
-
-Include for EACH piece:
-• Correct unwrapped shape (NOT just the 2D silhouette!)
-• Solid BLACK lines = CUT lines
-• Dashed BLUE lines = FOLD lines (mountain/valley)
-• Gray tabs = GLUE tabs on edges
-• Color fill matching reference image
-• Label: "HAND L - Petal 1 of 6" etc.
-• Match left + right pieces` : ''}
+❌ WRONG: Flat circle for a 3D ball part
+✅ RIGHT: Petal segments that fold into a ball` : ''}
 
 ${category === CraftCategory.FABRIC_SEWING ? `
 ═══════════════════════════════════════════════════════════════
-🚨 CRITICAL: 3D SHAPE → 2D FABRIC PATTERN RULES
+📐 3D SHAPE → FABRIC PATTERN GUIDE
 ═══════════════════════════════════════════════════════════════
 
 SPHERE/BALL (stuffed) → 4-6 FABRIC GORES with seam allowance
@@ -743,39 +777,42 @@ CYLINDER → Rectangle panel + circular ends
 CONE → Pie-shaped panel
 BODY → Multiple curved panels with darts for shaping
 
-Include seam allowances, grain lines, and notch marks.` : ''}
+For EACH part, analyze: What shape? What fabric color? What seam allowances?
+Include grain lines and notch marks.` : ''}
 
 ${category === CraftCategory.COSTUME_PROPS ? `
 ═══════════════════════════════════════════════════════════════
-🚨 CRITICAL: 3D SHAPE → EVA FOAM PATTERN RULES
+📐 3D SHAPE → EVA FOAM PATTERN GUIDE
 ═══════════════════════════════════════════════════════════════
 
-CURVED SURFACES → Multiple flat foam pieces, heat-formed to curve
-SPHERE → Segmented panels (like soccer ball) or half-shells
-CYLINDER → Flat rectangle, heat-curved around form
-Show foam thickness, bevel angles, and heat-forming zones.` : ''}
+CURVED SURFACES → Multiple flat foam pieces, heat-formed
+SPHERE → Segmented panels or half-shells
+CYLINDER → Flat rectangle, heat-curved
+
+For EACH part, analyze: What shape? What foam thickness? What bevel angles?
+Show heat-forming zones.` : ''}
 
 ${category === CraftCategory.CLAY ? `
 ═══════════════════════════════════════════════════════════════
-CLAY COMPONENT GUIDE
+📐 CLAY COMPONENT ANALYSIS GUIDE
 ═══════════════════════════════════════════════════════════════
 
-Show basic clay shapes needed:
-• Ball sizes (pea, marble, walnut, egg)
-• Coil/rope lengths and thickness
-• Slab sizes for flat parts
-• Color mixing ratios
+For EACH part, determine:
+• Basic shape needed (ball, coil, slab, teardrop)
+• Size reference (pea, marble, walnut, egg)
+• Exact color from reference image
 • Assembly order` : ''}
 
 ${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS, CraftCategory.TABLETOP_FIGURES].includes(category) ? `
 ═══════════════════════════════════════════════════════════════
-PATTERN REQUIREMENTS
+📐 PATTERN ANALYSIS GUIDE
 ═══════════════════════════════════════════════════════════════
 
-Show flat pattern pieces with:
-• Cut lines and material specifications
-• Assembly connection points
-• Scale indicators` : ''}
+For EACH part, analyze:
+• What is the 3D shape?
+• How does it flatten/cut?
+• What color from reference?
+• Connection points to other pieces` : ''}
 
 ═══════════════════════════════════════════════════════════════
 📋 OUTPUT FORMAT
@@ -788,26 +825,31 @@ Create ONE organized pattern sheet image with:
 ├─────────────────────────────────────────────┤
 │                                             │
 │  [HEAD patterns]    [BODY patterns]         │
-│  - Petal 1-6        - Petal 1-6             │
+│  - Labeled pieces   - Labeled pieces        │
 │                                             │
 │  [LIMBS patterns]   [ACCESSORIES]           │
-│  - Arm cylinders    - Details               │
-│  - Hand petals                              │
-│                                             │
-│  [FEET patterns]    [BASE/STAND]            │
-│  - Foot petals      - Platform              │
+│  - Arms/Legs        - Details/Features      │
 │                                             │
 └─────────────────────────────────────────────┘
 
-VISUAL STYLE:
-• PLAIN WHITE background (NO grid, NO cross pattern, NO texture)
-• Clean technical drawing style
-• All pieces labeled clearly
-• Colors matching reference image
-• Professional, printable layout
+MANDATORY ELEMENTS:
+✓ Each piece labeled (e.g., "HEAD - Petal 1 of 6")
+✓ Colors filled matching reference EXACTLY
+✓ Cut lines (solid), Fold lines (dashed), Glue tabs (gray)
+✓ Left/Right pairs clearly marked
+✓ PLAIN WHITE background (NO grid, NO texture)
 
-Remember: The pattern pieces must actually fold/assemble into the 3D shape!
-A circle stays flat - use PETAL SEGMENTS to make spheres!
+═══════════════════════════════════════════════════════════════
+🚫 DO NOT
+═══════════════════════════════════════════════════════════════
+
+- Use different colors than shown in reference
+- Create generic patterns instead of THIS EXACT character
+- Draw flat circles for spherical parts (use petal segments!)
+- Simplify or omit unique details from the reference
+- Add patterns for parts not visible in the reference
+- Use grid or textured backgrounds
+- Forget to label pieces with part name and piece number
 `;
 
   console.log('🚀 Starting retryWithBackoff...');

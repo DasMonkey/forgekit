@@ -8,7 +8,7 @@ import { initSegmenter, segmentImage, extractSelectedObject, filterLargestRegion
  * The Central "Master" Node displaying the generated image with Interactive Segmentation.
  */
 export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
-  const { label, imageUrl, isDissecting, isDissected, isGeneratingImage, onDissectSelected, onSelect, onDeselect, category, magicSelectEnabled = false } = data as MasterNodeData;
+  const { label, imageUrl, isDissecting, isGeneratingImage, onDissectSelected, onSelect, onDeselect, category, magicSelectEnabled = false } = data as MasterNodeData;
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -231,7 +231,8 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
         )}
 
         {/* Break Down Selected Object Button - Shows when object is selected */}
-        {!isDissected && hasSelection && onDissectSelected && (
+        {/* Allow multiple breakdowns by not checking isDissected */}
+        {hasSelection && onDissectSelected && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
             <button
               onClick={handleDissectSelected}
@@ -259,7 +260,6 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
   // Custom comparison for better performance
   return (
     prevProps.data.isDissecting === nextProps.data.isDissecting &&
-    prevProps.data.isDissected === nextProps.data.isDissected &&
     prevProps.data.isGeneratingImage === nextProps.data.isGeneratingImage &&
     prevProps.data.imageUrl === nextProps.data.imageUrl &&
     prevProps.data.magicSelectEnabled === nextProps.data.magicSelectEnabled

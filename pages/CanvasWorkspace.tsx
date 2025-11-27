@@ -261,6 +261,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const [currentDrawingNodeId, setCurrentDrawingNodeId] = useState<string | null>(null);
   const [drawingStartPos, setDrawingStartPos] = useState<{ x: number; y: number } | null>(null);
   const updateFrameRef = useRef<number | null>(null);
+
+  // Ref to always have access to latest nodes (avoids stale closure issues)
+  const nodesRef = useRef(nodes);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
   
   // Track hover state for craft menu auto-dismiss
   const menuHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1527,8 +1533,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   ) => {
     if (readOnly) return;
 
-    // CRITICAL: Get category from master node BEFORE any async operations
-    const masterNode = nodes.find(n => n.id === nodeId);
+    // CRITICAL: Use nodesRef to get latest nodes (avoids stale closure issue)
+    const currentNodes = nodesRef.current;
+    const masterNode = currentNodes.find(n => n.id === nodeId);
     const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PAPERCRAFT; // Default to Papercraft for safety
 
     console.log('=== DISSECT SELECTED START ===');
@@ -1536,16 +1543,77 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     console.log('Master Node found:', !!masterNode);
     console.log('Master Node Data:', masterNode?.data);
     console.log('Category extracted:', category);
+    console.log('Total nodes in ref:', currentNodes.length);
 
-    // 1. Set loading state on the specific node
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, isDissecting: true } };
-        }
-        return node;
-      })
-    );
+    if (!masterNode) {
+        console.error('Master node not found for positioning');
+        return;
+    }
+
+    // Generate unique prefix for this breakdown to avoid duplicate node IDs
+    // This allows multiple breakdowns from the same master node
+    const breakdownId = `${nodeId}-${Date.now()}`;
+
+    // 1. Create placeholder nodes IMMEDIATELY (before any API calls)
+    // This gives instant visual feedback like the pattern sheet does
+    const DEFAULT_STEP_COUNT = 4; // Most breakdowns have 4 steps
+    const placeholderNodes: Node[] = [];
+    const placeholderEdges: Edge[] = [];
+
+    // Calculate positions for placeholder nodes
+    // Position steps directly to the right of the master image, vertically centered
+    const masterNodeHeight = (masterNode.data?.height as number) || 400;
+    const gapY = 500;
+    const gapX = 400;
+    const totalGridHeight = 2 * gapY; // 2 rows
+    const gridStartY = masterNode.position.y + (masterNodeHeight / 2) - (totalGridHeight / 2);
+    const firstStepPosition = findEmptyPosition(currentNodes, masterNode, 500, gridStartY - masterNode.position.y, 350, 400);
+
+    // Create placeholder step nodes
+    for (let i = 1; i <= DEFAULT_STEP_COUNT; i++) {
+        const stepNodeId = `${breakdownId}-step-${i}`;
+        const col = (i - 1) % 2;
+        const row = Math.floor((i - 1) / 2);
+
+        placeholderNodes.push({
+            id: stepNodeId,
+            type: 'instructionNode',
+            position: {
+                x: firstStepPosition.x + (col * gapX),
+                y: firstStepPosition.y + (row * gapY)
+            },
+            data: {
+                stepNumber: i,
+                title: `Step ${i}`,
+                description: 'Analyzing craft structure...',
+                safetyWarning: undefined,
+                isGeneratingImage: true,
+                imageUrl: undefined
+            }
+        });
+
+        placeholderEdges.push({
+            id: `e-${nodeId}-${stepNodeId}`,
+            source: nodeId,
+            sourceHandle: 'source-right',
+            target: stepNodeId,
+            targetHandle: 'target-left',
+            animated: true,
+            style: { stroke: '#10b981', strokeWidth: 2 },
+        });
+    }
+
+    // Add placeholders immediately and set loading state
+    setNodes((nds) => {
+        const updatedNodes = nds.map((node) => {
+            if (node.id === nodeId) {
+                return { ...node, data: { ...node.data, isDissecting: true } };
+            }
+            return node;
+        });
+        return [...updatedNodes, ...placeholderNodes];
+    });
+    setEdges((eds) => [...eds, ...placeholderEdges]);
 
     try {
         // 2. First, let AI identify what object was selected
@@ -1590,25 +1658,16 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         console.log(`Does the AI output match "${identifiedLabel}"? Review the steps above to verify.`);
         console.log('=== AI OUTPUT DEBUG END ===\n');
 
-        // 4. Calculate Positions for new nodes
-        const newNodes: Node[] = [];
-        const newEdges: Edge[] = [];
-
-        if (!masterNode) {
-            console.error('Master node not found for positioning');
-            return;
-        }
-
-        // 4a. Materials Node (Left side) - find empty position
-        const matNodeId = `${nodeId}-mat`;
-        const matPosition = findEmptyPosition(nodes, masterNode, -400, 0, 300, 200);
-        newNodes.push({
+        // 4. Create materials node now that we have the data
+        const matNodeId = `${breakdownId}-mat`;
+        const matPosition = findEmptyPosition(nodesRef.current, masterNode, -400, 0, 300, 200);
+        const materialNode: Node = {
             id: matNodeId,
             type: 'materialNode',
             position: matPosition,
             data: { items: dissection.materials },
-        });
-        newEdges.push({
+        };
+        const materialEdge: Edge = {
             id: `e-${nodeId}-${matNodeId}`,
             source: nodeId,
             sourceHandle: 'source-left',
@@ -1616,59 +1675,99 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
             targetHandle: 'target-right',
             animated: true,
             style: { stroke: '#3b82f6', strokeWidth: 2 },
-        });
+        };
 
-        // 4b. Instruction Nodes (Right side, Grid/List layout)
-        // Find empty position for the first instruction node
-        const firstStepPosition = findEmptyPosition(nodes, masterNode, 500, -100, 350, 400);
-        const gapY = 500;
-        const gapX = 400;
-
-        dissection.steps.forEach((step, index) => {
-            const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
-            const col = index % 2;
-            const row = Math.floor(index / 2);
-
-            newNodes.push({
-                id: stepNodeId,
-                type: 'instructionNode',
-                position: {
-                    x: firstStepPosition.x + (col * gapX),
-                    y: firstStepPosition.y + (row * gapY) - ((dissection.steps.length * gapY)/4)
-                },
-                data: {
-                    stepNumber: step.stepNumber,
-                    title: step.title,
-                    description: step.description,
-                    safetyWarning: step.safetyWarning,
-                    isGeneratingImage: true,
-                    imageUrl: undefined
-                }
-            });
-
-            newEdges.push({
-                id: `e-${nodeId}-${stepNodeId}`,
-                source: nodeId,
-                sourceHandle: 'source-right',
-                target: stepNodeId,
-                targetHandle: 'target-left',
-                animated: true,
-                style: { stroke: '#10b981', strokeWidth: 2 },
-            });
-        });
-
-        // 4. Update state: mark node as dissected, add instruction nodes
+        // 5. Update placeholder nodes with actual step data OR remove extras if fewer steps
         setNodes((nds) => {
-            const updatedNodes = nds.map((node) => {
+            let updatedNodes = nds.map((node) => {
+                // Update master node
                 if (node.id === nodeId) {
                     return { ...node, data: { ...node.data, isDissecting: false, isDissected: true } };
                 }
+                // Update existing placeholder step nodes with actual data
+                const stepMatch = node.id.match(new RegExp(`^${breakdownId}-step-(\\d+)$`));
+                if (stepMatch) {
+                    const stepNum = parseInt(stepMatch[1], 10);
+                    const stepData = dissection.steps.find(s => s.stepNumber === stepNum);
+                    if (stepData) {
+                        return {
+                            ...node,
+                            data: {
+                                ...node.data,
+                                title: stepData.title,
+                                description: stepData.description,
+                                safetyWarning: stepData.safetyWarning,
+                                // Keep isGeneratingImage true - images will be generated next
+                            }
+                        };
+                    } else {
+                        // This placeholder is extra (more placeholders than actual steps)
+                        return null; // Mark for removal
+                    }
+                }
                 return node;
+            }).filter((node): node is Node => node !== null);
+
+            // Add any additional steps beyond the default placeholder count
+            dissection.steps.forEach((step) => {
+                if (step.stepNumber > DEFAULT_STEP_COUNT) {
+                    const stepNodeId = `${breakdownId}-step-${step.stepNumber}`;
+                    const col = (step.stepNumber - 1) % 2;
+                    const row = Math.floor((step.stepNumber - 1) / 2);
+                    updatedNodes.push({
+                        id: stepNodeId,
+                        type: 'instructionNode',
+                        position: {
+                            x: firstStepPosition.x + (col * gapX),
+                            y: firstStepPosition.y + (row * gapY) - ((dissection.steps.length * gapY) / 4)
+                        },
+                        data: {
+                            stepNumber: step.stepNumber,
+                            title: step.title,
+                            description: step.description,
+                            safetyWarning: step.safetyWarning,
+                            isGeneratingImage: true,
+                            imageUrl: undefined
+                        }
+                    });
+                }
             });
-            return [...updatedNodes, ...newNodes];
+
+            // Add materials node
+            return [...updatedNodes, materialNode];
         });
 
-        setEdges((eds) => [...eds, ...newEdges]);
+        // Update edges - remove extras and add materials edge + any new step edges
+        setEdges((eds) => {
+            // Filter out edges for removed placeholder steps
+            const validStepNums = dissection.steps.map(s => s.stepNumber);
+            const filteredEdges = eds.filter((edge) => {
+                const stepMatch = edge.target.match(new RegExp(`^${breakdownId}-step-(\\d+)$`));
+                if (stepMatch) {
+                    const stepNum = parseInt(stepMatch[1], 10);
+                    return validStepNums.includes(stepNum);
+                }
+                return true;
+            });
+
+            // Add edges for any new steps beyond default count
+            const newStepEdges: Edge[] = [];
+            dissection.steps.forEach((step) => {
+                if (step.stepNumber > DEFAULT_STEP_COUNT) {
+                    newStepEdges.push({
+                        id: `e-${nodeId}-${breakdownId}-step-${step.stepNumber}`,
+                        source: nodeId,
+                        sourceHandle: 'source-right',
+                        target: `${breakdownId}-step-${step.stepNumber}`,
+                        targetHandle: 'target-left',
+                        animated: true,
+                        style: { stroke: '#10b981', strokeWidth: 2 },
+                    });
+                }
+            });
+
+            return [...filteredEdges, materialEdge, ...newStepEdges];
+        });
 
         // 5. Generate step images in the background using the selected object as reference
         console.log('\n=== IMAGE GENERATION PHASE ===');
@@ -1683,7 +1782,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         console.log(`\n🚀 Generating ${dissection.steps.length} step images IN PARALLEL...`);
 
         const stepGenerationPromises = dissection.steps.map(async (step) => {
-          const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
+          const stepNodeId = `${breakdownId}-step-${step.stepNumber}`;
 
           console.log(`🎨 Starting Step ${step.stepNumber}: ${step.title}`);
           console.log(`   Target object: ${identifiedLabel} | Category: ${category}`);
@@ -1748,13 +1847,24 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         console.log('=== DISSECT SELECTED COMPLETE ===\n');
     } catch (error) {
       console.error('Dissection failed:', error);
+      // Remove placeholder nodes on error and reset master node state
       setNodes((nds) =>
-        nds.map((node) => {
+        nds.filter((node) => {
+          // Remove placeholder step nodes for this breakdown
+          if (node.id.startsWith(`${breakdownId}-step-`)) {
+            return false;
+          }
+          return true;
+        }).map((node) => {
           if (node.id === nodeId) {
             return { ...node, data: { ...node.data, isDissecting: false } };
           }
           return node;
         })
+      );
+      // Remove placeholder edges
+      setEdges((eds) =>
+        eds.filter((edge) => !edge.target.startsWith(`${breakdownId}-step-`))
       );
     }
   };
@@ -1765,8 +1875,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   const handleDissect = async (nodeId: string, imageUrl: string) => {
     if (readOnly) return;
 
-    // CRITICAL: Get category from master node BEFORE any async operations
-    const masterNode = nodes.find(n => n.id === nodeId);
+    // CRITICAL: Use nodesRef to get latest nodes (avoids stale closure issue)
+    const currentNodes = nodesRef.current;
+    const masterNode = currentNodes.find(n => n.id === nodeId);
     const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PAPERCRAFT;
     const promptContext = masterNode?.data?.label as string || "Unknown craft";
 
@@ -1776,16 +1887,77 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     console.log('Master Node Data:', masterNode?.data);
     console.log('Category extracted:', category);
     console.log('Prompt Context:', promptContext);
+    console.log('Total nodes in ref:', currentNodes.length);
 
-    // 1. Set loading state on the specific node
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, isDissecting: true } };
-        }
-        return node;
-      })
-    );
+    if (!masterNode) {
+        console.error('Master node not found');
+        return;
+    }
+
+    // Generate unique prefix for this breakdown to avoid duplicate node IDs
+    // This allows multiple breakdowns from the same master node
+    const breakdownId = `${nodeId}-${Date.now()}`;
+
+    // 1. Create placeholder nodes IMMEDIATELY (before any API calls)
+    // This gives instant visual feedback like the pattern sheet does
+    const DEFAULT_STEP_COUNT = 4; // Most breakdowns have 4 steps
+    const placeholderNodes: Node[] = [];
+    const placeholderEdges: Edge[] = [];
+
+    // Calculate positions for placeholder nodes
+    // Position steps directly to the right of the master image, vertically centered
+    const masterNodeHeight = (masterNode.data?.height as number) || 400;
+    const gapY = 500;
+    const gapX = 400;
+    const totalGridHeight = 2 * gapY; // 2 rows
+    const startX = masterNode.position.x + 500;
+    const startY = masterNode.position.y + (masterNodeHeight / 2) - (totalGridHeight / 2);
+
+    // Create placeholder step nodes
+    for (let i = 1; i <= DEFAULT_STEP_COUNT; i++) {
+        const stepNodeId = `${breakdownId}-step-${i}`;
+        const col = (i - 1) % 2;
+        const row = Math.floor((i - 1) / 2);
+
+        placeholderNodes.push({
+            id: stepNodeId,
+            type: 'instructionNode',
+            position: {
+                x: startX + (col * gapX),
+                y: startY + (row * gapY)
+            },
+            data: {
+                stepNumber: i,
+                title: `Step ${i}`,
+                description: 'Analyzing craft structure...',
+                safetyWarning: undefined,
+                isGeneratingImage: true,
+                imageUrl: undefined
+            }
+        });
+
+        placeholderEdges.push({
+            id: `e-${nodeId}-${stepNodeId}`,
+            source: nodeId,
+            sourceHandle: 'source-right',
+            target: stepNodeId,
+            targetHandle: 'target-left',
+            animated: true,
+            style: { stroke: '#10b981', strokeWidth: 2 },
+        });
+    }
+
+    // Add placeholders immediately and set loading state
+    setNodes((nds) => {
+        const updatedNodes = nds.map((node) => {
+            if (node.id === nodeId) {
+                return { ...node, data: { ...node.data, isDissecting: true } };
+            }
+            return node;
+        });
+        return [...updatedNodes, ...placeholderNodes];
+    });
+    setEdges((eds) => [...eds, ...placeholderEdges]);
 
     try {
         // 2. Call Gemini API to get TEXT instructions
@@ -1810,19 +1982,15 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         });
         console.log('=== AI OUTPUT DEBUG END ===\n');
 
-        // 3. Calculate Positions for new nodes
-        const newNodes: Node[] = [];
-        const newEdges: Edge[] = [];
-
-        // 3a. Materials Node (Left side)
+        // 3. Create materials node now that we have the data
         const matNodeId = `${nodeId}-mat`;
-        newNodes.push({
+        const materialNode: Node = {
             id: matNodeId,
             type: 'materialNode',
-            position: { x: -400, y: 0 },
+            position: { x: masterNode.position.x - 400, y: masterNode.position.y },
             data: { items: dissection.materials },
-        });
-        newEdges.push({
+        };
+        const materialEdge: Edge = {
             id: `e-${nodeId}-${matNodeId}`,
             source: nodeId,
             sourceHandle: 'source-left',
@@ -1830,75 +1998,114 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
             targetHandle: 'target-right',
             animated: true,
             style: { stroke: '#3b82f6', strokeWidth: 2 },
-        });
+        };
 
-        // 3b. Instruction Nodes (Right side, Grid/List layout)
-        const startX = 500;
-        const startY = -100;
-        const gapY = 500;
-        const gapX = 400;
-
-        dissection.steps.forEach((step, index) => {
-            const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
-            const col = index % 2;
-            const row = Math.floor(index / 2);
-
-            newNodes.push({
-                id: stepNodeId,
-                type: 'instructionNode',
-                position: {
-                    x: startX + (col * gapX),
-                    y: startY + (row * gapY) - ((dissection.steps.length * gapY)/4)
-                },
-                data: {
-                    stepNumber: step.stepNumber,
-                    title: step.title,
-                    description: step.description,
-                    safetyWarning: step.safetyWarning,
-                    isGeneratingImage: true,
-                    imageUrl: undefined
-                }
-            });
-
-            newEdges.push({
-                id: `e-${nodeId}-${stepNodeId}`,
-                source: nodeId,
-                sourceHandle: 'source-right',
-                target: stepNodeId,
-                targetHandle: 'target-left',
-                animated: true,
-                style: { stroke: '#10b981', strokeWidth: 2 },
-            });
-        });
-
-        // 4. Update Canvas State
+        // 4. Update placeholder nodes with actual step data OR remove extras if fewer steps
         setNodes((nds) => {
-            const updatedMaster = nds.map(n => {
-                if (n.id === nodeId) {
-                    return { ...n, data: { ...n.data, isDissecting: false, isDissected: true }};
+            let updatedNodes = nds.map((node) => {
+                // Update master node
+                if (node.id === nodeId) {
+                    return { ...node, data: { ...node.data, isDissecting: false, isDissected: true } };
                 }
-                return n;
+                // Update existing placeholder step nodes with actual data
+                const stepMatch = node.id.match(new RegExp(`^${breakdownId}-step-(\\d+)$`));
+                if (stepMatch) {
+                    const stepNum = parseInt(stepMatch[1], 10);
+                    const stepData = dissection.steps.find(s => s.stepNumber === stepNum);
+                    if (stepData) {
+                        return {
+                            ...node,
+                            data: {
+                                ...node.data,
+                                title: stepData.title,
+                                description: stepData.description,
+                                safetyWarning: stepData.safetyWarning,
+                                // Keep isGeneratingImage true - images will be generated next
+                            }
+                        };
+                    } else {
+                        // This placeholder is extra (more placeholders than actual steps)
+                        return null; // Mark for removal
+                    }
+                }
+                return node;
+            }).filter((node): node is Node => node !== null);
+
+            // Add any additional steps beyond the default placeholder count
+            dissection.steps.forEach((step) => {
+                if (step.stepNumber > DEFAULT_STEP_COUNT) {
+                    const stepNodeId = `${breakdownId}-step-${step.stepNumber}`;
+                    const col = (step.stepNumber - 1) % 2;
+                    const row = Math.floor((step.stepNumber - 1) / 2);
+                    updatedNodes.push({
+                        id: stepNodeId,
+                        type: 'instructionNode',
+                        position: {
+                            x: startX + (col * gapX),
+                            y: startY + (row * gapY) - ((dissection.steps.length * gapY) / 4)
+                        },
+                        data: {
+                            stepNumber: step.stepNumber,
+                            title: step.title,
+                            description: step.description,
+                            safetyWarning: step.safetyWarning,
+                            isGeneratingImage: true,
+                            imageUrl: undefined
+                        }
+                    });
+                }
             });
-            return [...updatedMaster, ...newNodes];
+
+            // Add materials node
+            return [...updatedNodes, materialNode];
         });
 
-        setEdges((eds) => [...eds, ...newEdges]);
+        // Update edges - remove extras and add materials edge + any new step edges
+        setEdges((eds) => {
+            // Filter out edges for removed placeholder steps
+            const validStepNums = dissection.steps.map(s => s.stepNumber);
+            const filteredEdges = eds.filter((edge) => {
+                const stepMatch = edge.target.match(new RegExp(`^${breakdownId}-step-(\\d+)$`));
+                if (stepMatch) {
+                    const stepNum = parseInt(stepMatch[1], 10);
+                    return validStepNums.includes(stepNum);
+                }
+                return true;
+            });
 
-        // 5. Generate step images individually (same as handleDissectSelected)
+            // Add edges for any new steps beyond default count
+            const newStepEdges: Edge[] = [];
+            dissection.steps.forEach((step) => {
+                if (step.stepNumber > DEFAULT_STEP_COUNT) {
+                    newStepEdges.push({
+                        id: `e-${nodeId}-${breakdownId}-step-${step.stepNumber}`,
+                        source: nodeId,
+                        sourceHandle: 'source-right',
+                        target: `${breakdownId}-step-${step.stepNumber}`,
+                        targetHandle: 'target-left',
+                        animated: true,
+                        style: { stroke: '#10b981', strokeWidth: 2 },
+                    });
+                }
+            });
+
+            return [...filteredEdges, materialEdge, ...newStepEdges];
+        });
+
+        // 5. Generate ALL step images in PARALLEL for faster generation
         console.log('\n=== IMAGE GENERATION PHASE ===');
         console.log('Using category:', category);
         console.log('Target craft:', promptContext);
         console.log('Total steps:', dissection.steps.length);
         console.log('All steps:', dissection.steps.map(s => `${s.stepNumber}: ${s.title}`));
         console.log('Format: Multi-Panel with 1K resolution for all steps');
+        console.log(`\n🚀 Generating ${dissection.steps.length} step images IN PARALLEL...`);
 
-        // Generate step images with multi-panel format (same loop as handleDissectSelected)
-        for (const step of dissection.steps) {
-          const stepNodeId = `${nodeId}-step-${step.stepNumber}`;
+        const stepGenerationPromises = dissection.steps.map(async (step) => {
+          const stepNodeId = `${breakdownId}-step-${step.stepNumber}`;
 
-          console.log(`\n🎨 Generating multi-panel image for Step ${step.stepNumber}: ${step.title}`);
-          console.log(`Target craft: ${promptContext}`);
-          console.log(`Category: ${category}`);
+          console.log(`🎨 Starting Step ${step.stepNumber}: ${step.title}`);
+          console.log(`   Target craft: ${promptContext} | Category: ${category}`);
 
           try {
             // Generate image with full image as reference to match exact style/appearance
@@ -1910,7 +2117,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               step.stepNumber // Pass step number
             );
 
-            console.log(`✅ Successfully generated image for Step ${step.stepNumber}`);
+            console.log(`✅ Step ${step.stepNumber} complete`);
 
             // Update node with generated image
             setNodes((nds) =>
@@ -1928,8 +2135,10 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
                 return node;
               })
             );
+
+            return { stepNumber: step.stepNumber, success: true };
           } catch (error) {
-            console.error(`❌ Failed to generate image for Step ${step.stepNumber}:`, error);
+            console.error(`❌ Step ${step.stepNumber} failed:`, error);
             // Clear loading state on error
             setNodes((nds) =>
               nds.map((node) => {
@@ -1945,20 +2154,38 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
                 return node;
               })
             );
+
+            return { stepNumber: step.stepNumber, success: false, error };
           }
-        }
+        });
+
+        // Wait for all step images to complete (success or failure)
+        const results = await Promise.all(stepGenerationPromises);
+        const successCount = results.filter(r => r.success).length;
+        console.log(`\n📊 Parallel generation complete: ${successCount}/${results.length} steps succeeded`);
 
         console.log('=== DISSECT FULL CRAFT COMPLETE ===\n');
     } catch (error) {
         console.error("Dissection error", error);
+        // Remove placeholder nodes and reset master node state
         setNodes((nds) =>
-            nds.map((node) => {
+            nds.filter((node) => {
+              // Remove placeholder step nodes for this breakdown
+              if (node.id.startsWith(`${breakdownId}-step-`)) {
+                return false;
+              }
+              return true;
+            }).map((node) => {
               if (node.id === nodeId) {
                 return { ...node, data: { ...node.data, isDissecting: false } };
               }
               return node;
             })
           );
+        // Remove placeholder edges
+        setEdges((eds) =>
+            eds.filter((edge) => !edge.target.startsWith(`${breakdownId}-step-`))
+        );
         alert("Failed to dissect. Please try again.");
     }
   };

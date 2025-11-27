@@ -115,3 +115,55 @@ await Promise.all(stepPromises);
 - **4x faster** - All API calls run simultaneously instead of waiting
 - **Better UX** - User sees all step images appear around the same time
 - **Individual error handling** - One failed step doesn't block others
+
+---
+
+## Pattern Sheet Optimization (Turn Table Pattern Applied)
+
+### Problem
+Pattern sheet prompt was missing consistency emphasis - focused on technical unwrapping rules but didn't emphasize matching the reference image's exact colors/style.
+
+### Changes Made
+
+**geminiService.ts - generateSVGPatternSheet (lines 654-835)**
+
+Restructured the prompt to follow Turn Table's successful pattern:
+
+1. **CONSISTENCY REQUIREMENTS FIRST** (new section)
+   - 5 numbered requirements with checkmarks
+   - Physical metaphor: "unwrapping/unfolding the ACTUAL physical craft"
+   - Repeated emphasis: "CONSISTENCY RULES (REPEAT FOR EMPHASIS)"
+   - Explicit color matching: "Sample the actual RGB values from the reference image"
+
+2. **PART-BY-PART ANALYSIS** (new section)
+   - Forces AI to analyze EACH part before drawing
+   - 5 questions for every component:
+     1. What is this part?
+     2. What 3D SHAPE is it?
+     3. What COLOR is it in the reference?
+     4. What DETAILS does it have?
+     5. How should it UNWRAP?
+
+3. **Simplified unwrapping guide** (kept but streamlined)
+   - Same 3D→2D shape table but cleaner
+   - Example analysis showing color placeholders from reference
+
+4. **DO NOT section at the end** (new)
+   - Clean bulleted list of what to avoid
+   - Emphasis on matching reference colors
+
+### Key Improvements
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Consistency | Not emphasized | FIRST section |
+| Per-part analysis | None | Required for EACH part |
+| Physical metaphor | None | "Unwrapping actual craft" |
+| Color matching | Mentioned once | Repeated throughout |
+| DO NOT constraints | None | Clean section at end |
+
+### Expected Results
+- Pattern piece colors match reference EXACTLY
+- AI analyzes each part's 3D shape before unwrapping
+- Unique details (spots, stripes) appear on pattern pieces
+- Assembled result looks identical to reference craft
