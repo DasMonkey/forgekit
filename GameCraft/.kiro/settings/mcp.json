@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "Context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "ctx7sk-de1fd2cb-88bb-4a69-bc9a-54f8e2d8d654"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    },
+    "refbase": {
+      "name": "RefBase Knowledge Base",
+      "command": "node",
+      "args": ["D:\\AI\\Cursor projects\\refbase-mcp\\dist\\cli.js"],
+      "env": {
+        "REFBASE_API_URL": "https://refbase.dev/api",
+        "REFBASE_API_KEY": "refb_f44fc250030aa2e6077e9ccac15d4eb7",
+        "LOG_LEVEL": "info"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "mcp_refbase_get_project_context",
+        "mcp_refbase_search_conversations",
+        "mcp_refbase_save_conversation",
+        "mcp_refbase_search_bugs",
+        "mcp_refbase_save_bug",
+        "mcp_refbase_search_features",
+        "mcp_refbase_save_feature"
+      ]
+    }
+  }
+}

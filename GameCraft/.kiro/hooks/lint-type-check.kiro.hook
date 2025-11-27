@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Lint & Type Check",
+  "description": "Automatically runs lint and TypeScript error checks after modifying any file",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check for lint errors and TypeScript errors in the modified files. Run the appropriate linting tools (like eslint) and TypeScript compiler checks (tsc) to identify any issues. Report any errors or warnings found."
+  }
+}
