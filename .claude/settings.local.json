@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd d:AIAI ProjectsCraftusCraftus)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
