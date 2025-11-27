@@ -456,7 +456,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     // Pattern Sheet (~140px) + Instructions (~120px) + Turn Table (~130px) + Magic Select (~140px) + Download (~110px) + Share (~90px) + dividers/padding
     const PATTERN_CATEGORIES = [
       CraftCategory.PAPERCRAFT,
-      CraftCategory.FABRIC_SEWING,
       CraftCategory.COSTUME_PROPS,
       CraftCategory.WOODCRAFT,
       CraftCategory.KIDS_CRAFTS,

@@ -17,12 +17,11 @@ interface CraftStyleMenuProps {
 const CRAFT_CATEGORIES = [
   CraftCategory.PAPERCRAFT,
   CraftCategory.CLAY,
-  CraftCategory.FABRIC_SEWING,
   CraftCategory.COSTUME_PROPS,
   CraftCategory.WOODCRAFT,
   CraftCategory.JEWELRY,
   CraftCategory.KIDS_CRAFTS,
-  CraftCategory.TABLETOP_FIGURES,
+  CraftCategory.COLORING_BOOK,
 ];
 
 export const CraftStyleMenu: React.FC<CraftStyleMenuProps> = ({

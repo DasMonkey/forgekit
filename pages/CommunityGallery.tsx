@@ -54,11 +54,11 @@ const SAMPLE_COMMUNITY_PROJECTS: CommunityProject[] = [
   },
   {
     id: 'community-3',
-    name: 'Embroidered Constellation Map',
-    category: CraftCategory.FABRIC_SEWING,
+    name: 'Mandala Coloring Page',
+    category: CraftCategory.COLORING_BOOK,
     masterImageUrl: 'https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?w=800&q=80',
-    difficulty: 'Moderate',
-    creatorHandle: '@stitch_wizard',
+    difficulty: 'Simple',
+    creatorHandle: '@art_therapy',
     views: 892,
     likes: 67,
     publishedAt: new Date(Date.now() - 8 * 60 * 60 * 1000)
@@ -109,11 +109,11 @@ const SAMPLE_COMMUNITY_PROJECTS: CommunityProject[] = [
   },
   {
     id: 'community-8',
-    name: 'Painted D&D Miniature Set',
-    category: CraftCategory.TABLETOP_FIGURES,
+    name: 'Dragon Coloring Page',
+    category: CraftCategory.COLORING_BOOK,
     masterImageUrl: 'https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=800&q=80',
-    difficulty: 'Complex',
-    creatorHandle: '@mini_painter',
+    difficulty: 'Moderate',
+    creatorHandle: '@color_artist',
     views: 4567,
     likes: 312,
     publishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
@@ -182,12 +182,11 @@ export const CommunityGallery: React.FC = () => {
     const colors: Record<CraftCategory, string> = {
       [CraftCategory.PAPERCRAFT]: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       [CraftCategory.CLAY]: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      [CraftCategory.FABRIC_SEWING]: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
       [CraftCategory.COSTUME_PROPS]: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       [CraftCategory.WOODCRAFT]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
       [CraftCategory.JEWELRY]: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       [CraftCategory.KIDS_CRAFTS]: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      [CraftCategory.TABLETOP_FIGURES]: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+      [CraftCategory.COLORING_BOOK]: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
     };
     return colors[category] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
   };

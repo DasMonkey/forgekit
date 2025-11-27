@@ -1,12 +1,11 @@
 export enum CraftCategory {
   PAPERCRAFT = 'Papercraft',
   CLAY = 'Clay',
-  FABRIC_SEWING = 'Fabric/Sewing',
   COSTUME_PROPS = 'Costume & Props',
   WOODCRAFT = 'Woodcraft',
   JEWELRY = 'Jewelry',
   KIDS_CRAFTS = 'Kids Crafts',
-  TABLETOP_FIGURES = 'Tabletop Figures'
+  COLORING_BOOK = 'Coloring Book'
 }
 
 export interface DissectionResponse {

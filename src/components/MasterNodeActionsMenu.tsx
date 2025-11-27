@@ -20,7 +20,6 @@ interface MasterNodeActionsMenuProps {
 // Categories that use cutting templates/patterns
 const PATTERN_CATEGORIES = [
   CraftCategory.PAPERCRAFT,
-  CraftCategory.FABRIC_SEWING,
   CraftCategory.COSTUME_PROPS,
   CraftCategory.WOODCRAFT,
   CraftCategory.KIDS_CRAFTS,

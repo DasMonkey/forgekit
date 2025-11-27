@@ -44,9 +44,9 @@ const SAMPLE_PROJECTS = [
   },
   {
     id: 'sample-3',
-    name: 'Embroidered Floral Hoop Art',
-    category: CraftCategory.FABRIC_SEWING,
-    prompt: 'Beautiful embroidered wildflowers in a wooden hoop',
+    name: 'Forest Animals Coloring Page',
+    category: CraftCategory.COLORING_BOOK,
+    prompt: 'Detailed line art of forest animals for coloring',
     masterImageUrl: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=800&q=80',
     dissection: null,
     stepImages: new Map(),
@@ -184,12 +184,11 @@ export const ProjectsGallery: React.FC = () => {
     const colors: Record<CraftCategory, string> = {
       [CraftCategory.PAPERCRAFT]: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       [CraftCategory.CLAY]: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      [CraftCategory.FABRIC_SEWING]: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
       [CraftCategory.COSTUME_PROPS]: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       [CraftCategory.WOODCRAFT]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
       [CraftCategory.JEWELRY]: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       [CraftCategory.KIDS_CRAFTS]: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      [CraftCategory.TABLETOP_FIGURES]: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+      [CraftCategory.COLORING_BOOK]: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
     };
     return colors[category] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
   };

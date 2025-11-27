@@ -650,8 +650,6 @@ export const generateSVGPatternSheet = async (
         return 'papercraft pattern template with 3D unwrapped patterns (UV-mapped like 3D modeling)';
       case CraftCategory.CLAY:
         return 'clay sculpting reference sheet showing required clay pieces, colors, and assembly guide';
-      case CraftCategory.FABRIC_SEWING:
-        return 'sewing pattern template with fabric pieces, seam allowances, and stitch guides';
       case CraftCategory.COSTUME_PROPS:
         return 'foam armor/prop pattern template showing EVA foam pieces, beveled edges, and heat-forming guides';
       case CraftCategory.WOODCRAFT:
@@ -660,8 +658,8 @@ export const generateSVGPatternSheet = async (
         return 'jewelry assembly diagram showing beads, wire wrapping steps, and component layout';
       case CraftCategory.KIDS_CRAFTS:
         return 'simple craft template with easy-to-cut shapes and minimal assembly';
-      case CraftCategory.TABLETOP_FIGURES:
-        return 'miniature figure pattern with base, pose guide, and painting reference';
+      case CraftCategory.COLORING_BOOK:
+        return 'detailed black and white line art coloring page with clean outlines and no fills';
       default:
         return 'craft pattern template';
     }
@@ -767,19 +765,6 @@ EXAMPLE ANALYSIS - If reference shows a bear character:
 ❌ WRONG: Flat circle for a 3D ball part
 ✅ RIGHT: Petal segments that fold into a ball` : ''}
 
-${category === CraftCategory.FABRIC_SEWING ? `
-═══════════════════════════════════════════════════════════════
-📐 3D SHAPE → FABRIC PATTERN GUIDE
-═══════════════════════════════════════════════════════════════
-
-SPHERE/BALL (stuffed) → 4-6 FABRIC GORES with seam allowance
-CYLINDER → Rectangle panel + circular ends
-CONE → Pie-shaped panel
-BODY → Multiple curved panels with darts for shaping
-
-For EACH part, analyze: What shape? What fabric color? What seam allowances?
-Include grain lines and notch marks.` : ''}
-
 ${category === CraftCategory.COSTUME_PROPS ? `
 ═══════════════════════════════════════════════════════════════
 📐 3D SHAPE → EVA FOAM PATTERN GUIDE
@@ -803,7 +788,38 @@ For EACH part, determine:
 • Exact color from reference image
 • Assembly order` : ''}
 
-${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS, CraftCategory.TABLETOP_FIGURES].includes(category) ? `
+${category === CraftCategory.COLORING_BOOK ? `
+═══════════════════════════════════════════════════════════════
+📐 COLORING BOOK LINE ART GUIDE
+═══════════════════════════════════════════════════════════════
+
+Create a HIGH-QUALITY coloring page with these requirements:
+
+LINE ART STYLE:
+• Clean, crisp BLACK outlines only (no gray, no colors)
+• Varying line weights: thicker for main outlines, thinner for details
+• Smooth, professional curves and lines
+• Clear separation between different areas to color
+
+DETAIL LEVEL:
+• Include all important features and textures from the reference
+• Add decorative patterns where appropriate (scales, fur texture, feathers, etc.)
+• Create interesting areas of varying sizes for coloring
+• Include background elements if present in reference
+
+COLORING-FRIENDLY DESIGN:
+• All areas must be fully enclosed (no gaps in lines)
+• Avoid areas that are too tiny to color
+• Create clear boundaries between different sections
+• NO shading, NO gradients, NO fills - pure line art only
+
+OUTPUT:
+• Pure BLACK lines on WHITE background
+• High contrast for easy printing
+• Suitable for both children and adults to color
+• Ready to download and print` : ''}
+
+${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS].includes(category) ? `
 ═══════════════════════════════════════════════════════════════
 📐 PATTERN ANALYSIS GUIDE
 ═══════════════════════════════════════════════════════════════
