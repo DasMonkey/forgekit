@@ -9,6 +9,7 @@ interface UseToolKeyboardShortcutsOptions {
 /**
  * Custom hook to handle keyboard shortcuts for tool switching
  * V - Select tool
+ * H - Hand tool (pan)
  * U - Upload tool
  * S - Shapes tool
  * T - Text tool
@@ -43,6 +44,10 @@ export const useToolKeyboardShortcuts = ({
         case 'v':
           event.preventDefault();
           onToolChange('select');
+          break;
+        case 'h':
+          event.preventDefault();
+          onToolChange('hand');
           break;
         case 'u':
           event.preventDefault();

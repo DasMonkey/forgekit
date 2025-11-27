@@ -1,8 +1,8 @@
 import React from 'react';
-import { MousePointer2, Plus, Square, Type, Pencil, Maximize } from 'lucide-react';
+import { MousePointer2, Hand, Plus, Square, Type, Pencil, Maximize } from 'lucide-react';
 import { ToolButton } from './ToolButton';
 
-export type ToolType = 'select' | 'upload' | 'shapes' | 'text' | 'pencil';
+export type ToolType = 'select' | 'hand' | 'upload' | 'shapes' | 'text' | 'pencil';
 
 interface LeftToolbarProps {
   activeTool: ToolType;
@@ -23,6 +23,13 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       icon: MousePointer2,
       label: 'Select',
       shortcut: 'V',
+      hasSubmenu: false,
+    },
+    {
+      type: 'hand' as ToolType,
+      icon: Hand,
+      label: 'Hand',
+      shortcut: 'H',
       hasSubmenu: false,
     },
     {

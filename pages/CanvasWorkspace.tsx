@@ -178,7 +178,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     // Apply the changes first
     onNodesChange(changes);
 
-    // Then sync dimensions for any resize changes
+    // Then sync dimensions for any resize changes (only for shapeNode which uses data.width/height)
     changes.forEach((change: any) => {
       if (change.type === 'dimensions' && change.dimensions) {
         setNodes((nds) =>
@@ -199,7 +199,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       }
     });
   }, [onNodesChange, setNodes]);
-  const [activeTool, setActiveTool] = useState<ToolType>('select');
+  const [activeTool, setActiveTool] = useState<ToolType>('hand');
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     position: { x: number; y: number };
@@ -877,8 +877,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   // Handle tool-specific behaviors
   useEffect(() => {
     if (activeTool === 'select') {
-      // Select tool is active - React Flow's default behavior handles everything
-      // Users can drag nodes, select them, and create connections
+      // Select tool is active - enables box selection to select multiple items
+      // Users can drag to select multiple nodes
+      setTextCreationMode(false);
+      setDrawingMode(false);
+    } else if (activeTool === 'hand') {
+      // Hand tool is active - enables panning the canvas
       setTextCreationMode(false);
       setDrawingMode(false);
     } else if (activeTool === 'text') {
@@ -1187,9 +1191,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           };
 
           setNodes((nds) => [...nds, newNode]);
-          
-          // Switch back to select tool after creating image
-          setActiveTool('select');
         };
         
         img.src = dataUrl;
@@ -1203,7 +1204,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     };
 
     input.click();
-  }, [setNodes, setActiveTool, getViewport, handleDeleteImageNode]);
+  }, [setNodes, getViewport, handleDeleteImageNode, handleCloseToolSubmenu]);
 
   /**
    * Handle shape selection
@@ -1275,10 +1276,8 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       setPendingConnection(null);
     }
 
-    // Switch back to select tool after creating shape
-    setActiveTool('select');
     handleCloseToolSubmenu();
-  }, [setNodes, setActiveTool, pendingConnection, setEdges]);
+  }, [setNodes, pendingConnection, setEdges]);
 
   /**
    * Handle text node edit
@@ -1387,10 +1386,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     setTimeout(() => {
       handleTextEdit(id);
     }, 50);
-
-    // Switch back to select tool after creating text
-    setActiveTool('select');
-  }, [textCreationMode, readOnly, setNodes, setActiveTool, toolSubmenu.visible, handleCloseToolSubmenu, craftStyleMenu.visible, handleCloseCraftStyleMenu, masterNodeActionsMenu.visible, handleTextEdit, screenToFlowPosition]);
+  }, [textCreationMode, readOnly, setNodes, toolSubmenu.visible, handleCloseToolSubmenu, craftStyleMenu.visible, handleCloseCraftStyleMenu, masterNodeActionsMenu.visible, handleTextEdit, screenToFlowPosition]);
 
   /**
    * Handle pane mouse down for drawing
@@ -2412,9 +2408,6 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       // Close the menu
       handleCloseCraftStyleMenu();
 
-      // Switch to select tool
-      setActiveTool('select');
-
       // Create and save new project
       const newProject = {
         id: `project-${Date.now()}`,
@@ -2541,10 +2534,11 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           nodeTypes={nodeTypes}
           defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
           className={`bg-slate-950 ${getToolCursor(activeTool)}`}
-          nodesDraggable={!readOnly && activeTool === 'select'}
-          nodesConnectable={!readOnly && activeTool === 'select'}
-          elementsSelectable={!readOnly && activeTool === 'select'}
-          panOnDrag={!drawingMode}
+          nodesDraggable={!readOnly && (activeTool === 'select' || activeTool === 'hand')}
+          nodesConnectable={!readOnly && (activeTool === 'select' || activeTool === 'hand')}
+          elementsSelectable={!readOnly && (activeTool === 'select' || activeTool === 'hand')}
+          panOnDrag={!drawingMode && activeTool === 'hand'}
+          selectionOnDrag={!readOnly && activeTool === 'select'}
           minZoom={0.1}
           maxZoom={8}
         >

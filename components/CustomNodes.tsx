@@ -367,8 +367,12 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
 /**
  * Node for uploaded images
  */
-export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
-  const { imageUrl, fileName, width, height, isSelected, isGeneratingImage, onSelect, onDeselect, onDelete } = data as ImageNodeData;
+export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: nodeHeight }: NodeProps<any>) => {
+  const { imageUrl, fileName, width: dataWidth, height: dataHeight, isSelected, isGeneratingImage, onSelect, onDeselect, onDelete } = data as ImageNodeData;
+
+  // Use node dimensions from ReactFlow (updated by resizer) or fall back to data dimensions
+  const displayWidth = nodeWidth || dataWidth || 400;
+  const displayHeight = nodeHeight || dataHeight || 340;
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -463,23 +467,45 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
   };
 
   return (
-    <div 
+    <div
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl border-2 overflow-hidden transition-shadow duration-300 hover:shadow-xl ${
-        isSelected
-          ? 'border-orange-500 shadow-orange-500/50 ring-2 ring-orange-500/30'
-          : 'border-purple-500/50'
+      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl transition-none hover:shadow-xl flex flex-col ${
+        selected
+          ? 'border-4 border-indigo-500 shadow-indigo-500/50 ring-4 ring-indigo-500/30'
+          : isSelected
+            ? 'border-2 border-orange-500 shadow-orange-500/50 ring-2 ring-orange-500/30'
+            : 'border-2 border-purple-500/50'
       }`}
+      style={{ width: displayWidth, height: displayHeight, minWidth: 150, minHeight: 150 }}
     >
+      {/* Node Resizer - only visible when selected */}
+      <NodeResizer
+        color="#8b5cf6"
+        isVisible={selected}
+        minWidth={150}
+        minHeight={150}
+        keepAspectRatio
+        handleStyle={{
+          width: 14,
+          height: 14,
+          borderRadius: 4,
+          border: '2px solid #8b5cf6',
+          backgroundColor: 'white',
+        }}
+        lineStyle={{
+          borderWidth: 2,
+        }}
+      />
+
       <Handle type="source" position={Position.Right} id="source-right" className="!bg-purple-500 !w-3 !h-3" />
       <Handle type="source" position={Position.Left} id="source-left" className="!bg-purple-500 !w-3 !h-3" />
       <Handle type="target" position={Position.Right} id="target-right" className="!bg-purple-500 !w-3 !h-3" />
       <Handle type="target" position={Position.Left} id="target-left" className="!bg-purple-500 !w-3 !h-3" />
 
       {/* Header */}
-      <div className="px-4 py-2 bg-purple-600/20 border-b border-purple-500/30 flex justify-between items-center">
+      <div className="px-4 py-2 bg-purple-600/20 border-b border-purple-500/30 flex justify-between items-center rounded-t-xl overflow-hidden">
         <span className="text-purple-200 font-semibold text-sm truncate">{fileName}</span>
         <div className="flex items-center gap-2">
             {isProcessingMask && <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />}
@@ -500,7 +526,7 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
       </div>
 
       {/* Image & Interactive Area */}
-      <div className={`relative bg-white ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`} style={{ width: `${width}px`, height: `${height}px` }}>
+      <div className={`relative bg-white flex-1 min-h-0 overflow-hidden rounded-b-xl ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
         {isGeneratingImage ? (
           // Loading placeholder while image is being generated
           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950">
@@ -518,7 +544,7 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
             alt={fileName}
             crossOrigin="anonymous"
             onClick={handleImageClick}
-            className="w-full h-full object-contain relative z-10"
+            className="w-full h-full object-cover relative z-10"
           />
         )}
 
@@ -566,7 +592,10 @@ export const ImageNode = memo(({ data, id }: NodeProps<any>) => {
 }, (prevProps: NodeProps<any>, nextProps: NodeProps<any>) => {
   return (
     prevProps.data.imageUrl === nextProps.data.imageUrl &&
-    prevProps.data.isSelected === nextProps.data.isSelected
+    prevProps.data.isSelected === nextProps.data.isSelected &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height &&
+    prevProps.selected === nextProps.selected
   );
 });
 

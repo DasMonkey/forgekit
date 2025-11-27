@@ -12,6 +12,8 @@ export const getToolCursor = (tool: ToolType): string => {
   switch (tool) {
     case 'select':
       return 'cursor-default';
+    case 'hand':
+      return 'cursor-grab';
     case 'shapes':
     case 'text':
       return 'cursor-crosshair';
@@ -32,6 +34,8 @@ export const getToolCursorStyle = (tool: ToolType): string => {
   switch (tool) {
     case 'select':
       return 'default';
+    case 'hand':
+      return 'grab';
     case 'shapes':
     case 'text':
       return 'crosshair';
