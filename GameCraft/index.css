@@ -2,15 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ====================================
+   GAMECRAFT THEME: ARCADE AMBER
+   A warm, energetic gaming aesthetic
+   with orange/amber accents on dark charcoal
+   ==================================== */
+
+/* CSS Custom Properties for Theme */
+:root {
+  /* Primary: Warm Amber/Orange */
+  --gc-primary: #f59e0b;
+  --gc-primary-light: #fbbf24;
+  --gc-primary-dark: #d97706;
+  --gc-primary-glow: rgba(245, 158, 11, 0.3);
+
+  /* Accent: Electric Orange */
+  --gc-accent: #ea580c;
+  --gc-accent-light: #fb923c;
+  --gc-accent-glow: rgba(234, 88, 12, 0.4);
+
+  /* Background: Warm Charcoal */
+  --gc-bg-deep: #18181b;
+  --gc-bg-base: #1f1f23;
+  --gc-bg-elevated: #27272a;
+  --gc-bg-surface: #3f3f46;
+
+  /* Text */
+  --gc-text-primary: #fafafa;
+  --gc-text-secondary: #a1a1aa;
+  --gc-text-muted: #71717a;
+
+  /* Borders */
+  --gc-border: #3f3f46;
+  --gc-border-light: #52525b;
+
+  /* Success/Error */
+  --gc-success: #22c55e;
+  --gc-error: #ef4444;
+}
+
 /* Global Styles */
 @layer base {
   * {
     @apply border-border;
   }
-  
+
   body {
-    @apply bg-slate-950 text-slate-100;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    background-color: var(--gc-bg-deep);
+    color: var(--gc-text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -18,7 +58,7 @@
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Amber Theme */
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
@@ -26,25 +66,34 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-slate-800 rounded;
+    background: var(--gc-bg-elevated);
+    border-radius: 4px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-600 rounded hover:bg-slate-500;
+    background: var(--gc-bg-surface);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--gc-primary-dark);
   }
 }
 
 /* Node Animations */
 @layer components {
-  /* Fade in and scale animation for new nodes */
+  /* Fade in and scale animation for new nodes - with amber glow */
   @keyframes nodeAppear {
     from {
       opacity: 0;
       transform: scale(0.8) translateY(20px);
+      filter: drop-shadow(0 0 0 transparent);
     }
     to {
       opacity: 1;
       transform: scale(1) translateY(0);
+      filter: drop-shadow(0 0 8px var(--gc-primary-glow));
     }
   }
 
@@ -52,13 +101,15 @@
     animation: nodeAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  /* Pulse animation for loading states */
+  /* Pulse animation for loading states - amber pulse */
   @keyframes pulse-glow {
     0%, 100% {
       opacity: 1;
+      box-shadow: 0 0 0 0 var(--gc-primary-glow);
     }
     50% {
-      opacity: 0.5;
+      opacity: 0.7;
+      box-shadow: 0 0 20px 5px var(--gc-primary-glow);
     }
   }
 
@@ -66,7 +117,7 @@
     animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  /* Shimmer effect for loading skeletons */
+  /* Shimmer effect for loading skeletons - warm tones */
   @keyframes shimmer {
     0% {
       background-position: -1000px 0;
@@ -79,9 +130,9 @@
   .shimmer {
     background: linear-gradient(
       90deg,
-      rgba(51, 65, 85, 0.2) 0%,
-      rgba(71, 85, 105, 0.4) 50%,
-      rgba(51, 65, 85, 0.2) 100%
+      var(--gc-bg-elevated) 0%,
+      rgba(245, 158, 11, 0.15) 50%,
+      var(--gc-bg-elevated) 100%
     );
     background-size: 1000px 100%;
     animation: shimmer 2s infinite;
@@ -92,14 +143,68 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Hover lift effect */
+  /* Hover lift effect with amber glow */
   .hover-lift {
     transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
   }
 
   .hover-lift:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 25px -5px var(--gc-primary-glow);
+  }
+
+  /* GameCraft Button Styles */
+  .gc-btn-primary {
+    @apply px-4 py-2 rounded-lg font-semibold;
+    background: linear-gradient(135deg, var(--gc-primary) 0%, var(--gc-accent) 100%);
+    color: var(--gc-bg-deep);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px var(--gc-primary-glow);
+  }
+
+  .gc-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px var(--gc-primary-glow);
+  }
+
+  .gc-btn-primary:active {
+    transform: translateY(0);
+  }
+
+  /* Arcade glow effect */
+  @keyframes arcade-glow {
+    0%, 100% {
+      box-shadow:
+        0 0 5px var(--gc-primary),
+        0 0 10px var(--gc-primary-glow),
+        0 0 20px var(--gc-primary-glow);
+    }
+    50% {
+      box-shadow:
+        0 0 10px var(--gc-primary),
+        0 0 20px var(--gc-primary-glow),
+        0 0 40px var(--gc-primary-glow);
+    }
+  }
+
+  .arcade-glow {
+    animation: arcade-glow 2s ease-in-out infinite;
+  }
+
+  /* Scanline overlay effect for retro gaming feel */
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.1) 2px,
+      rgba(0, 0, 0, 0.1) 4px
+    );
+    opacity: 0.3;
   }
 }
 
@@ -145,15 +250,56 @@
   }
 }
 
-/* React Flow customizations */
+/* React Flow customizations - GameCraft Theme */
 .react-flow__attribution {
   display: none;
+}
+
+/* Custom edge colors */
+.react-flow__edge-path {
+  stroke: var(--gc-primary) !important;
+}
+
+.react-flow__edge.animated path {
+  stroke: var(--gc-primary);
+  stroke-dasharray: 5;
+  animation: dash 0.5s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px dashed var(--gc-primary);
+}
+
+/* Connection line */
+.react-flow__connection-line {
+  stroke: var(--gc-primary);
+  stroke-width: 2;
+}
+
+/* Handle styling */
+.react-flow__handle {
+  background: var(--gc-primary) !important;
+  border: 2px solid var(--gc-bg-deep) !important;
+}
+
+.react-flow__handle:hover {
+  background: var(--gc-primary-light) !important;
+  box-shadow: 0 0 8px var(--gc-primary-glow);
 }
 
 /* Empty state styling */
 .empty-state {
   @apply flex flex-col items-center justify-center;
-  @apply text-slate-500 text-center;
+  color: var(--gc-text-muted);
+  @apply text-center;
   animation: fadeIn 0.5s ease-out;
 }
 
@@ -186,4 +332,35 @@
 /* Fade in without transform (use for elements with translate transforms) */
 .animate-fade-in-opacity {
   animation: fadeInOpacity 0.3s ease-out;
+}
+
+/* GameCraft Canvas Background */
+.gc-canvas-bg {
+  background-color: var(--gc-bg-base);
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.03) 0%, transparent 50%),
+    linear-gradient(var(--gc-bg-surface) 1px, transparent 1px),
+    linear-gradient(90deg, var(--gc-bg-surface) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px, 24px 24px;
+}
+
+/* Amber gradient text */
+.gc-gradient-text {
+  background: linear-gradient(135deg, var(--gc-primary-light) 0%, var(--gc-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effect */
+.gc-card {
+  background: var(--gc-bg-elevated);
+  border: 1px solid var(--gc-border);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.gc-card:hover {
+  border-color: var(--gc-primary-dark);
+  box-shadow: 0 4px 20px var(--gc-primary-glow);
 }

@@ -452,16 +452,16 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       menuHoverTimeoutRef.current = null;
     }
 
-    // Use appropriate menu width based on whether pattern button will show
-    // Pattern Sheet (~140px) + Instructions (~120px) + Turn Table (~130px) + Magic Select (~140px) + Download (~110px) + Share (~90px) + dividers/padding
-    const PATTERN_CATEGORIES = [
-      CraftCategory.PAPERCRAFT,
-      CraftCategory.COSTUME_PROPS,
-      CraftCategory.WOODCRAFT,
-      CraftCategory.KIDS_CRAFTS,
+    // Use appropriate menu width based on whether sprite sheet button will show
+    // For GameCraft: All categories support sprite sheet generation
+    const SPRITE_CATEGORIES = [
+      CraftCategory.PIXEL_ART,
+      CraftCategory.AAA,
+      CraftCategory.LOW_POLY_3D,
+      CraftCategory.VOXEL_ART,
     ];
-    const hasPatternButton = category && PATTERN_CATEGORIES.includes(category);
-    const menuWidth = hasPatternButton ? 750 : 610;
+    const hasSpriteButton = category && SPRITE_CATEGORIES.includes(category);
+    const menuWidth = hasSpriteButton ? 750 : 610;
 
     const position = calculateCraftMenuPosition(element, menuWidth);
     setMasterNodeActionsMenu({
@@ -1553,7 +1553,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     // CRITICAL: Use nodesRef to get latest nodes (avoids stale closure issue)
     const currentNodes = nodesRef.current;
     const masterNode = currentNodes.find(n => n.id === nodeId);
-    const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PAPERCRAFT; // Default to Papercraft for safety
+    const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PIXEL_ART; // Default to Pixel Art for safety
 
     console.log('=== DISSECT SELECTED START ===');
     console.log('Node ID:', nodeId);
@@ -1895,8 +1895,8 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     // CRITICAL: Use nodesRef to get latest nodes (avoids stale closure issue)
     const currentNodes = nodesRef.current;
     const masterNode = currentNodes.find(n => n.id === nodeId);
-    const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PAPERCRAFT;
-    const promptContext = masterNode?.data?.label as string || "Unknown craft";
+    const category = (masterNode?.data?.category as CraftCategory) || CraftCategory.PIXEL_ART;
+    const promptContext = masterNode?.data?.label as string || "Unknown asset";
 
     console.log('=== DISSECT FULL CRAFT START ===');
     console.log('Node ID:', nodeId);
@@ -2452,7 +2452,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   ]);
 
   return (
-    <div className="w-screen h-screen bg-slate-950 relative overflow-hidden">
+    <div className="w-screen h-screen bg-zinc-900 relative overflow-hidden">
       {/* Floating Menu Bar */}
       <FloatingMenuBar projectName={currentProject?.name} />
 
@@ -2535,7 +2535,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           onPaneClick={handleCanvasClick}
           nodeTypes={nodeTypes}
           defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
-          className={`bg-slate-950 ${getToolCursor(activeTool)}`}
+          className={`bg-zinc-900 ${getToolCursor(activeTool)}`}
           nodesDraggable={!readOnly && (activeTool === 'select' || activeTool === 'hand')}
           nodesConnectable={!readOnly && (activeTool === 'select' || activeTool === 'hand')}
           elementsSelectable={!readOnly && (activeTool === 'select' || activeTool === 'hand')}
@@ -2545,7 +2545,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           maxZoom={8}
         >
           <Background
-              color="#334155"
+              color="#52525b"
               variant={BackgroundVariant.Dots}
               gap={24}
               size={2}
@@ -2557,7 +2557,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       {nodes.length === 0 && !readOnly && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
           <div className="empty-state max-w-md px-6">
-            <Sparkles className="w-16 h-16 text-indigo-500/30 mb-4 mx-auto" />
+            <Sparkles className="w-16 h-16 text-amber-500/30 mb-4 mx-auto" />
             <h2 className="text-2xl font-bold text-slate-400 mb-2">Your Canvas Awaits</h2>
             <p className="text-slate-500 mb-6">
               Describe your craft idea below to summon your first project

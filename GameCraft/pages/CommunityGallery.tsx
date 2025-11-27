@@ -28,95 +28,51 @@ interface CommunityProject {
   publishedAt: Date;
 }
 
-// Sample community projects for demonstration
+// Sample community projects for demonstration - Game Asset themed
 const SAMPLE_COMMUNITY_PROJECTS: CommunityProject[] = [
   {
     id: 'community-1',
-    name: 'Intricate Paper Crane Mobile',
-    category: CraftCategory.PAPERCRAFT,
-    masterImageUrl: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800&q=80',
+    name: 'Dungeon Crawler Tileset',
+    category: CraftCategory.PIXEL_ART,
+    masterImageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80',
     difficulty: 'Moderate',
-    creatorHandle: '@origami_master',
+    creatorHandle: '@pixel_master',
     views: 1247,
     likes: 89,
     publishedAt: new Date(Date.now() - 3 * 60 * 60 * 1000)
   },
   {
     id: 'community-2',
-    name: 'Miniature Polymer Clay Garden',
-    category: CraftCategory.CLAY,
-    masterImageUrl: 'https://images.unsplash.com/photo-1611312449408-fcece27cdbb7?w=800&q=80',
+    name: 'Cinematic Battle Scene',
+    category: CraftCategory.AAA,
+    masterImageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&q=80',
     difficulty: 'Complex',
-    creatorHandle: '@clay_artist',
+    creatorHandle: '@aaa_artist',
     views: 2341,
     likes: 156,
     publishedAt: new Date(Date.now() - 5 * 60 * 60 * 1000)
   },
   {
     id: 'community-3',
-    name: 'Mandala Coloring Page',
-    category: CraftCategory.COLORING_BOOK,
-    masterImageUrl: 'https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?w=800&q=80',
+    name: 'Low Poly Nature Pack',
+    category: CraftCategory.LOW_POLY_3D,
+    masterImageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80',
     difficulty: 'Simple',
-    creatorHandle: '@art_therapy',
-    views: 892,
-    likes: 67,
+    creatorHandle: '@lowpoly_maker',
+    views: 945,
+    likes: 78,
     publishedAt: new Date(Date.now() - 8 * 60 * 60 * 1000)
   },
   {
     id: 'community-4',
-    name: 'Fantasy Armor Shoulder Piece',
-    category: CraftCategory.COSTUME_PROPS,
-    masterImageUrl: 'https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=800&q=80',
-    difficulty: 'Complex',
-    creatorHandle: '@cosplay_forge',
-    views: 3456,
-    likes: 234,
-    publishedAt: new Date(Date.now() - 12 * 60 * 60 * 1000)
-  },
-  {
-    id: 'community-5',
-    name: 'Rustic Wooden Serving Board',
-    category: CraftCategory.WOODCRAFT,
-    masterImageUrl: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=800&q=80',
+    name: 'Voxel City Buildings',
+    category: CraftCategory.VOXEL_ART,
+    masterImageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80',
     difficulty: 'Simple',
-    creatorHandle: '@woodworker_pro',
-    views: 1678,
-    likes: 112,
-    publishedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: 'community-6',
-    name: 'Beaded Crystal Bracelet',
-    category: CraftCategory.JEWELRY,
-    masterImageUrl: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=800&q=80',
-    difficulty: 'Simple',
-    creatorHandle: '@jewelry_maker',
-    views: 945,
-    likes: 78,
-    publishedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: 'community-7',
-    name: 'Rainbow Pom-Pom Garland',
-    category: CraftCategory.KIDS_CRAFTS,
-    masterImageUrl: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=800&q=80',
-    difficulty: 'Simple',
-    creatorHandle: '@crafty_kids',
+    creatorHandle: '@voxel_builder',
     views: 2134,
     likes: 189,
-    publishedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: 'community-8',
-    name: 'Dragon Coloring Page',
-    category: CraftCategory.COLORING_BOOK,
-    masterImageUrl: 'https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=800&q=80',
-    difficulty: 'Moderate',
-    creatorHandle: '@color_artist',
-    views: 4567,
-    likes: 312,
-    publishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    publishedAt: new Date(Date.now() - 12 * 60 * 60 * 1000)
   }
 ];
 
@@ -180,15 +136,12 @@ export const CommunityGallery: React.FC = () => {
 
   const getCategoryColor = (category: CraftCategory) => {
     const colors: Record<CraftCategory, string> = {
-      [CraftCategory.PAPERCRAFT]: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      [CraftCategory.CLAY]: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      [CraftCategory.COSTUME_PROPS]: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      [CraftCategory.WOODCRAFT]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      [CraftCategory.JEWELRY]: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      [CraftCategory.KIDS_CRAFTS]: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      [CraftCategory.COLORING_BOOK]: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+      [CraftCategory.PIXEL_ART]: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      [CraftCategory.AAA]: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      [CraftCategory.LOW_POLY_3D]: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      [CraftCategory.VOXEL_ART]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     };
-    return colors[category] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    return colors[category] || 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30';
   };
 
   const formatNumber = (num: number) => {

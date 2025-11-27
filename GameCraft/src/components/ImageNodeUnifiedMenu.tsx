@@ -16,14 +16,12 @@ interface ImageNodeUnifiedMenuProps {
   isConverting: boolean;
 }
 
-const CRAFT_CATEGORIES = [
-  CraftCategory.PAPERCRAFT,
-  CraftCategory.CLAY,
-  CraftCategory.COSTUME_PROPS,
-  CraftCategory.WOODCRAFT,
-  CraftCategory.JEWELRY,
-  CraftCategory.KIDS_CRAFTS,
-  CraftCategory.COLORING_BOOK,
+// Game asset style categories for GameCraft
+const ASSET_CATEGORIES = [
+  CraftCategory.PIXEL_ART,
+  CraftCategory.AAA,
+  CraftCategory.LOW_POLY_3D,
+  CraftCategory.VOXEL_ART,
 ];
 
 export const ImageNodeUnifiedMenu: React.FC<ImageNodeUnifiedMenuProps> = ({
@@ -132,7 +130,7 @@ export const ImageNodeUnifiedMenu: React.FC<ImageNodeUnifiedMenuProps> = ({
           {/* Dropdown menu */}
           {dropdownOpen && (
             <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[180px] z-50">
-              {CRAFT_CATEGORIES.map((category) => (
+              {ASSET_CATEGORIES.map((category) => (
                 <button
                   key={category}
                   onClick={() => {

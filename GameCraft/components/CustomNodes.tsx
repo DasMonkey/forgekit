@@ -71,9 +71,9 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
 
                       // Check if part of the selected object (category > 0 typically)
                       if (category > 0) {
-                          data[pixelIndex] = 139;     // R (Indigo-ish/Purple)
-                          data[pixelIndex + 1] = 92;  // G
-                          data[pixelIndex + 2] = 246; // B
+                          data[pixelIndex] = 245;     // R (Amber/Orange)
+                          data[pixelIndex + 1] = 158; // G
+                          data[pixelIndex + 2] = 11;  // B
                           data[pixelIndex + 3] = 140; // Alpha (Semi-transparent)
                       } else {
                           data[pixelIndex + 3] = 0;   // Transparent background
@@ -152,33 +152,33 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[500px]"
+      className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-amber-500/50 bg-zinc-900 w-[500px]"
     >
       {/* Connection Handles */}
-      <Handle type="source" position={Position.Right} id="source-right" className="!bg-indigo-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} id="source-left" className="!bg-indigo-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Right} id="target-right" className="!bg-indigo-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Left} id="target-left" className="!bg-indigo-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-amber-500 !w-3 !h-3" />
 
       {/* Header */}
-      <div className="px-4 py-2 bg-indigo-600/20 border-b border-indigo-500/30 flex justify-between items-center">
-        <span className="text-indigo-200 font-semibold text-sm truncate">{label}</span>
+      <div className="px-4 py-2 bg-amber-600/20 border-b border-amber-500/30 flex justify-between items-center">
+        <span className="text-amber-200 font-semibold text-sm truncate">{label}</span>
         <div className="flex items-center gap-2">
-            {isProcessingMask && <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />}
-            <Hammer className="w-4 h-4 text-indigo-400" />
+            {isProcessingMask && <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />}
+            <Hammer className="w-4 h-4 text-amber-400" />
         </div>
       </div>
 
       {/* Image & Interactive Area */}
-      <div className={`relative aspect-square w-full bg-slate-950 ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
+      <div className={`relative aspect-square w-full bg-zinc-950 ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
         {isGeneratingImage ? (
           // Loading placeholder while image is being generated
           <div className="w-full h-full flex flex-col items-center justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-indigo-500 blur opacity-20 pulse-glow rounded-full"></div>
-              <Loader2 className="w-12 h-12 animate-spin text-indigo-500/50 relative z-10" />
+              <div className="absolute inset-0 bg-amber-500 blur opacity-20 pulse-glow rounded-full"></div>
+              <Loader2 className="w-12 h-12 animate-spin text-amber-500/50 relative z-10" />
             </div>
-            <span className="text-sm text-indigo-500/70 pulse-glow font-medium mt-4">Generating craft image...</span>
+            <span className="text-sm text-amber-500/70 pulse-glow font-medium mt-4">Generating game asset...</span>
           </div>
         ) : (
           <img
@@ -273,31 +273,31 @@ export const InstructionNode = memo(({ data }: NodeProps<any>) => {
   const { stepNumber, title, description, safetyWarning, imageUrl, isGeneratingImage } = data as InstructionNodeData;
 
   return (
-    <div className="w-[300px] md:w-[320px] bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg smooth-transition hover:shadow-xl overflow-hidden">
-      <Handle type="target" position={Position.Left} id="target-left" className="!bg-emerald-500 !w-3 !h-3" />
-      
+    <div className="w-[300px] md:w-[320px] bg-zinc-900/95 backdrop-blur-sm rounded-lg shadow-lg smooth-transition hover:shadow-xl overflow-hidden">
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-orange-500 !w-3 !h-3" />
+
       {/* Step number badge */}
-      <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-emerald-600 text-white text-sm font-bold shadow-lg">
+      <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-orange-600 text-white text-sm font-bold shadow-lg">
         {stepNumber}
       </div>
-      
+
       {/* Image Section - Clean display */}
       <div className="w-full aspect-video bg-white relative overflow-hidden">
         {imageUrl ? (
-           <img 
-            src={imageUrl} 
-            alt={title} 
-            className="w-full h-full object-cover" 
+           <img
+            src={imageUrl}
+            alt={title}
+            className="w-full h-full object-cover"
            />
         ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 space-y-2 p-4 bg-slate-950">
+            <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400 space-y-2 p-4 bg-zinc-950">
                 {isGeneratingImage ? (
                     <>
                         <div className="relative">
-                          <div className="absolute inset-0 bg-emerald-500 blur opacity-20 pulse-glow rounded-full"></div>
-                          <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin text-emerald-500/50 relative z-10" />
+                          <div className="absolute inset-0 bg-orange-500 blur opacity-20 pulse-glow rounded-full"></div>
+                          <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin text-orange-500/50 relative z-10" />
                         </div>
-                        <span className="text-xs text-emerald-500/70 pulse-glow font-medium">Generating visual...</span>
+                        <span className="text-xs text-orange-500/70 pulse-glow font-medium">Generating visual...</span>
                     </>
                 ) : (
                     <div className="flex flex-col items-center">
@@ -311,11 +311,11 @@ export const InstructionNode = memo(({ data }: NodeProps<any>) => {
 
       {/* Content - Minimal styling */}
       <div className="p-3 md:p-4 space-y-2">
-        <h3 className="text-slate-100 font-semibold text-sm leading-tight">{title}</h3>
-        <p className="text-slate-400 text-xs leading-relaxed">{description}</p>
-        
+        <h3 className="text-zinc-100 font-semibold text-sm leading-tight">{title}</h3>
+        <p className="text-zinc-400 text-xs leading-relaxed">{description}</p>
+
         {safetyWarning && (
-          <div className="p-2 bg-amber-950/30 rounded text-amber-200/90 text-xs flex items-start gap-2">
+          <div className="p-2 bg-red-950/30 rounded text-red-200/90 text-xs flex items-start gap-2">
             <TriangleAlert className="w-3 h-3 shrink-0 mt-0.5" />
             <span className="leading-snug">{safetyWarning}</span>
           </div>
@@ -339,19 +339,19 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
   const { items } = data as MaterialNodeData;
 
   return (
-    <div className="w-[230px] md:w-[250px] bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl">
-      <Handle type="target" position={Position.Right} id="target-right" className="!bg-blue-500 !w-3 !h-3" />
-      
+    <div className="w-[230px] md:w-[250px] bg-zinc-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl">
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-cyan-500 !w-3 !h-3" />
+
       <div className="px-3 py-2.5 flex items-center gap-2">
-        <List className="w-4 h-4 text-blue-400" />
-        <h3 className="text-slate-200 font-medium text-sm">Materials</h3>
+        <List className="w-4 h-4 text-cyan-400" />
+        <h3 className="text-zinc-200 font-medium text-sm">Materials</h3>
       </div>
-      
+
       <div className="px-3 pb-3 max-h-[250px] md:max-h-[300px] overflow-y-auto custom-scrollbar">
         <ul className="space-y-1.5">
           {items.map((item, index) => (
-            <li key={index} className="flex items-start gap-2 text-xs text-slate-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+            <li key={index} className="flex items-start gap-2 text-xs text-zinc-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 shrink-0" />
               {item}
             </li>
           ))}
@@ -436,9 +436,9 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
                       const pixelIndex = i * 4;
 
                       if (category > 0) {
-                          data[pixelIndex] = 168;     // R (Purple)
-                          data[pixelIndex + 1] = 85;  // G
-                          data[pixelIndex + 2] = 247; // B
+                          data[pixelIndex] = 245;     // R (Amber)
+                          data[pixelIndex + 1] = 158; // G
+                          data[pixelIndex + 2] = 11;  // B
                           data[pixelIndex + 3] = 140; // Alpha
                       } else {
                           data[pixelIndex + 3] = 0;
@@ -471,18 +471,18 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className={`relative group bg-slate-900/95 backdrop-blur-sm rounded-xl shadow-2xl transition-none hover:shadow-xl ${
+      className={`relative group bg-zinc-900/95 backdrop-blur-sm rounded-xl shadow-2xl transition-none hover:shadow-xl ${
         selected
-          ? 'border-4 border-indigo-500 shadow-indigo-500/50 ring-4 ring-indigo-500/30'
+          ? 'border-4 border-amber-500 shadow-amber-500/50 ring-4 ring-amber-500/30'
           : isSelected
             ? 'border-2 border-orange-500 shadow-orange-500/50 ring-2 ring-orange-500/30'
-            : 'border-2 border-purple-500/50'
+            : 'border-2 border-amber-500/50'
       }`}
       style={{ width: displayWidth, height: displayHeight, minWidth: 150, minHeight: 150 }}
     >
       {/* Node Resizer - only visible when selected */}
       <NodeResizer
-        color="#8b5cf6"
+        color="#f59e0b"
         isVisible={selected}
         minWidth={150}
         minHeight={150}
@@ -491,7 +491,7 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
           width: 14,
           height: 14,
           borderRadius: 4,
-          border: '2px solid #8b5cf6',
+          border: '2px solid #f59e0b',
           backgroundColor: 'white',
         }}
         lineStyle={{
@@ -500,24 +500,24 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
       />
 
       {/* Connection handles - placed first like MasterNode for consistent positioning */}
-      <Handle type="source" position={Position.Right} id="source-right" className="!bg-purple-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} id="source-left" className="!bg-purple-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Right} id="target-right" className="!bg-purple-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Left} id="target-left" className="!bg-purple-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-amber-500 !w-3 !h-3" />
 
       {/* Header */}
-      <div className="px-4 py-2 bg-purple-600/20 border-b border-purple-500/30 flex justify-between items-center rounded-t-xl overflow-hidden">
-        <span className="text-purple-200 font-semibold text-sm truncate">{fileName}</span>
+      <div className="px-4 py-2 bg-amber-600/20 border-b border-amber-500/30 flex justify-between items-center rounded-t-xl overflow-hidden">
+        <span className="text-amber-200 font-semibold text-sm truncate">{fileName}</span>
         <div className="flex items-center gap-2">
-            {isProcessingMask && <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />}
-            <ImageIcon className="w-4 h-4 text-purple-400" />
+            {isProcessingMask && <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />}
+            <ImageIcon className="w-4 h-4 text-amber-400" />
             {onDelete && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(id);
                 }}
-                className="ml-1 text-purple-300 hover:text-white hover:bg-purple-500/30 rounded transition-colors p-1"
+                className="ml-1 text-amber-300 hover:text-white hover:bg-amber-500/30 rounded transition-colors p-1"
                 title="Close image"
               >
                 <span className="text-lg leading-none">×</span>
@@ -533,13 +533,13 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
       >
         {isGeneratingImage ? (
           // Loading placeholder while image is being generated
-          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950">
             <div className="relative">
-              <div className="absolute inset-0 bg-purple-500 blur opacity-20 pulse-glow rounded-full"></div>
-              <Loader2 className="w-12 h-12 animate-spin text-purple-500/50 relative z-10" />
+              <div className="absolute inset-0 bg-amber-500 blur opacity-20 pulse-glow rounded-full"></div>
+              <Loader2 className="w-12 h-12 animate-spin text-amber-500/50 relative z-10" />
             </div>
-            <span className="text-sm text-purple-500/70 pulse-glow font-medium mt-4">Generating pattern sheet...</span>
-            <span className="text-xs text-purple-400/50 mt-2">This may take a moment</span>
+            <span className="text-sm text-amber-500/70 pulse-glow font-medium mt-4">Generating asset sheet...</span>
+            <span className="text-xs text-amber-400/50 mt-2">This may take a moment</span>
           </div>
         ) : (
           <img
@@ -869,14 +869,14 @@ export const TextNode = memo(({ data, id }: NodeProps<any>) => {
   };
 
   return (
-    <div 
-      className="bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl overflow-hidden min-w-[150px]"
+    <div
+      className="bg-zinc-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl overflow-hidden min-w-[150px]"
       onDoubleClick={handleDoubleClick}
     >
-      <Handle type="source" position={Position.Right} id="source-right" className="!bg-emerald-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} id="source-left" className="!bg-emerald-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Right} id="target-right" className="!bg-emerald-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Left} id="target-left" className="!bg-emerald-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-amber-500 !w-3 !h-3" />
 
       <div className="p-3">
         {isEditing ? (
@@ -886,7 +886,7 @@ export const TextNode = memo(({ data, id }: NodeProps<any>) => {
             onChange={(e) => setEditContent(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="w-full bg-slate-800 text-slate-100 border border-emerald-500 rounded px-2 py-1 resize-none outline-none"
+            className="w-full bg-zinc-800 text-zinc-100 border border-amber-500 rounded px-2 py-1 resize-none outline-none"
             style={{
               fontSize: `${fontSize}px`,
               fontFamily,

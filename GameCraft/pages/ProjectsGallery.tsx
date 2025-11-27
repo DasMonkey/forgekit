@@ -16,14 +16,14 @@ import {
   Upload
 } from 'lucide-react';
 
-// Sample data for demonstration
+// Sample data for demonstration - Game Asset themed
 const SAMPLE_PROJECTS = [
   {
     id: 'sample-1',
-    name: 'Origami Dragon',
-    category: CraftCategory.PAPERCRAFT,
-    prompt: 'Create a detailed origami dragon with intricate folds',
-    masterImageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=80',
+    name: 'Retro Knight Character',
+    category: CraftCategory.PIXEL_ART,
+    prompt: 'A 32x32 pixel art knight character with sword and shield',
+    masterImageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80',
     dissection: null,
     stepImages: new Map(),
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
@@ -32,10 +32,10 @@ const SAMPLE_PROJECTS = [
   },
   {
     id: 'sample-2',
-    name: 'Polymer Clay Miniature Food',
-    category: CraftCategory.CLAY,
-    prompt: 'Miniature realistic sushi set made from polymer clay',
-    masterImageUrl: 'https://images.unsplash.com/photo-1587411768941-fc3a9e8b0b6f?w=800&q=80',
+    name: 'Cinematic Hero Character',
+    category: CraftCategory.AAA,
+    prompt: 'High-fidelity AAA game character with detailed armor and realistic textures',
+    masterImageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&q=80',
     dissection: null,
     stepImages: new Map(),
     createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
@@ -44,10 +44,10 @@ const SAMPLE_PROJECTS = [
   },
   {
     id: 'sample-3',
-    name: 'Forest Animals Coloring Page',
-    category: CraftCategory.COLORING_BOOK,
-    prompt: 'Detailed line art of forest animals for coloring',
-    masterImageUrl: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=800&q=80',
+    name: 'Low Poly Tree Pack',
+    category: CraftCategory.LOW_POLY_3D,
+    prompt: 'Stylized low-poly forest trees with autumn colors',
+    masterImageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80',
     dissection: null,
     stepImages: new Map(),
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
@@ -56,38 +56,14 @@ const SAMPLE_PROJECTS = [
   },
   {
     id: 'sample-4',
-    name: 'Steampunk Goggles',
-    category: CraftCategory.COSTUME_PROPS,
-    prompt: 'Victorian steampunk goggles with brass gears and leather straps',
-    masterImageUrl: 'https://images.unsplash.com/photo-1608889476561-6242cfdbf622?w=800&q=80',
+    name: 'Voxel Robot Character',
+    category: CraftCategory.VOXEL_ART,
+    prompt: 'Cute voxel robot companion with glowing eyes and antenna',
+    masterImageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80',
     dissection: null,
     stepImages: new Map(),
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
     lastModified: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    canvasState: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
-  },
-  {
-    id: 'sample-5',
-    name: 'Wooden Jewelry Box',
-    category: CraftCategory.WOODCRAFT,
-    prompt: 'Hand-carved wooden jewelry box with intricate patterns',
-    masterImageUrl: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&q=80',
-    dissection: null,
-    stepImages: new Map(),
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-    lastModified: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    canvasState: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
-  },
-  {
-    id: 'sample-6',
-    name: 'Wire-Wrapped Crystal Pendant',
-    category: CraftCategory.JEWELRY,
-    prompt: 'Elegant wire-wrapped amethyst crystal pendant necklace',
-    masterImageUrl: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&q=80',
-    dissection: null,
-    stepImages: new Map(),
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
-    lastModified: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
     canvasState: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
   }
 ];
@@ -182,15 +158,12 @@ export const ProjectsGallery: React.FC = () => {
 
   const getCategoryColor = (category: CraftCategory) => {
     const colors: Record<CraftCategory, string> = {
-      [CraftCategory.PAPERCRAFT]: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      [CraftCategory.CLAY]: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      [CraftCategory.COSTUME_PROPS]: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      [CraftCategory.WOODCRAFT]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      [CraftCategory.JEWELRY]: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      [CraftCategory.KIDS_CRAFTS]: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      [CraftCategory.COLORING_BOOK]: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+      [CraftCategory.PIXEL_ART]: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      [CraftCategory.AAA]: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      [CraftCategory.LOW_POLY_3D]: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      [CraftCategory.VOXEL_ART]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     };
-    return colors[category] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    return colors[category] || 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30';
   };
 
   return (

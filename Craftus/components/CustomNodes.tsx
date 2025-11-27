@@ -152,16 +152,17 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-indigo-500/50 bg-slate-900 w-[500px]"
+      className="relative group rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-slate-900"
+      style={{ width: 500, height: 536 }} /* 500px width + 36px header + 500px square image */
     >
-      {/* Connection Handles */}
-      <Handle type="source" position={Position.Right} id="source-right" className="!bg-indigo-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} id="source-left" className="!bg-indigo-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Right} id="target-right" className="!bg-indigo-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Left} id="target-left" className="!bg-indigo-500 !w-3 !h-3" />
+      {/* Connection Handles - positioned at center of image area (286px from top = 53.36% of 536px) */}
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-indigo-500 !w-3 !h-3" style={{ top: '53.36%' }} />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-indigo-500 !w-3 !h-3" style={{ top: '53.36%' }} />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-indigo-500 !w-3 !h-3" style={{ top: '53.36%' }} />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-indigo-500 !w-3 !h-3" style={{ top: '53.36%' }} />
 
       {/* Header */}
-      <div className="px-4 py-2 bg-indigo-600/20 border-b border-indigo-500/30 flex justify-between items-center">
+      <div className="px-4 py-2 bg-indigo-600/20 border-b border-indigo-500/30 flex justify-between items-center rounded-t-xl">
         <span className="text-indigo-200 font-semibold text-sm truncate">{label}</span>
         <div className="flex items-center gap-2">
             {isProcessingMask && <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />}
@@ -169,8 +170,11 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
         </div>
       </div>
 
-      {/* Image & Interactive Area */}
-      <div className={`relative aspect-square w-full bg-slate-950 ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
+      {/* Image & Interactive Area - absolute positioned below header */}
+      <div
+        className={`absolute left-0 right-0 bottom-0 bg-slate-950 overflow-hidden rounded-b-xl ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}
+        style={{ top: '36px' }}
+      >
         {isGeneratingImage ? (
           // Loading placeholder while image is being generated
           <div className="w-full h-full flex flex-col items-center justify-center">
@@ -338,16 +342,28 @@ export const InstructionNode = memo(({ data }: NodeProps<any>) => {
 export const MaterialNode = memo(({ data }: NodeProps<any>) => {
   const { items } = data as MaterialNodeData;
 
+  // Calculate dynamic height based on items (approx 24px per item + 40px header + 12px padding)
+  const contentHeight = Math.min(items.length * 24 + 52, 300);
+
   return (
-    <div className="w-[230px] md:w-[250px] bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl">
-      <Handle type="target" position={Position.Right} id="target-right" className="!bg-blue-500 !w-3 !h-3" />
-      
+    <div
+      className="bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg relative smooth-transition hover:shadow-xl"
+      style={{ width: 250, height: contentHeight }}
+    >
+      {/* Connection Handle - offset by 20px (half of 40px header) to center on content area */}
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-blue-500 !w-3 !h-3" style={{ top: 'calc(50% + 20px)' }} />
+
+      {/* Header */}
       <div className="px-3 py-2.5 flex items-center gap-2">
         <List className="w-4 h-4 text-blue-400" />
         <h3 className="text-slate-200 font-medium text-sm">Materials</h3>
       </div>
-      
-      <div className="px-3 pb-3 max-h-[250px] md:max-h-[300px] overflow-y-auto custom-scrollbar">
+
+      {/* Content - absolute positioned below header */}
+      <div
+        className="absolute left-0 right-0 bottom-0 px-3 pb-3 overflow-y-auto custom-scrollbar"
+        style={{ top: '40px' }}
+      >
         <ul className="space-y-1.5">
           {items.map((item, index) => (
             <li key={index} className="flex items-start gap-2 text-xs text-slate-400">
@@ -478,7 +494,7 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
             ? 'border-2 border-orange-500 shadow-orange-500/50 ring-2 ring-orange-500/30'
             : 'border-2 border-purple-500/50'
       }`}
-      style={{ width: displayWidth, height: displayHeight, minWidth: 150, minHeight: 150 }}
+      style={{ width: displayWidth, height: displayHeight, minWidth: 150, minHeight: 186 }}
     >
       {/* Node Resizer - only visible when selected */}
       <NodeResizer
@@ -499,11 +515,11 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
         }}
       />
 
-      {/* Connection handles - placed first like MasterNode for consistent positioning */}
-      <Handle type="source" position={Position.Right} id="source-right" className="!bg-purple-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Left} id="source-left" className="!bg-purple-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Right} id="target-right" className="!bg-purple-500 !w-3 !h-3" />
-      <Handle type="target" position={Position.Left} id="target-left" className="!bg-purple-500 !w-3 !h-3" />
+      {/* Connection Handles - offset by 18px (half of 36px header) to center on image area */}
+      <Handle type="source" position={Position.Right} id="source-right" className="!bg-purple-500 !w-3 !h-3" style={{ top: 'calc(50% + 18px)' }} />
+      <Handle type="source" position={Position.Left} id="source-left" className="!bg-purple-500 !w-3 !h-3" style={{ top: 'calc(50% + 18px)' }} />
+      <Handle type="target" position={Position.Right} id="target-right" className="!bg-purple-500 !w-3 !h-3" style={{ top: 'calc(50% + 18px)' }} />
+      <Handle type="target" position={Position.Left} id="target-left" className="!bg-purple-500 !w-3 !h-3" style={{ top: 'calc(50% + 18px)' }} />
 
       {/* Header */}
       <div className="px-4 py-2 bg-purple-600/20 border-b border-purple-500/30 flex justify-between items-center rounded-t-xl overflow-hidden">

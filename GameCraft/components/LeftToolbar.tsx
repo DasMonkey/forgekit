@@ -83,7 +83,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
   return (
     <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40 animate-fade-in-opacity" data-toolbar>
-      <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-2">
+      <div className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 rounded-2xl shadow-2xl p-2">
         <div className="flex flex-col gap-1">
           {tools.map((tool) => (
             <div key={tool.type} onClick={(e) => handleToolClick(tool.type, tool.hasSubmenu, e)}>
@@ -99,7 +99,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
           ))}
 
           {/* Divider */}
-          <div className="h-px bg-slate-700/50 my-1" />
+          <div className="h-px bg-zinc-700/50 my-1" />
 
           {/* Fit View Button */}
           <div onClick={onFitView}>

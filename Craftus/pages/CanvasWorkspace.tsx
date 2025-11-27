@@ -637,7 +637,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         imageUrl: '', // Empty for now
         fileName: `${label} - Pattern Sheet.png`,
         width: 600,
-        height: 338, // 16:9 aspect ratio
+        height: 374, // 338px image (16:9) + 36px header
         isSelected: false,
         isGeneratingImage: true, // Show loading state
         onSelect: handleImageNodeSelect,
@@ -765,7 +765,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           imageUrl: '',
           fileName: `${label} - ${viewLabels[view]}.png`,
           width: 300,
-          height: 300, // 1:1 aspect ratio
+          height: 336, // 300px image + 36px header
           isSelected: false,
           isGeneratingImage: true,
           onSelect: handleImageNodeSelect,
@@ -1181,7 +1181,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
               imageUrl: dataUrl,
               fileName,
               width,
-              height,
+              height: height + 36, // Add 36px for header
               isSelected: false,
               onSelect: handleImageNodeSelect,
               onDeselect: handleImageNodeDeselect,

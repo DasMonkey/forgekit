@@ -22,7 +22,7 @@ const LOADING_MESSAGES = [
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStartGeneration, onGenerationComplete, onGenerationError }) => {
   const [prompt, setPrompt] = useState('');
-  const [category, setCategory] = useState<CraftCategory>(CraftCategory.PAPERCRAFT);
+  const [category, setCategory] = useState<CraftCategory>(CraftCategory.PIXEL_ART);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
@@ -111,12 +111,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
         
         {/* Category Popup - Appears above the input */}
         {isCategoryOpen && (
-          <div 
-            className="absolute bottom-full left-0 mb-3 w-56 md:w-64 bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-2xl overflow-hidden smooth-transition origin-bottom-left"
+          <div
+            className="absolute bottom-full left-0 mb-3 w-56 md:w-64 bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-xl shadow-2xl overflow-hidden smooth-transition origin-bottom-left"
             style={{ animation: 'fadeIn 0.2s ease-out' }}
           >
-             <div className="p-2 md:p-3 border-b border-slate-800 bg-slate-950/30">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Category</span>
+             <div className="p-2 md:p-3 border-b border-zinc-800 bg-zinc-950/30">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Select Category</span>
              </div>
              <div className="max-h-[240px] md:max-h-[280px] overflow-y-auto py-1 custom-scrollbar">
                {Object.values(CraftCategory).map((cat) => (
@@ -127,9 +127,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
                      setIsCategoryOpen(false);
                    }}
                    className={`w-full text-left px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm smooth-transition flex items-center gap-2 ${
-                     category === cat 
-                       ? 'bg-indigo-600/20 text-indigo-300 border-l-2 border-indigo-500' 
-                       : 'text-slate-300 hover:bg-slate-800 border-l-2 border-transparent'
+                     category === cat
+                       ? 'bg-amber-600/20 text-amber-300 border-l-2 border-amber-500'
+                       : 'text-zinc-300 hover:bg-zinc-800 border-l-2 border-transparent'
                    }`}
                  >
                    {cat}
@@ -140,11 +140,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
         )}
 
         {/* Main Input Bar */}
-        <form 
+        <form
           onSubmit={handleSubmit}
           className={`
-            relative flex items-center gap-1.5 md:gap-2 bg-slate-900/90 backdrop-blur-md border border-slate-700/50 p-1.5 md:p-2 rounded-2xl md:rounded-3xl shadow-2xl shadow-black/50 smooth-transition
-            ${isLoading ? 'border-indigo-500/50 ring-1 ring-indigo-500/20' : 'hover:border-slate-600 focus-within:border-slate-500'}
+            relative flex items-center gap-1.5 md:gap-2 bg-zinc-900/90 backdrop-blur-md border border-zinc-700/50 p-1.5 md:p-2 rounded-2xl md:rounded-3xl shadow-2xl shadow-black/50 smooth-transition
+            ${isLoading ? 'border-amber-500/50 ring-1 ring-amber-500/20' : 'hover:border-zinc-600 focus-within:border-zinc-500'}
           `}
         >
           {/* Category Trigger Button */}
@@ -153,7 +153,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
             onClick={() => setIsCategoryOpen(!isCategoryOpen)}
             className={`
                 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl smooth-transition h-10 md:h-12 flex-shrink-0
-                ${isCategoryOpen ? 'bg-indigo-600 text-white' : 'bg-slate-800 hover:bg-slate-750 text-indigo-300'}
+                ${isCategoryOpen ? 'bg-amber-600 text-zinc-900' : 'bg-zinc-800 hover:bg-zinc-750 text-amber-400'}
             `}
             title="Select Category"
           >
@@ -168,9 +168,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={isLoading ? loadingMsg : "Describe a craft you want to build..."}
+              placeholder={isLoading ? loadingMsg : "Describe a game asset you want to create..."}
               disabled={isLoading}
-              className="w-full bg-transparent border-none text-slate-100 placeholder-slate-500 focus:ring-0 h-10 md:h-12 py-2 md:py-3 px-1 md:px-2 text-sm md:text-base"
+              className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-500 focus:ring-0 h-10 md:h-12 py-2 md:py-3 px-1 md:px-2 text-sm md:text-base"
               autoComplete="off"
             />
           </div>
@@ -181,22 +181,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
             disabled={!prompt.trim() || isLoading}
             className={`
               h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl md:rounded-2xl smooth-transition flex-shrink-0
-              ${!prompt.trim() || isLoading 
-                ? 'bg-slate-800 text-slate-600 cursor-not-allowed' 
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/20 hover:scale-105 active:scale-95'}
+              ${!prompt.trim() || isLoading
+                ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                : 'bg-amber-600 hover:bg-amber-500 text-zinc-900 shadow-lg shadow-amber-900/20 hover:scale-105 active:scale-95'}
             `}
           >
             {isLoading ? (
-               <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-white/80" />
+               <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-zinc-900/80" />
             ) : (
                <ArrowUp className="w-4 h-4 md:w-5 md:h-5 font-bold" />
             )}
           </button>
         </form>
-        
+
         {/* Footer Hint */}
         <div className="absolute top-full left-0 right-0 mt-3 md:mt-4 text-center pointer-events-none smooth-transition">
-            <p className={`text-[9px] md:text-[10px] uppercase tracking-widest font-medium smooth-transition ${isLoading ? 'text-indigo-400 opacity-100' : 'text-slate-600 opacity-0'}`}>
+            <p className={`text-[9px] md:text-[10px] uppercase tracking-widest font-medium smooth-transition ${isLoading ? 'text-amber-400 opacity-100' : 'text-zinc-600 opacity-0'}`}>
                 Running Gemini 3 Pro
             </p>
         </div>

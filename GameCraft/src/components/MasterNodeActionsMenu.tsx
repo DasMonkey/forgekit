@@ -17,12 +17,12 @@ interface MasterNodeActionsMenuProps {
   onMouseLeave?: () => void;
 }
 
-// Categories that use cutting templates/patterns
-const PATTERN_CATEGORIES = [
-  CraftCategory.PAPERCRAFT,
-  CraftCategory.COSTUME_PROPS,
-  CraftCategory.WOODCRAFT,
-  CraftCategory.KIDS_CRAFTS,
+// All game asset categories support sprite sheet generation
+const SPRITE_CATEGORIES = [
+  CraftCategory.PIXEL_ART,
+  CraftCategory.AAA,
+  CraftCategory.LOW_POLY_3D,
+  CraftCategory.VOXEL_ART,
 ];
 
 export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
@@ -41,8 +41,8 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
 }) => {
   if (!visible) return null;
 
-  // Check if this category should show pattern button
-  const showPatternButton = category && PATTERN_CATEGORIES.includes(category);
+  // Check if this category should show sprite sheet button (all game categories do)
+  const showSpriteButton = category && SPRITE_CATEGORIES.includes(category);
 
   return (
     <div
@@ -55,16 +55,16 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
       }}
     >
       <div className="flex items-center gap-1 px-2 py-2">
-        {/* Create Pattern Sheet Button - Only for categories that need cutting templates */}
-        {showPatternButton && (
+        {/* Create Sprite Sheet Button - For generating animation frames */}
+        {showSpriteButton && (
           <>
             <button
               onClick={onCreateSVGPattern}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-full transition-colors"
-              title="Create Pattern Sheet"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-full transition-colors"
+              title="Create Sprite Sheet"
             >
               <FileImage className="w-4 h-4" />
-              <span className="font-medium">Pattern Sheet</span>
+              <span className="font-medium">Sprite Sheet</span>
             </button>
 
             {/* Divider */}
@@ -72,14 +72,14 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
           </>
         )}
 
-        {/* Create Step Instructions Button */}
+        {/* Create Animation Frames Button */}
         <button
           onClick={onCreateStepInstructions}
           className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-full transition-colors"
-          title="Create Step Instructions"
+          title="Create Animation Frames"
         >
           <Scissors className="w-4 h-4" />
-          <span className="font-medium">Instructions</span>
+          <span className="font-medium">Animations</span>
         </button>
 
         {/* Divider */}

@@ -1,11 +1,9 @@
+// Game Asset Style Categories for GameCraft
 export enum CraftCategory {
-  PAPERCRAFT = 'Papercraft',
-  CLAY = 'Clay',
-  COSTUME_PROPS = 'Costume & Props',
-  WOODCRAFT = 'Woodcraft',
-  JEWELRY = 'Jewelry',
-  KIDS_CRAFTS = 'Kids Crafts',
-  COLORING_BOOK = 'Coloring Book'
+  PIXEL_ART = 'Pixel Art',
+  AAA = 'AAA',
+  LOW_POLY_3D = 'Low Poly 3D',
+  VOXEL_ART = 'Voxel Art'
 }
 
 export interface DissectionResponse {

@@ -29,9 +29,9 @@ export const ToolButton: React.FC<ToolButtonProps> = ({
         className={`
           relative w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center
           smooth-transition group
-          ${isActive 
-            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' 
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          ${isActive
+            ? 'bg-amber-600 text-zinc-900 shadow-lg shadow-amber-900/50'
+            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
           }
         `}
         title={label}
@@ -49,11 +49,11 @@ export const ToolButton: React.FC<ToolButtonProps> = ({
       {/* Tooltip */}
       {showTooltip && (
         <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 pointer-events-none animate-fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-200">{label}</span>
+              <span className="text-sm font-medium text-zinc-200">{label}</span>
               {keyboardShortcut && (
-                <kbd className="px-1.5 py-0.5 text-xs font-mono bg-slate-800 text-slate-400 rounded border border-slate-700">
+                <kbd className="px-1.5 py-0.5 text-xs font-mono bg-zinc-800 text-zinc-400 rounded border border-zinc-700">
                   {keyboardShortcut}
                 </kbd>
               )}
@@ -61,7 +61,7 @@ export const ToolButton: React.FC<ToolButtonProps> = ({
           </div>
           {/* Arrow */}
           <div className="absolute right-full top-1/2 -translate-y-1/2 mr-px">
-            <div className="w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-r-4 border-r-slate-700" />
+            <div className="w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-r-4 border-r-zinc-700" />
           </div>
         </div>
       )}
