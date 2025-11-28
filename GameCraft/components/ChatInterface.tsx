@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, ArrowUp, ChevronUp, Loader2 } from 'lucide-react';
-import { CraftCategory } from '../types';
+import { createPortal } from 'react-dom';
+import { Sparkles, ArrowUp, ChevronUp, ChevronRight, Loader2 } from 'lucide-react';
+import { CraftCategory, PixelGridSize, PIXEL_GRID_SIZES } from '../types';
 import { generateCraftImage } from '../services/geminiService';
 import { validatePrompt } from '../utils/validation';
 import { sanitizeText } from '../utils/security';
 
 interface ChatInterfaceProps {
-  onGenerate: (imageUrl: string, prompt: string, category: CraftCategory) => void;
-  onStartGeneration?: (nodeId: string, prompt: string, category: CraftCategory) => void;
+  onGenerate: (imageUrl: string, prompt: string, category: CraftCategory, pixelSize?: PixelGridSize) => void;
+  onStartGeneration?: (nodeId: string, prompt: string, category: CraftCategory, pixelSize?: PixelGridSize) => void;
   onGenerationComplete?: (nodeId: string, imageUrl: string) => void;
   onGenerationError?: (nodeId: string) => void;
 }
@@ -23,18 +24,29 @@ const LOADING_MESSAGES = [
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStartGeneration, onGenerationComplete, onGenerationError }) => {
   const [prompt, setPrompt] = useState('');
   const [category, setCategory] = useState<CraftCategory>(CraftCategory.PIXEL_ART);
+  const [pixelSize, setPixelSize] = useState<PixelGridSize>(32);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isPixelSizeSubmenuOpen, setIsPixelSizeSubmenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
+  const [submenuPosition, setSubmenuPosition] = useState<{ bottom: number; left: number }>({ bottom: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pixelArtRowRef = useRef<HTMLDivElement>(null);
+  const submenuRef = useRef<HTMLDivElement>(null);
+  const submenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     if (!isCategoryOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideDropdown = dropdownRef.current?.contains(target);
+      const isInsideSubmenu = submenuRef.current?.contains(target);
+
+      if (!isInsideDropdown && !isInsideSubmenu) {
         setIsCategoryOpen(false);
+        setIsPixelSizeSubmenuOpen(false);
       }
     };
     // Use capture phase to intercept clicks before React Flow handles them
@@ -47,6 +59,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
       document.removeEventListener('mousedown', handleClickOutside, true);
     };
   }, [isCategoryOpen]);
+
+  // Close submenu when main dropdown closes and cleanup timeout
+  useEffect(() => {
+    if (!isCategoryOpen) {
+      if (submenuTimeoutRef.current) {
+        clearTimeout(submenuTimeoutRef.current);
+        submenuTimeoutRef.current = null;
+      }
+      setIsPixelSizeSubmenuOpen(false);
+    }
+  }, [isCategoryOpen]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (submenuTimeoutRef.current) {
+        clearTimeout(submenuTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Cycle loading messages
   useEffect(() => {
@@ -76,23 +108,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
 
     // Generate node ID and create placeholder immediately
     const nodeId = `master-${Date.now()}`;
+    const currentPixelSize = category === CraftCategory.PIXEL_ART ? pixelSize : undefined;
     if (onStartGeneration) {
-      onStartGeneration(nodeId, sanitizedPrompt, category);
+      onStartGeneration(nodeId, sanitizedPrompt, category, currentPixelSize);
     }
 
     // Clear input immediately for better UX
     setPrompt('');
     setIsCategoryOpen(false);
+    setIsPixelSizeSubmenuOpen(false);
 
     try {
-      const imageUrl = await generateCraftImage(sanitizedPrompt, category);
+      const imageUrl = await generateCraftImage(sanitizedPrompt, category, currentPixelSize);
 
       // Update the placeholder node with the generated image
       if (onGenerationComplete) {
         onGenerationComplete(nodeId, imageUrl);
       } else {
         // Fallback to original behavior if new callbacks not provided
-        onGenerate(imageUrl, sanitizedPrompt, category);
+        onGenerate(imageUrl, sanitizedPrompt, category, currentPixelSize);
       }
     } catch (error) {
       console.error("Generation failed:", error);
@@ -112,31 +146,133 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
         {/* Category Popup - Appears above the input */}
         {isCategoryOpen && (
           <div
-            className="absolute bottom-full left-0 mb-3 w-56 md:w-64 bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-xl shadow-2xl overflow-hidden smooth-transition origin-bottom-left"
+            className="absolute bottom-full left-0 mb-3 w-56 md:w-64 bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-xl shadow-2xl smooth-transition origin-bottom-left"
             style={{ animation: 'fadeIn 0.2s ease-out' }}
           >
-             <div className="p-2 md:p-3 border-b border-zinc-800 bg-zinc-950/30">
+             <div className="p-2 md:p-3 border-b border-zinc-800 bg-zinc-950/30 rounded-t-xl">
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Select Category</span>
              </div>
-             <div className="max-h-[240px] md:max-h-[280px] overflow-y-auto py-1 custom-scrollbar">
+             <div className="max-h-[240px] md:max-h-[280px] overflow-y-auto py-1 custom-scrollbar rounded-b-xl">
                {Object.values(CraftCategory).map((cat) => (
-                 <button
+                 <div
                    key={cat}
-                   onClick={() => {
-                     setCategory(cat);
-                     setIsCategoryOpen(false);
+                   ref={cat === CraftCategory.PIXEL_ART ? pixelArtRowRef : undefined}
+                   className="relative"
+                   onMouseEnter={() => {
+                     if (cat === CraftCategory.PIXEL_ART) {
+                       // Clear any pending close timeout
+                       if (submenuTimeoutRef.current) {
+                         clearTimeout(submenuTimeoutRef.current);
+                         submenuTimeoutRef.current = null;
+                       }
+                       if (pixelArtRowRef.current) {
+                         const rect = pixelArtRowRef.current.getBoundingClientRect();
+                         // Position submenu so its bottom aligns with bottom of viewport minus some padding
+                         // This ensures all options are visible
+                         setSubmenuPosition({
+                           bottom: window.innerHeight - rect.bottom,
+                           left: rect.right + 4,
+                         });
+                       }
+                       setIsPixelSizeSubmenuOpen(true);
+                     } else {
+                       // Close submenu when hovering on other categories
+                       if (submenuTimeoutRef.current) {
+                         clearTimeout(submenuTimeoutRef.current);
+                         submenuTimeoutRef.current = null;
+                       }
+                       setIsPixelSizeSubmenuOpen(false);
+                     }
                    }}
-                   className={`w-full text-left px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm smooth-transition flex items-center gap-2 ${
-                     category === cat
-                       ? 'bg-amber-600/20 text-amber-300 border-l-2 border-amber-500'
-                       : 'text-zinc-300 hover:bg-zinc-800 border-l-2 border-transparent'
-                   }`}
+                   onMouseLeave={() => {
+                     if (cat === CraftCategory.PIXEL_ART) {
+                       // Delay closing to allow mouse to reach submenu
+                       submenuTimeoutRef.current = setTimeout(() => {
+                         setIsPixelSizeSubmenuOpen(false);
+                       }, 150);
+                     }
+                   }}
                  >
-                   {cat}
-                 </button>
+                   <button
+                     onClick={() => {
+                       if (cat !== CraftCategory.PIXEL_ART) {
+                         setCategory(cat);
+                         setIsCategoryOpen(false);
+                       }
+                     }}
+                     className={`w-full text-left px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm smooth-transition flex items-center justify-between ${
+                       category === cat
+                         ? 'bg-amber-600/20 text-amber-300 border-l-2 border-amber-500'
+                         : 'text-zinc-300 hover:bg-zinc-800 border-l-2 border-transparent'
+                     }`}
+                   >
+                     <span>
+                       {cat}
+                       {cat === CraftCategory.PIXEL_ART && category === CraftCategory.PIXEL_ART && (
+                         <span className="ml-2 text-zinc-500">({pixelSize}×{pixelSize})</span>
+                       )}
+                     </span>
+                     {cat === CraftCategory.PIXEL_ART && (
+                       <ChevronRight className="w-4 h-4 text-zinc-500" />
+                     )}
+                   </button>
+
+                 </div>
                ))}
              </div>
           </div>
+        )}
+
+        {/* Pixel Size Submenu - Rendered via portal to escape parent overflow */}
+        {isCategoryOpen && isPixelSizeSubmenuOpen && createPortal(
+          <div
+            ref={submenuRef}
+            className="fixed bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-xl shadow-2xl z-[9999] w-[120px]"
+            style={{
+              bottom: `${submenuPosition.bottom}px`,
+              left: `${submenuPosition.left}px`,
+              animation: 'fadeIn 0.15s ease-out',
+            }}
+            onMouseEnter={() => {
+              // Clear any pending close timeout when entering submenu
+              if (submenuTimeoutRef.current) {
+                clearTimeout(submenuTimeoutRef.current);
+                submenuTimeoutRef.current = null;
+              }
+              setIsPixelSizeSubmenuOpen(true);
+            }}
+            onMouseLeave={() => {
+              // Delay closing to allow mouse to return to main menu
+              submenuTimeoutRef.current = setTimeout(() => {
+                setIsPixelSizeSubmenuOpen(false);
+              }, 150);
+            }}
+          >
+            <div className="p-2 border-b border-zinc-800 bg-zinc-950/30 rounded-t-xl">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Pixel Grid Size</span>
+            </div>
+            <div className="py-1">
+              {PIXEL_GRID_SIZES.map((size) => (
+                <button
+                  key={size.value}
+                  onClick={() => {
+                    setPixelSize(size.value);
+                    setCategory(CraftCategory.PIXEL_ART);
+                    setIsCategoryOpen(false);
+                    setIsPixelSizeSubmenuOpen(false);
+                  }}
+                  className={`w-full text-left px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm smooth-transition ${
+                    category === CraftCategory.PIXEL_ART && pixelSize === size.value
+                      ? 'bg-amber-600/20 text-amber-300 border-l-2 border-amber-500'
+                      : 'text-zinc-300 hover:bg-zinc-800 border-l-2 border-transparent'
+                  }`}
+                >
+                  {size.label}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
         )}
 
         {/* Main Input Bar */}
@@ -158,7 +294,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
             title="Select Category"
           >
             <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span className="text-xs md:text-sm font-medium hidden sm:block max-w-[100px] md:max-w-[120px] truncate">{category}</span>
+            <span className="text-xs md:text-sm font-medium hidden sm:block max-w-[100px] md:max-w-[140px] truncate">
+              {category === CraftCategory.PIXEL_ART ? `Pixel Art ${pixelSize}×${pixelSize}` : category}
+            </span>
             <ChevronUp className={`w-3 h-3 smooth-transition ${isCategoryOpen ? 'rotate-180' : ''}`} />
           </button>
 

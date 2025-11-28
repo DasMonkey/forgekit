@@ -368,7 +368,7 @@ export const MaterialNode = memo(({ data }: NodeProps<any>) => {
  * Node for uploaded images
  */
 export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: nodeHeight }: NodeProps<any>) => {
-  const { imageUrl, fileName, width: dataWidth, height: dataHeight, isSelected, isGeneratingImage, onSelect, onDeselect, onDelete } = data as ImageNodeData;
+  const { imageUrl, fileName, width: dataWidth, height: dataHeight, isSelected, isGeneratingImage, isPixelSnapped, onSelect, onDeselect, onDelete } = data as ImageNodeData;
 
   // Use node dimensions from ReactFlow (updated by resizer) or fall back to data dimensions
   const displayWidth = nodeWidth || dataWidth || 400;
@@ -548,7 +548,8 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
             alt={fileName}
             crossOrigin="anonymous"
             onClick={handleImageClick}
-            className="w-full h-full object-cover relative z-10"
+            className={`w-full h-full relative z-10 ${isPixelSnapped ? 'object-contain bg-white' : 'object-cover'}`}
+            style={isPixelSnapped ? { imageRendering: 'pixelated' } : undefined}
           />
         )}
 
@@ -597,6 +598,7 @@ export const ImageNode = memo(({ data, id, selected, width: nodeWidth, height: n
   return (
     prevProps.data.imageUrl === nextProps.data.imageUrl &&
     prevProps.data.isSelected === nextProps.data.isSelected &&
+    prevProps.data.isPixelSnapped === nextProps.data.isPixelSnapped &&
     prevProps.width === nextProps.width &&
     prevProps.height === nextProps.height &&
     prevProps.selected === nextProps.selected

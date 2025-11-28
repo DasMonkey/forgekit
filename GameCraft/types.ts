@@ -6,6 +6,19 @@ export enum CraftCategory {
   VOXEL_ART = 'Voxel Art'
 }
 
+// Pixel art grid sizes
+export type PixelGridSize = 8 | 16 | 32 | 64 | 128 | 320 | 640;
+
+export const PIXEL_GRID_SIZES: { value: PixelGridSize; label: string }[] = [
+  { value: 8, label: '8×8' },
+  { value: 16, label: '16×16' },
+  { value: 32, label: '32×32' },
+  { value: 64, label: '64×64' },
+  { value: 128, label: '128×128' },
+  { value: 320, label: '320×320' },
+  { value: 640, label: '640×640' },
+];
+
 export interface DissectionResponse {
   complexity: 'Simple' | 'Moderate' | 'Complex';
   complexityScore: number; // 1-10
@@ -23,6 +36,7 @@ export interface MasterNodeData {
   label: string;
   imageUrl: string;
   category: CraftCategory;
+  pixelSize?: PixelGridSize;
   onDissect: (id: string, imageUrl: string) => void;
   onContextMenu?: (nodeId: string, element: HTMLElement) => void;
   onDissectSelected?: (id: string, selectedObjectImageUrl: string, fullImageUrl: string, label: string) => void;
@@ -54,6 +68,7 @@ export interface ImageNodeData {
   height: number;
   isSelected?: boolean;
   isGeneratingImage?: boolean;
+  isPixelSnapped?: boolean; // When true, uses nearest-neighbor rendering for crisp pixel art
   onSelect?: (nodeId: string, element: HTMLElement) => void;
   onDeselect?: () => void;
   onDelete?: (nodeId: string) => void;

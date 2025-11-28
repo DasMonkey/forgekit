@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { CraftCategory, DissectionResponse } from "../types";
+import { CraftCategory, DissectionResponse, PixelGridSize } from "../types";
 import { imageGenerationLimiter, dissectionLimiter, trackApiUsage } from "../utils/rateLimiter";
 import { decryptApiKey } from "../utils/encryption";
 
@@ -66,11 +66,12 @@ async function retryWithBackoff<T>(
 }
 
 /**
- * Generates a realistic image of the craft concept.
+ * Generates a game asset image based on the specified style category.
  */
 export const generateCraftImage = async (
   prompt: string,
-  category: CraftCategory
+  category: CraftCategory,
+  pixelSize?: PixelGridSize
 ): Promise<string> => {
   // Check rate limit before making request
   if (!imageGenerationLimiter.canMakeRequest()) {
@@ -80,13 +81,108 @@ export const generateCraftImage = async (
   }
 
   const ai = getAiClient();
-  
+
+  // Get category-specific style rules for game assets
+  const getAssetStylePrompt = (cat: CraftCategory, gridSize?: PixelGridSize): string => {
+    switch (cat) {
+      case CraftCategory.PIXEL_ART:
+        const size = gridSize || 32;
+        // Scale detail level based on pixel size
+        const isSmall = size <= 32;
+        const isMedium = size > 32 && size <= 128;
+        const isLarge = size > 128;
+
+        const detailLevel = isSmall
+          ? 'Simple, iconic design with minimal details. Limited color palette (8-16 colors). Bold shapes and clear silhouette.'
+          : isMedium
+          ? 'Moderate detail with defined features. Color palette of 16-32 colors. Good balance of detail and readability.'
+          : 'HIGHLY DETAILED pixel art with rich textures, shading, and fine details. Extended color palette (64-128+ colors). Include subtle gradients, highlights, shadows, fabric textures, hair strands, facial expressions, and intricate patterns. This is a HIGH RESOLUTION pixel art piece.';
+
+        return `
+PIXEL ART STYLE (${size}x${size} resolution):
+- ${detailLevel}
+- The sprite should be designed to fit within a ${size}x${size} pixel canvas
+- Clean, crisp pixels with no anti-aliasing blur
+- NO grid lines or pixel borders - pixels are solid color blocks that blend seamlessly
+- NO visible grid overlay - just pure color fills
+${isLarge ? '- Use advanced dithering techniques for smooth gradients and shading' : '- Dithering for gradients and shading where appropriate'}
+${isLarge ? '- Include fine details: wrinkles in clothing, individual hair pixels, subtle color variations in skin tones, texture details' : ''}
+- Game-ready sprite suitable for 2D games
+- IMPORTANT: Use a PURE WHITE (#FFFFFF) solid background - NO transparency checkerboard pattern, NO gray/white checker pattern
+- Each colored area is a smooth block of color with NO separating lines between pixels
+- IMPORTANT: Design as a ${size}x${size} pixel sprite with ${isLarge ? 'MAXIMUM' : 'appropriate'} detail for this resolution`;
+
+      case CraftCategory.AAA:
+        return `
+AAA GAME QUALITY STYLE:
+- Photorealistic, high-fidelity 3D render quality
+- Studio lighting with realistic shadows and reflections
+- PBR (Physically Based Rendering) material quality
+- Detailed textures with normal maps, roughness, metallic properties
+- Subsurface scattering for skin/organic materials
+- High polygon count appearance with smooth surfaces
+- Cinematic quality suitable for next-gen games
+- Professional concept art or in-game asset quality
+- Neutral studio background with soft gradient`;
+
+      case CraftCategory.LOW_POLY_3D:
+        return `
+LOW POLY 3D STYLE:
+- Geometric, faceted 3D model aesthetic
+- Flat-shaded triangular faces visible
+- Minimalist polygon count with intentional faceting
+- Clean, solid colors per face (no complex textures)
+- Stylized and modern indie game look
+- Sharp edges and angular forms
+- Soft ambient lighting to show form
+- Mobile-game or indie-game ready quality
+- Simple gradient or solid color background`;
+
+      case CraftCategory.VOXEL_ART:
+        return `
+VOXEL ART STYLE:
+- 3D cubic/blocky aesthetic (Minecraft-inspired)
+- Visible cube/voxel grid structure
+- Each voxel is a distinct colored cube
+- Clean, solid colors per voxel block
+- Charming, blocky interpretation of the subject
+- Ambient occlusion between voxels for depth
+- Isometric or 3/4 view to show 3D depth
+- Game-ready voxel model appearance
+- Simple solid color or gradient background`;
+
+      default:
+        return `Game asset style with clean rendering and professional quality.`;
+    }
+  };
+
+  const stylePrompt = getAssetStylePrompt(category, pixelSize);
+
   const fullPrompt = `
-    Create a photorealistic studio photograph of a DIY craft project: ${prompt}.
-    Category: ${category}.
-    Style: Neutral background, even studio lighting, highly detailed textures showing materials like fabric grain, paper fibers, wood grain, or metal. 
-    The object should look tangible, handmade, and finished.
-    View: Isometric or front-facing, centered.
+🎮 GAME ASSET GENERATION
+
+Create a game-ready character or object asset: ${prompt}
+
+📦 STYLE CATEGORY: ${category}
+
+${stylePrompt}
+
+═══════════════════════════════════════════════════════════════
+📋 UNIVERSAL REQUIREMENTS
+═══════════════════════════════════════════════════════════════
+
+1. ✅ GAME-READY - Asset should look like it belongs in a video game
+2. ✅ CLEAR SILHOUETTE - Easily recognizable shape and form
+3. ✅ CENTERED COMPOSITION - Subject centered with appropriate padding
+4. ✅ FRONT-FACING or 3/4 VIEW - Standard game asset presentation angle
+5. ✅ CONSISTENT STYLE - Match the ${category} aesthetic throughout
+6. ✅ CLEAN BACKGROUND - Transparent-friendly or simple solid/gradient
+
+🚫 DO NOT:
+- Mix art styles (e.g., no pixel art elements in AAA renders)
+- Add excessive detail that doesn't match the style
+- Use busy or distracting backgrounds
+- Create assets that look unfinished or sketch-like
   `;
 
   return retryWithBackoff(async () => {
@@ -118,12 +214,13 @@ export const generateCraftImage = async (
 };
 
 /**
- * Generates a craft-style image from an uploaded image.
- * Transforms the uploaded image into a studio-quality craft reference image.
+ * Transforms an uploaded image into a game asset in the specified style.
+ * Converts reference images into game-ready assets.
  */
 export const generateCraftFromImage = async (
   imageBase64: string,
-  category: CraftCategory
+  category: CraftCategory,
+  pixelSize?: PixelGridSize
 ): Promise<string> => {
   // Check rate limit before making request
   if (!imageGenerationLimiter.canMakeRequest()) {
@@ -135,28 +232,112 @@ export const generateCraftFromImage = async (
   const ai = getAiClient();
   const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
 
+  // Get category-specific transformation rules
+  const getTransformationRules = (cat: CraftCategory, gridSize?: PixelGridSize): string => {
+    switch (cat) {
+      case CraftCategory.PIXEL_ART:
+        const size = gridSize || 32;
+        // Scale detail level based on pixel size
+        const isSmallT = size <= 32;
+        const isMediumT = size > 32 && size <= 128;
+        const isLargeT = size > 128;
+
+        const detailLevelT = isSmallT
+          ? 'Simple, iconic pixel art with limited colors (8-16). Bold shapes.'
+          : isMediumT
+          ? 'Moderate detail pixel art with 16-32 colors. Good balance of detail.'
+          : 'HIGHLY DETAILED pixel art with 64-128+ colors. Rich textures, shading, fine details, gradients, highlights, shadows.';
+
+        return `
+PIXEL ART TRANSFORMATION (${size}x${size} resolution):
+- Convert to ${size}x${size} pixel art style
+- ${detailLevelT}
+- The sprite must fit within a ${size}x${size} pixel grid
+- Create clean, crisp pixels with no blur or anti-aliasing
+- NO grid lines or pixel borders between pixels
+- NO visible grid overlay - pixels blend seamlessly as solid color blocks
+${isLargeT ? '- Use advanced dithering for smooth gradients and detailed shading' : '- Use dithering for shading and gradients'}
+${isLargeT ? '- Preserve and enhance fine details: textures, hair, facial features, fabric patterns' : ''}
+- Maintain character silhouette and key features
+- IMPORTANT: Use a PURE WHITE (#FFFFFF) solid background - NO transparency checkerboard pattern, NO gray/white checker pattern
+- IMPORTANT: Output must be a ${size}x${size} pixel sprite with ${isLargeT ? 'MAXIMUM' : 'appropriate'} detail`;
+
+      case CraftCategory.AAA:
+        return `
+AAA QUALITY TRANSFORMATION:
+- Reimagine as a high-fidelity 3D game asset
+- Apply photorealistic rendering with PBR materials
+- Add detailed textures, normal maps, and surface detail
+- Use cinematic studio lighting with soft shadows
+- Add subsurface scattering for organic materials
+- Create next-gen console quality appearance
+- Professional game character/asset quality`;
+
+      case CraftCategory.LOW_POLY_3D:
+        return `
+LOW POLY 3D TRANSFORMATION:
+- Convert to geometric, faceted 3D model style
+- Use flat-shaded triangular faces
+- Minimize polygon count with intentional angular forms
+- Apply solid colors per face (no complex textures)
+- Create modern indie game aesthetic
+- Sharp edges and clean geometric shapes
+- Stylized minimalist 3D look`;
+
+      case CraftCategory.VOXEL_ART:
+        return `
+VOXEL ART TRANSFORMATION:
+- Convert to 3D cubic/blocky voxel style
+- Each element becomes distinct colored cubes
+- Maintain recognizable form in blocky interpretation
+- Add ambient occlusion between voxels
+- Use clean, solid colors per voxel
+- Create Minecraft-inspired aesthetic
+- Show isometric or 3/4 view for depth`;
+
+      default:
+        return `Transform into a game-ready asset with clean styling.`;
+    }
+  };
+
+  const transformRules = getTransformationRules(category, pixelSize);
+
   const prompt = `
-    Transform this image into a photorealistic studio photograph of a DIY craft project.
-    
-    Target Category: ${category}
-    
-    Style Requirements:
-    - Recreate the subject/object from the image as a handmade craft in the ${category} style
-    - Neutral background with even studio lighting
-    - Highly detailed textures showing craft materials (paper fibers, clay texture, fabric weave, wood grain, etc.)
-    - The object should look tangible, handmade, and finished
-    - Match the general form and colors of the original image
-    - View: Isometric or front-facing, centered
-    
-    Material Guidelines by Category:
-    - Papercraft: Paper, cardstock, glue, scissors - show paper texture and fold lines
-    - Clay: Polymer clay, sculpting tools - show matte clay texture and sculpted details
-    - Fabric/Sewing: Fabric, thread, stuffing - show fabric weave and stitching
-    - Costume & Props: Foam, thermoplastic, paint - show foam texture and painted surfaces
-    - Woodcraft: Wood, dowels, joints - show wood grain and joinery
-    - Jewelry: Beads, wire, metal findings - show metal shine and bead clarity
-    - Kids Crafts: Simple materials, bright colors - show playful, safe materials
-    - Tabletop Figures: Miniature parts, primer, paint - show miniature scale and paint details
+🎮 GAME ASSET TRANSFORMATION
+
+Transform this reference image into a ${category} style game asset.
+
+📷 REFERENCE IMAGE: Use this as the source for character/object design
+
+📦 TARGET STYLE: ${category}
+
+${transformRules}
+
+═══════════════════════════════════════════════════════════════
+🔒 CONSISTENCY REQUIREMENTS
+═══════════════════════════════════════════════════════════════
+
+1. ✅ PRESERVE IDENTITY - Keep the core character/object recognizable
+2. ✅ MATCH COLORS - Use similar color palette from the reference
+3. ✅ KEEP PROPORTIONS - Maintain relative size and shape ratios
+4. ✅ RETAIN KEY FEATURES - Preserve distinguishing characteristics
+5. ✅ STYLE CONVERSION - Fully transform to ${category} aesthetic
+
+═══════════════════════════════════════════════════════════════
+📋 OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════
+
+- CENTERED composition with appropriate padding
+- FRONT-FACING or 3/4 VIEW angle
+- CLEAN BACKGROUND (solid color or simple gradient)
+- GAME-READY quality suitable for use in a video game
+- CONSISTENT ${category} style throughout
+
+🚫 DO NOT:
+- Lose the character's recognizable features
+- Mix multiple art styles together
+- Use busy or complex backgrounds
+- Create a sketch or unfinished look
   `;
 
   return retryWithBackoff(async () => {
@@ -196,245 +377,123 @@ export const generateCraftFromImage = async (
 };
 
 /**
- * Get category-specific visual rules for step image generation.
- * Simplified rules focusing on essential multi-panel format per category.
+ * Get category-specific visual rules for sprite/animation sheet generation.
+ * Rules focus on game asset style consistency for each category.
  */
 const getCategorySpecificRules = (category: CraftCategory): string => {
   const categoryRules: Record<string, string> = {
-    'Papercraft': `
-PAPERCRAFT MULTI-PANEL FORMAT (2-4 PANELS):
+    'Pixel Art': `
+PIXEL ART SPRITE SHEET FORMAT:
 
-⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
-If the reference shows more than 2, focus on the main 1-2 characters only.
+STYLE REQUIREMENTS:
+- Classic 16-32 bit pixel art aesthetic
+- Clean, crisp pixels with NO anti-aliasing or blur
+- Limited color palette (16-32 colors max)
+- NO grid lines or pixel borders - pixels are seamless solid color blocks
+- NO visible grid overlay between pixels
+- Dithering for shading transitions (but no grid lines)
+- Each colored area is a smooth block of pure color
 
-PANEL 1 - PATTERN SHEETS (KNOLLING LAYOUT):
-- Show flat pattern pieces laid out side-by-side (never stacked)
-- Include: Cut lines (solid), Fold lines (dashed), Glue tabs
-- Label each piece with numbers/letters
-- Use LOW-POLY geometric style for 3D forms
-- 100% PAPER only - no foam, wire, or fabric
-- Match EXACT colors from reference image
+ANIMATION FRAMES:
+- Each frame must be pixel-perfect with seamless color fills
+- Consistent pixel size across all frames
+- Maintain exact color palette throughout
+- Smooth pixel-level transitions between poses
+- Clear silhouette in every frame
+- NO separating lines between pixels
 
-PANEL 2 - ASSEMBLY:
-- Show hands folding/gluing pieces
-- BOLD ARROWS showing fold direction
-- Text labels: "FOLD", "GLUE TAB", "ALIGN"
+BACKGROUND: Transparent or solid color (magenta #FF00FF for transparency)
+RESOLUTION: Consistent sprite size (32x32, 64x64, or 128x128)`,
 
-PANEL 3 - DETAILS (if needed):
-- Show adding decorative elements
-- Arrows pointing to attachment points
+    'AAA': `
+AAA QUALITY SPRITE SHEET FORMAT:
 
-PANEL 4 - RESULT:
-- Show completed component for this step only
-- Match reference image appearance exactly
+STYLE REQUIREMENTS:
+- Photorealistic, high-fidelity 3D render quality
+- PBR (Physically Based Rendering) materials
+- Cinematic studio lighting with soft shadows
+- Detailed textures with normal map appearance
+- Subsurface scattering for skin/organic materials
+- High polygon count smooth surfaces
 
-BACKGROUND: White with subtle grid
-MATERIALS: Paper only, no electronics`,
+ANIMATION FRAMES:
+- Film-quality rendering per frame
+- Consistent lighting direction across all frames
+- Smooth motion blur hints for action poses
+- Professional animation principles (squash, stretch, anticipation)
+- Consistent material properties throughout
 
-    'Clay': `
-CLAY MULTI-PANEL FORMAT (2-4 PANELS):
+BACKGROUND: Neutral studio gradient or transparent
+RESOLUTION: High-res suitable for HD/4K games`,
 
-⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
-If the reference shows more than 2, focus on the main 1-2 characters only.
+    'Low Poly 3D': `
+LOW POLY 3D SPRITE SHEET FORMAT:
 
-PANEL 1 - CLAY PIECES (KNOLLING):
-- Show clay pieces organized flat
-- Include size references: "pea-sized", "walnut-sized"
-- Label: "Body", "Arms (x2)", "Head"
-- Match EXACT colors from reference image
+STYLE REQUIREMENTS:
+- Geometric, faceted 3D model aesthetic
+- Flat-shaded triangular faces visible
+- Minimalist polygon count with intentional faceting
+- Clean, solid colors per face
+- Sharp edges and angular forms
+- Soft ambient lighting to show form
 
-PANEL 2 - SHAPING:
-- Show hands sculpting clay
-- ARROWS showing pinch/roll directions
-- Text: "ROLL", "PINCH", "SMOOTH"
+ANIMATION FRAMES:
+- Maintain faceted low-poly look in all poses
+- Consistent polygon density across frames
+- Smooth geometric transitions between poses
+- Keep flat-shaded appearance throughout
+- Modern indie game aesthetic
 
-PANEL 3 - ATTACHMENT:
-- Show hands connecting pieces
-- Arrows to connection points
-- Text: "BLEND SEAM", "PRESS FIRMLY"
+BACKGROUND: Simple gradient or solid color
+RESOLUTION: Consistent size optimized for mobile/indie games`,
 
-PANEL 4 - RESULT:
-- Show completed component
-- Matte clay texture (not glossy)
+    'Voxel Art': `
+VOXEL ART SPRITE SHEET FORMAT:
 
-BACKGROUND: White, soft lighting
-MATERIALS: Clay only, no electronics`,
+STYLE REQUIREMENTS:
+- 3D cubic/blocky aesthetic (Minecraft-inspired)
+- Visible cube/voxel grid structure
+- Each voxel is a distinct colored cube
+- Clean, solid colors per voxel block
+- Ambient occlusion between voxels for depth
+- Isometric or 3/4 view angles
 
-    'Fabric/Sewing': `
-FABRIC MULTI-PANEL FORMAT (2-4 PANELS):
+ANIMATION FRAMES:
+- Maintain voxel grid consistency across frames
+- Each pose should be a valid voxel model
+- Smooth voxel-level transitions between poses
+- Keep blocky charm in all movements
+- Consistent voxel resolution throughout
 
-PANEL 1 - PATTERN PIECES (KNOLLING):
-- Show fabric pieces laid flat
-- Label: "Front", "Back", "Sleeve (x2)"
-- Include seam allowance markings
-- Match fabric color/texture from reference
-
-PANEL 2 - SEWING:
-- Show hands positioning/sewing
-- ARROWS showing stitch direction
-- Text: "SEW SEAM", "PIN HERE"
-
-PANEL 3 - ASSEMBLY:
-- Show pieces being joined/stuffed
-- Arrows to connection points
-
-PANEL 4 - RESULT:
-- Show completed component
-
-BACKGROUND: White
-MATERIALS: Fabric, thread only`,
-
-    'Costume & Props': `
-COSTUME/PROPS MULTI-PANEL FORMAT (2-4 PANELS):
-
-PANEL 1 - FOAM PIECES (KNOLLING):
-- Show foam/thermoplastic pieces laid out
-- Label with thickness: "10mm base", "2mm detail"
-- Show bevel angles (45°)
-- Match colors from reference
-
-PANEL 2 - SHAPING:
-- Show cutting/heating/beveling
-- ARROWS showing cut lines
-- Text: "BEVEL EDGE", "HEAT FORM"
-
-PANEL 3 - ASSEMBLY:
-- Show gluing pieces together
-- Arrows to connection points
-
-PANEL 4 - RESULT:
-- Show completed component
-
-BACKGROUND: White
-MATERIALS: EVA foam, no electronics`,
-
-    'Woodcraft': `
-WOODCRAFT MULTI-PANEL FORMAT (2-4 PANELS):
-
-⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
-If the reference shows more than 2, focus on the main 1-2 characters only.
-
-PANEL 1 - WOOD PIECES (KNOLLING):
-- Show cut boards, dowels laid out
-- Label with measurements
-- Show grain direction
-- Match wood type from reference
-
-PANEL 2 - JOINING:
-- Show hands working wood
-- ARROWS showing joint alignment
-- Text: "ALIGN GRAIN", "SAND SMOOTH"
-
-PANEL 3 - ASSEMBLY:
-- Show attaching pieces
-- Arrows to joints
-
-PANEL 4 - RESULT:
-- Show completed component
-
-BACKGROUND: White
-MATERIALS: Wood only, no power tools visible`,
-
-    'Jewelry': `
-JEWELRY MULTI-PANEL FORMAT (2-4 PANELS):
-
-PANEL 1 - COMPONENTS (KNOLLING):
-- Show beads, wire, findings laid out
-- Label with quantities
-- Match metal color, bead clarity from reference
-
-PANEL 2 - TECHNIQUE:
-- Show hands forming loops/connections
-- ARROWS showing wire bending
-- Text: "BEND WIRE", "OPEN RING"
-
-PANEL 3 - CONNECTION:
-- Show attaching components
-- Arrows to connection points
-
-PANEL 4 - RESULT:
-- Show completed section
-
-BACKGROUND: White, soft lighting
-MATERIALS: Beads, wire, findings only`,
-
-    'Kids Crafts': `
-KIDS CRAFTS MULTI-PANEL FORMAT (2-4 PANELS):
-
-⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
-If the reference shows more than 2, focus on the main 1-2 characters only.
-
-PANEL 1 - MATERIALS (KNOLLING):
-- Show felt, foam, paper shapes laid out
-- Label: "Red circle", "Blue star"
-- Bright, playful colors
-- Match colors from reference
-
-PANEL 2 - ASSEMBLY:
-- Show hands assembling
-- BIG BOLD ARROWS showing where to glue
-- Simple text: "GLUE HERE", "FOLD"
-
-PANEL 3 - DECORATE:
-- Show adding eyes, details
-- Arrows showing placement
-
-PANEL 4 - RESULT:
-- Show finished craft
-
-BACKGROUND: White
-MATERIALS: Safe, kid-friendly only`,
-
-    'Tabletop Figures': `
-MINIATURE MULTI-PANEL FORMAT (2-4 PANELS):
-
-⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 figures per craft project.
-If the reference shows more than 2, focus on the main 1-2 figures only.
-
-PANEL 1 - PARTS (KNOLLING):
-- Show miniature parts laid out
-- Label: "Torso", "Arms (x2)", "Base"
-- Show scale reference (28mm)
-- Match primer/paint colors from reference
-
-PANEL 2 - ASSEMBLY:
-- Show hands gluing parts
-- ARROWS to connection points
-- Text: "GLUE JOINT", "ALIGN PIN"
-
-PANEL 3 - SUB-ASSEMBLY:
-- Show partial assembly
-- Arrows for next attachments
-
-PANEL 4 - RESULT:
-- Show completed assembly step
-
-BACKGROUND: White
-MATERIALS: Miniature parts, glue only`,
+BACKGROUND: Solid color or transparent
+RESOLUTION: Consistent voxel grid size`,
   };
 
   return categoryRules[category] || `
-MULTI-PANEL FORMAT (2-4 PANELS):
+GAME ASSET SPRITE SHEET FORMAT:
 
-⚠️ CHARACTER/OBJECT LIMIT: Maximum 2 characters or objects per craft project.
-If the reference shows more than 2, focus on the main 1-2 characters only.
+STYLE REQUIREMENTS:
+- Consistent art style throughout
+- Clean, professional game-ready quality
+- Appropriate detail level for the style
 
-PANEL 1 - MATERIALS: Show components in knolling layout, labeled
-PANEL 2 - TECHNIQUE: Show hands demonstrating, with arrows and text
-PANEL 3 - ASSEMBLY: Show connecting parts
-PANEL 4 - RESULT: Show completed component
+ANIMATION FRAMES:
+- Smooth transitions between poses
+- Consistent proportions across all frames
+- Clear silhouette in every frame
 
-Match EXACT colors from reference image.
-WHITE BACKGROUND, no electronics.`;
+BACKGROUND: Clean, game-engine friendly
+Match EXACT style from reference throughout.`;
 };
 
 /**
- * Generates a visualization for a specific step using the master image as reference.
+ * Generates an animation frame or sprite variation for a game character.
+ * Creates consistent animations/poses based on the reference character.
  *
- * OPTIMIZED PROMPT STRUCTURE (based on Turn Table success):
+ * OPTIMIZED PROMPT STRUCTURE:
  * 1. Reference image comes FIRST in the parts array
  * 2. Consistency requirements are stated FIRST and repeatedly
- * 3. Physical metaphor helps AI understand the task
+ * 3. Animation/pose description guides the output
  * 4. Explicit negative constraints prevent common mistakes
  */
 export const generateStepImage = async (
@@ -442,97 +501,72 @@ export const generateStepImage = async (
   stepDescription: string,
   category: CraftCategory,
   targetObjectLabel?: string,
-  stepNumber?: number // Optional step number to determine if this is step 1
+  stepNumber?: number // Optional frame number for animation sequences
 ): Promise<string> => {
   const ai = getAiClient();
   const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
 
   const categoryRules = getCategorySpecificRules(category);
 
-  // Use default 1K resolution for all steps (no special handling)
-  console.log(`🖼️ Generating image for: ${stepDescription}`);
-  console.log(`   Step Number: ${stepNumber || 'N/A'}`);
-  console.log(`   Resolution: 1K (default)`);
-
-  // Build the prompt with Turn Table's successful pattern:
-  // 1. CONSISTENCY FIRST - Reference image matching is THE PRIMARY GOAL
-  // 2. Physical metaphor - "photographing a craft kit"
-  // 3. Then the multi-panel format requirements
-  // 4. Explicit DO NOT constraints at the end
+  // Log generation info
+  console.log(`🎮 Generating animation frame: ${stepDescription}`);
+  console.log(`   Frame Number: ${stepNumber || 'N/A'}`);
+  console.log(`   Style: ${category}`);
 
   const prompt = `
-🎯 YOUR TASK: Generate a MULTI-PANEL INSTRUCTION IMAGE for building this EXACT craft.
+🎮 YOUR TASK: Generate an ANIMATION FRAME or SPRITE VARIATION for this game character.
 
-📷 REFERENCE IMAGE: This is the FINISHED craft you are creating instructions for.
-${targetObjectLabel ? `🎨 CRAFT: ${targetObjectLabel}` : ''}
-📦 CATEGORY: ${category}
+📷 REFERENCE IMAGE: This is the CHARACTER you are creating animation frames for.
+${targetObjectLabel ? `🎨 CHARACTER: ${targetObjectLabel}` : ''}
+📦 STYLE: ${category}
 
 ═══════════════════════════════════════════════════════════════
 🔒 CONSISTENCY REQUIREMENTS (CRITICAL - READ FIRST)
 ═══════════════════════════════════════════════════════════════
 
-You MUST preserve EXACT visual consistency with the reference image:
+You MUST preserve EXACT visual consistency with the reference character:
 
-1. ✅ SAME CHARACTER/OBJECT - This is the EXACT craft being built, not a similar one
+1. ✅ SAME CHARACTER - This is the EXACT same character, not a similar one
 2. ✅ SAME COLORS - Match colors EXACTLY (sample RGB values from reference)
-3. ✅ SAME STYLE - Match the art style, materials, and textures precisely
+3. ✅ SAME STYLE - Match the ${category} art style precisely
 4. ✅ SAME PROPORTIONS - Keep all size ratios identical
-5. ✅ SAME UNIQUE FEATURES - Every detail matters (spots, patches, accessories, facial features)
+5. ✅ SAME UNIQUE FEATURES - Every detail matters (colors, patterns, accessories, facial features)
 
-IMAGINE: You have a craft kit in front of you with pre-made pieces that will assemble into THIS EXACT craft from the reference image. You're photographing the assembly process step-by-step. The pieces in your photos MUST match what's in the finished reference.
+IMAGINE: You are an animator creating frames for this exact game character. Each frame must look like it belongs in the same sprite sheet as the reference. The character's design, colors, and style NEVER change - only the pose changes.
 
-🔴 CRITICAL - PARTS MUST MATCH REFERENCE:
-The arms, legs, head, body pieces you show MUST be parts of THIS EXACT character.
-- If the reference shows a RED strawberry bear → show RED arm pieces, RED leg pieces
-- If the reference has LOW-POLY faceted style → show LOW-POLY faceted arm/leg pieces
-- If the reference has spotted texture → the pieces must have that SAME spotted texture
-- The pieces are NOT generic - they are pre-cut/pre-made to become THIS character
-
-CONSISTENCY RULES (REPEAT FOR EMPHASIS):
-- All colors MUST match the reference EXACTLY
-- All materials (paper, clay, fabric, etc.) MUST be the same
-- All unique details MUST be preserved (leaf on head, belly patch, ear shape, etc.)
-- Every component shown MUST look like it belongs to the reference character
-- Construction style MUST match (flat/layered vs 3D/folded vs rounded)
+🔴 CRITICAL - CHARACTER MUST MATCH REFERENCE:
+- SAME exact color palette - every color must match
+- SAME proportions and body structure
+- SAME level of detail and art style (${category})
+- SAME accessories, patterns, and unique features
+- The character should be instantly recognizable as the same one
 
 ${targetObjectLabel ? `
-🎯 FOCUS ON: "${targetObjectLabel}" ONLY
-- If reference shows multiple objects, create instructions for "${targetObjectLabel}" only
-- Match "${targetObjectLabel}"'s exact colors and features
+🎯 ANIMATING: "${targetObjectLabel}"
+- Create this specific pose/frame for "${targetObjectLabel}"
+- Maintain all of "${targetObjectLabel}"'s distinctive features
 ` : ''}
 
 ═══════════════════════════════════════════════════════════════
-📋 STEP TO ILLUSTRATE
+🎬 ANIMATION FRAME TO CREATE
 ═══════════════════════════════════════════════════════════════
 
-CURRENT STEP: "${stepDescription}"
+CURRENT FRAME: "${stepDescription}"
 
-Show ONLY the components mentioned in this step.
-Do NOT include parts from other steps.
+Create a single frame showing this pose/action.
+The character should be in motion or the specified pose.
 
 ═══════════════════════════════════════════════════════════════
-📐 MULTI-PANEL FORMAT (2-4 PANELS)
+📐 OUTPUT FORMAT
 ═══════════════════════════════════════════════════════════════
 
-┌─────────────┬─────────────┐
-│  PANEL 1    │  PANEL 2    │
-│  MATERIALS  │  ASSEMBLY   │
-├─────────────┼─────────────┤
-│  PANEL 3    │  PANEL 4    │
-│  DETAILS    │  RESULT     │
-└─────────────┴─────────────┘
+Generate a SINGLE SPRITE/FRAME showing the character in the specified pose:
 
-PANEL 1 - MATERIALS: Show components in knolling layout, labeled
-PANEL 2 - ASSEMBLY: Show hands working with BOLD ARROWS and text labels
-PANEL 3 - DETAILS: Show finishing touches (combine with Panel 2 if simple)
-PANEL 4 - RESULT: Show completed component - MUST match reference exactly
-
-MANDATORY ELEMENTS:
-✓ Clear panel divisions with labels
-✓ BOLD ARROWS (→ ➜ ⬇) showing direction
-✓ TEXT ANNOTATIONS: "FOLD", "GLUE", "ATTACH"
-✓ HANDS demonstrating technique
-✓ WHITE BACKGROUND - clean, no grid patterns
+- Character in the described pose/action
+- Same ${category} art style as reference
+- Clean background (solid color or transparent-friendly)
+- Centered composition with consistent framing
+- Game-ready quality
 
 ${categoryRules}
 
@@ -540,13 +574,13 @@ ${categoryRules}
 🚫 DO NOT
 ═══════════════════════════════════════════════════════════════
 
-- Change the character/craft appearance in ANY way
-- Use different colors than shown in reference
-- Simplify or modify unique features
-- Create a "generic" version instead of THIS EXACT craft
+- Change the character's design, colors, or proportions
+- Use a different art style than ${category}
 - Add or remove features not in the reference
-- Include parts from other steps
-- Use electronics or power tools
+- Create a different character
+- Use inconsistent level of detail
+- Add busy backgrounds or effects
+- Create multiple characters or sprites in one image
   `;
 
   return retryWithBackoff(async () => {
@@ -608,23 +642,21 @@ ${categoryRules}
 };
 
 /**
- * Generates a comprehensive pattern sheet showing all components
- * of the craft organized by element (hair, head, dress, props, etc.)
+ * Generates a comprehensive sprite sheet showing the character in multiple poses/animations.
+ * Creates game-ready sprite sheets based on the art style category.
  *
- * This generates different types of pattern sheets based on the category:
- * - Papercraft: 3D unwrapped patterns with fold lines
- * - Fabric/Sewing: Fabric pattern pieces with seam allowances
- * - Costume/Props: EVA foam pieces with beveling guides
- * - Woodcraft: Wood cutting templates with grain direction
- * - Kids Crafts: Simple cutting templates
- * - Clay/Jewelry/Tabletop: Not applicable (no cutting templates needed)
+ * This generates different types of sprite sheets based on the category:
+ * - Pixel Art: Classic retro sprite sheet with clean pixels
+ * - AAA: High-fidelity render poses sheet
+ * - Low Poly 3D: Faceted 3D model poses
+ * - Voxel Art: Blocky voxel character poses
  */
 export const generateSVGPatternSheet = async (
   originalImageBase64: string,
   category: CraftCategory,
   craftLabel?: string
 ): Promise<string> => {
-  console.log('🔍 [generateSVGPatternSheet] Function called');
+  console.log('🎮 [generateSpriteSheet] Function called');
   console.log('📊 Parameters:', { category, craftLabel, imageBase64Length: originalImageBase64?.length });
 
   // Check rate limit before making request
@@ -643,229 +675,160 @@ export const generateSVGPatternSheet = async (
   const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
   console.log('✅ Base64 cleaned, length:', cleanBase64.length);
 
-  // Category-specific pattern type
-  const getCategoryPatternType = (cat: CraftCategory): string => {
+  // Category-specific sprite sheet type
+  const getSpriteSheetType = (cat: CraftCategory): string => {
     switch (cat) {
-      case CraftCategory.PAPERCRAFT:
-        return 'papercraft pattern template with 3D unwrapped patterns (UV-mapped like 3D modeling)';
-      case CraftCategory.CLAY:
-        return 'clay sculpting reference sheet showing required clay pieces, colors, and assembly guide';
-      case CraftCategory.COSTUME_PROPS:
-        return 'foam armor/prop pattern template showing EVA foam pieces, beveled edges, and heat-forming guides';
-      case CraftCategory.WOODCRAFT:
-        return 'woodworking pattern sheet with cut pieces, grain direction, and assembly order';
-      case CraftCategory.JEWELRY:
-        return 'jewelry assembly diagram showing beads, wire wrapping steps, and component layout';
-      case CraftCategory.KIDS_CRAFTS:
-        return 'simple craft template with easy-to-cut shapes and minimal assembly';
-      case CraftCategory.COLORING_BOOK:
-        return 'detailed black and white line art coloring page with clean outlines and no fills';
+      case CraftCategory.PIXEL_ART:
+        return 'pixel art sprite sheet with clean, crisp pixels and retro game aesthetic';
+      case CraftCategory.AAA:
+        return 'high-fidelity AAA quality character pose sheet with photorealistic rendering';
+      case CraftCategory.LOW_POLY_3D:
+        return 'low poly 3D model pose sheet with flat-shaded geometric facets';
+      case CraftCategory.VOXEL_ART:
+        return 'voxel art sprite sheet with cubic/blocky Minecraft-style aesthetic';
       default:
-        return 'craft pattern template';
+        return 'game asset sprite sheet';
     }
   };
 
-  const patternType = getCategoryPatternType(category);
+  // Category-specific style rules for sprite sheets
+  const getSpriteStyleRules = (cat: CraftCategory): string => {
+    switch (cat) {
+      case CraftCategory.PIXEL_ART:
+        return `
+PIXEL ART SPRITE SHEET RULES:
+- Clean, crisp pixels with NO anti-aliasing or blur
+- Limited color palette (same colors across all poses)
+- NO grid lines or pixel borders - seamless solid color blocks
+- NO visible grid overlay between pixels
+- Each pose must be pixel-perfect with smooth color fills
+- Dithering for shading where appropriate (but no grid lines)
+- All sprites same resolution/size
+- Magenta (#FF00FF) or transparent background`;
 
-  // Build the prompt with Turn Table's successful pattern:
-  // 1. CONSISTENCY FIRST - Reference image matching is THE PRIMARY GOAL
-  // 2. Per-part analysis - AI must analyze EACH part's 3D shape
-  // 3. Physical metaphor - "unwrapping/unfolding the actual craft"
-  // 4. Explicit DO NOT constraints at the end
+      case CraftCategory.AAA:
+        return `
+AAA QUALITY POSE SHEET RULES:
+- Photorealistic, high-fidelity 3D render quality
+- PBR materials with consistent lighting across poses
+- Cinematic studio lighting with soft shadows
+- Detailed textures maintained in all poses
+- Professional animation quality poses
+- High-res suitable for HD/4K games
+- Neutral studio background`;
+
+      case CraftCategory.LOW_POLY_3D:
+        return `
+LOW POLY 3D POSE SHEET RULES:
+- Geometric, faceted 3D model aesthetic
+- Flat-shaded triangular faces visible
+- Clean, solid colors per face
+- Sharp edges and angular forms maintained
+- Consistent polygon density across poses
+- Modern indie game aesthetic
+- Simple gradient background`;
+
+      case CraftCategory.VOXEL_ART:
+        return `
+VOXEL ART SPRITE SHEET RULES:
+- 3D cubic/blocky aesthetic maintained
+- Visible voxel grid structure in all poses
+- Clean, solid colors per voxel block
+- Ambient occlusion between voxels
+- Isometric or 3/4 view consistency
+- Blocky charm preserved in motion
+- Solid color background`;
+
+      default:
+        return `Maintain consistent art style across all poses.`;
+    }
+  };
+
+  const spriteSheetType = getSpriteSheetType(category);
+  const styleRules = getSpriteStyleRules(category);
 
   const prompt = `
-🎯 YOUR TASK: Create a ${patternType} for THIS EXACT craft from the reference image.
+🎮 YOUR TASK: Create a ${spriteSheetType} for THIS EXACT game character.
 
-📷 REFERENCE IMAGE: This is the FINISHED 3D craft you are creating patterns for.
-${craftLabel ? `🎨 CRAFT: ${craftLabel}` : ''}
-📦 CATEGORY: ${category}
+📷 REFERENCE IMAGE: This is the CHARACTER you are creating a sprite sheet for.
+${craftLabel ? `🎨 CHARACTER: ${craftLabel}` : ''}
+📦 STYLE: ${category}
 
 ═══════════════════════════════════════════════════════════════
 🔒 CONSISTENCY REQUIREMENTS (CRITICAL - READ FIRST)
 ═══════════════════════════════════════════════════════════════
 
-You MUST preserve EXACT visual consistency with the reference image:
+You MUST preserve EXACT visual consistency with the reference character:
 
-1. ✅ SAME COLORS - Every pattern piece MUST use the EXACT colors from the reference
-2. ✅ SAME PROPORTIONS - Size ratios between parts MUST match the reference
-3. ✅ SAME DETAILS - Spots, stripes, patches, facial features MUST be on the pattern pieces
-4. ✅ SAME STYLE - If reference is low-poly/faceted, patterns should create that style
-5. ✅ SAME CHARACTER - These patterns will recreate THIS EXACT craft, not a generic version
+1. ✅ SAME CHARACTER - Every pose is the EXACT same character
+2. ✅ SAME COLORS - Match colors EXACTLY across all poses
+3. ✅ SAME STYLE - Maintain ${category} art style throughout
+4. ✅ SAME PROPORTIONS - Keep body ratios identical in every pose
+5. ✅ SAME DETAILS - All unique features appear in every pose
 
-IMAGINE: You are carefully unwrapping/unfolding the ACTUAL physical craft from the reference image. Each piece you draw is literally peeled off THIS craft. The colors and details on your patterns come directly from what you see in the reference.
+IMAGINE: You are a game artist creating a sprite sheet for this exact character. Every frame must look like it belongs together in the same game. The character NEVER changes - only the pose changes.
 
-🔴 CRITICAL - COLORS MUST MATCH:
-- If the reference shows a RED strawberry bear → ALL body pieces are RED
-- If the reference has GREEN leaves → leaf patterns are that EXACT GREEN
-- If the reference has spotted texture → spots appear ON the pattern pieces
-- Sample the actual RGB values from the reference image
-
-CONSISTENCY RULES (REPEAT FOR EMPHASIS):
-- Pattern colors MUST match the reference EXACTLY
-- Pattern proportions MUST create the same sized result
-- All unique details MUST appear on the relevant pattern pieces
-- The assembled result MUST look identical to the reference
+🔴 CRITICAL - CHARACTER MUST BE IDENTICAL:
+- SAME exact color palette in every pose
+- SAME proportions and body structure
+- SAME level of detail (${category} style)
+- SAME accessories and unique features
+- Character should be instantly recognizable across all poses
 
 ${craftLabel ? `
-🎯 FOCUS ON: "${craftLabel}" ONLY
-- Create patterns specifically for "${craftLabel}"
-- Match "${craftLabel}"'s exact colors and features
+🎯 SPRITE SHEET FOR: "${craftLabel}"
+- Create poses specifically for "${craftLabel}"
+- Maintain all distinctive features in every pose
 ` : ''}
 
 ═══════════════════════════════════════════════════════════════
-🧠 PART-BY-PART ANALYSIS (THINK FOR EACH PART)
+🎬 SPRITE SHEET LAYOUT
 ═══════════════════════════════════════════════════════════════
 
-Before drawing ANY patterns, you MUST analyze EACH part of the craft:
+Create a SPRITE SHEET with 4-6 POSES arranged in a grid:
 
-For EVERY visible component, ask yourself:
-1. What is this part? (head, body, arm, leg, ear, tail, accessory, etc.)
-2. What 3D SHAPE is it? (sphere, cylinder, cube, cone, oval, etc.)
-3. What COLOR is it in the reference?
-4. What DETAILS does it have? (spots, stripes, face, texture)
-5. How should this 3D shape UNWRAP into flat pieces?
+┌─────────────────────────────────────────────────────────┐
+│  SPRITE SHEET - [CHARACTER NAME]                         │
+├──────────────┬──────────────┬──────────────┬────────────┤
+│   IDLE       │   WALK 1     │   WALK 2     │   JUMP     │
+│   (neutral)  │   (step L)   │   (step R)   │   (up)     │
+├──────────────┼──────────────┼──────────────┼────────────┤
+│   ATTACK     │   HURT       │   (optional) │ (optional) │
+│   (action)   │   (damage)   │              │            │
+└──────────────┴──────────────┴──────────────┴────────────┘
 
-${category === CraftCategory.PAPERCRAFT ? `
-═══════════════════════════════════════════════════════════════
-📐 3D SHAPE → 2D PATTERN UNWRAPPING GUIDE
-═══════════════════════════════════════════════════════════════
+MANDATORY POSES:
+1. IDLE - Standing neutral pose (similar to reference)
+2. WALK FRAME 1 - Left foot forward
+3. WALK FRAME 2 - Right foot forward
+4. JUMP - Airborne/jumping pose
+5. ATTACK - Action/attack pose
+6. HURT - Taking damage pose (optional)
 
-A flat circle CANNOT become a 3D ball! Use proper unwrapping:
-
-┌─────────────────┬────────────────────────────────────────────┐
-│ 3D SHAPE        │ CORRECT 2D UNWRAP PATTERN                  │
-├─────────────────┼────────────────────────────────────────────┤
-│ SPHERE/BALL     │ 4-8 PETAL/GORE SEGMENTS (like orange peel) │
-│                 │ Pointed ovals that join at top and bottom  │
-├─────────────────┼────────────────────────────────────────────┤
-│ CYLINDER/TUBE   │ RECTANGLE (body) + 2 CIRCLES (caps)        │
-│                 │ Width = circumference, Height = length     │
-├─────────────────┼────────────────────────────────────────────┤
-│ CONE            │ PIE/FAN WEDGE (partial circle)             │
-│                 │ Rolls into cone when edges meet            │
-├─────────────────┼────────────────────────────────────────────┤
-│ CUBE/BOX        │ CROSS-SHAPED NET (6 connected faces)       │
-│                 │ Classic cube unfolding with glue tabs      │
-├─────────────────┼────────────────────────────────────────────┤
-│ HALF-SPHERE     │ 4-6 HALF-PETAL segments + circular base    │
-├─────────────────┼────────────────────────────────────────────┤
-│ OVAL/EGG        │ TAPERED PETALS (wider at middle)           │
-├─────────────────┼────────────────────────────────────────────┤
-│ PYRAMID         │ TRIANGLE PANELS + base polygon             │
-└─────────────────┴────────────────────────────────────────────┘
-
-EXAMPLE ANALYSIS - If reference shows a bear character:
-• HEAD: Sphere shape → 6 petal segments in [HEAD COLOR from reference]
-• EARS: Half-spheres → 3 half-petals each in [EAR COLOR from reference]
-• BODY: Oval/egg → 6 tapered petals in [BODY COLOR from reference]
-• ARMS: Cylinders → rectangles + circles in [ARM COLOR from reference]
-• LEGS: Cylinders → rectangles + circles in [LEG COLOR from reference]
-• SNOUT: Half-sphere → 3 half-petals in [SNOUT COLOR from reference]
-
-❌ WRONG: Flat circle for a 3D ball part
-✅ RIGHT: Petal segments that fold into a ball` : ''}
-
-${category === CraftCategory.COSTUME_PROPS ? `
-═══════════════════════════════════════════════════════════════
-📐 3D SHAPE → EVA FOAM PATTERN GUIDE
-═══════════════════════════════════════════════════════════════
-
-CURVED SURFACES → Multiple flat foam pieces, heat-formed
-SPHERE → Segmented panels or half-shells
-CYLINDER → Flat rectangle, heat-curved
-
-For EACH part, analyze: What shape? What foam thickness? What bevel angles?
-Show heat-forming zones.` : ''}
-
-${category === CraftCategory.CLAY ? `
-═══════════════════════════════════════════════════════════════
-📐 CLAY COMPONENT ANALYSIS GUIDE
-═══════════════════════════════════════════════════════════════
-
-For EACH part, determine:
-• Basic shape needed (ball, coil, slab, teardrop)
-• Size reference (pea, marble, walnut, egg)
-• Exact color from reference image
-• Assembly order` : ''}
-
-${category === CraftCategory.COLORING_BOOK ? `
-═══════════════════════════════════════════════════════════════
-📐 COLORING BOOK LINE ART GUIDE
-═══════════════════════════════════════════════════════════════
-
-Create a HIGH-QUALITY coloring page with these requirements:
-
-LINE ART STYLE:
-• Clean, crisp BLACK outlines only (no gray, no colors)
-• Varying line weights: thicker for main outlines, thinner for details
-• Smooth, professional curves and lines
-• Clear separation between different areas to color
-
-DETAIL LEVEL:
-• Include all important features and textures from the reference
-• Add decorative patterns where appropriate (scales, fur texture, feathers, etc.)
-• Create interesting areas of varying sizes for coloring
-• Include background elements if present in reference
-
-COLORING-FRIENDLY DESIGN:
-• All areas must be fully enclosed (no gaps in lines)
-• Avoid areas that are too tiny to color
-• Create clear boundaries between different sections
-• NO shading, NO gradients, NO fills - pure line art only
-
-OUTPUT:
-• Pure BLACK lines on WHITE background
-• High contrast for easy printing
-• Suitable for both children and adults to color
-• Ready to download and print` : ''}
-
-${[CraftCategory.WOODCRAFT, CraftCategory.JEWELRY, CraftCategory.KIDS_CRAFTS].includes(category) ? `
-═══════════════════════════════════════════════════════════════
-📐 PATTERN ANALYSIS GUIDE
-═══════════════════════════════════════════════════════════════
-
-For EACH part, analyze:
-• What is the 3D shape?
-• How does it flatten/cut?
-• What color from reference?
-• Connection points to other pieces` : ''}
+${styleRules}
 
 ═══════════════════════════════════════════════════════════════
-📋 OUTPUT FORMAT
+📐 OUTPUT FORMAT
 ═══════════════════════════════════════════════════════════════
 
-Create ONE organized pattern sheet image with:
-
-┌─────────────────────────────────────────────┐
-│  PATTERN SHEET - [CRAFT NAME]               │
-├─────────────────────────────────────────────┤
-│                                             │
-│  [HEAD patterns]    [BODY patterns]         │
-│  - Labeled pieces   - Labeled pieces        │
-│                                             │
-│  [LIMBS patterns]   [ACCESSORIES]           │
-│  - Arms/Legs        - Details/Features      │
-│                                             │
-└─────────────────────────────────────────────┘
-
-MANDATORY ELEMENTS:
-✓ Each piece labeled (e.g., "HEAD - Petal 1 of 6")
-✓ Colors filled matching reference EXACTLY
-✓ Cut lines (solid), Fold lines (dashed), Glue tabs (gray)
-✓ Left/Right pairs clearly marked
-✓ PLAIN WHITE background (NO grid, NO texture)
+- Grid layout with clear separation between poses
+- Each pose in its own cell/frame
+- Consistent sprite size across all poses
+- Labels under each pose (IDLE, WALK, JUMP, etc.)
+- Clean background suitable for game engines
+- Game-ready quality
 
 ═══════════════════════════════════════════════════════════════
 🚫 DO NOT
 ═══════════════════════════════════════════════════════════════
 
-- Use different colors than shown in reference
-- Create generic patterns instead of THIS EXACT character
-- Draw flat circles for spherical parts (use petal segments!)
-- Simplify or omit unique details from the reference
-- Add patterns for parts not visible in the reference
-- Use grid or textured backgrounds
-- Forget to label pieces with part name and piece number
+- Change the character's design between poses
+- Use different colors in different poses
+- Mix art styles (stick to ${category})
+- Create a different character
+- Use inconsistent proportions
+- Add busy backgrounds or effects
+- Forget to label the poses
 `;
 
   console.log('🚀 Starting retryWithBackoff...');
@@ -1356,13 +1319,15 @@ export const dissectCraft = async (
 export type TurnTableView = 'left' | 'right' | 'back';
 
 /**
- * Generates a turn table view (left, right, or back) of the craft object
+ * Generates a turn table view (left, right, or back) of the game character
  * Takes the original front-facing image and generates the specified view angle
+ * Maintains art style consistency (Pixel Art, AAA, Low Poly 3D, Voxel Art)
  */
 export const generateTurnTableView = async (
   originalImageBase64: string,
   view: TurnTableView,
-  craftLabel?: string
+  craftLabel?: string,
+  category?: CraftCategory
 ): Promise<string> => {
   // Check rate limit before making request
   if (!imageGenerationLimiter.canMakeRequest()) {
@@ -1376,58 +1341,130 @@ export const generateTurnTableView = async (
 
   // View-specific rotation descriptions
   const viewDescriptions: Record<TurnTableView, string> = {
-    left: 'LEFT SIDE VIEW (90° rotation to the left) - Show the left profile of the object as if you rotated it 90 degrees counter-clockwise',
-    right: 'RIGHT SIDE VIEW (90° rotation to the right) - Show the right profile of the object as if you rotated it 90 degrees clockwise',
-    back: 'BACK VIEW (180° rotation) - Show the back/rear of the object as if you rotated it 180 degrees to see what\'s behind it',
+    left: 'LEFT SIDE VIEW (90° rotation) - Show the left profile as if the character turned 90 degrees counter-clockwise',
+    right: 'RIGHT SIDE VIEW (90° rotation) - Show the right profile as if the character turned 90 degrees clockwise',
+    back: 'BACK VIEW (180° rotation) - Show the rear view as if the character turned completely around',
   };
 
   const viewAngles: Record<TurnTableView, string> = {
-    left: 'left side profile, showing the left ear/arm/side details',
-    right: 'right side profile, showing the right ear/arm/side details',
-    back: 'back view, showing the back of head, back details, any tail or rear features',
+    left: 'left side profile, showing left arm, left side of face, left leg details',
+    right: 'right side profile, showing right arm, right side of face, right leg details',
+    back: 'back view, showing back of head, back details, cape/tail/rear features',
   };
 
-  const prompt = `
-🎯 YOUR TASK: Generate a ${view.toUpperCase()} VIEW of this exact same craft object.
+  // Get art style rules based on category
+  const getArtStyleRules = (cat?: CraftCategory): string => {
+    if (!cat) return 'Maintain the exact same art style as the reference.';
 
-📷 REFERENCE IMAGE: This shows the FRONT VIEW of a craft/figure.
-${craftLabel ? `🎨 OBJECT: ${craftLabel}` : ''}
+    switch (cat) {
+      case CraftCategory.PIXEL_ART:
+        return `
+PIXEL ART STYLE RULES:
+- Maintain clean, crisp pixels with NO anti-aliasing
+- Keep the same limited color palette
+- NO grid lines or pixel borders - seamless solid color blocks
+- NO visible grid overlay between pixels
+- Same pixel density/resolution as reference
+- Dithering patterns must be consistent (but no grid lines)`;
+
+      case CraftCategory.AAA:
+        return `
+AAA QUALITY STYLE RULES:
+- Maintain photorealistic, high-fidelity rendering
+- Keep PBR material properties consistent
+- Same lighting setup and shadow quality
+- Preserve texture detail level
+- Consistent subsurface scattering for skin`;
+
+      case CraftCategory.LOW_POLY_3D:
+        return `
+LOW POLY 3D STYLE RULES:
+- Maintain geometric, faceted appearance
+- Keep flat-shaded triangular faces
+- Same polygon density as reference
+- Preserve solid colors per face
+- Consistent angular forms`;
+
+      case CraftCategory.VOXEL_ART:
+        return `
+VOXEL ART STYLE RULES:
+- Maintain cubic/blocky voxel structure
+- Keep same voxel resolution/size
+- Preserve solid colors per voxel
+- Same ambient occlusion depth
+- Consistent blocky proportions`;
+
+      default:
+        return 'Maintain the exact same art style as the reference.';
+    }
+  };
+
+  const artStyleRules = getArtStyleRules(category);
+
+  const prompt = `
+🎮 YOUR TASK: Generate a ${view.toUpperCase()} VIEW of this exact game character.
+
+📷 REFERENCE IMAGE: This shows the FRONT VIEW of a game character/asset.
+${craftLabel ? `🎨 CHARACTER: ${craftLabel}` : ''}
+${category ? `📦 ART STYLE: ${category}` : ''}
 
 ═══════════════════════════════════════════════════════════════
-🔄 TURN TABLE VIEW GENERATION
+🔄 CHARACTER ROTATION - TURN TABLE VIEW
 ═══════════════════════════════════════════════════════════════
 
 You are creating a ${viewDescriptions[view]}.
 
+This is for a CHARACTER REFERENCE SHEET used in game development.
+Game artists need consistent rotated views of characters.
+
 CRITICAL REQUIREMENTS:
-1. ✅ SAME OBJECT - Generate the EXACT SAME craft object, not a different one
-2. ✅ SAME STYLE - Match the exact same art style, materials, textures, and colors
-3. ✅ SAME SCALE - Keep the same size and proportions
-4. ✅ SAME LIGHTING - Use similar studio lighting and neutral background
+1. ✅ SAME CHARACTER - Generate the EXACT SAME character, not a similar one
+2. ✅ SAME ART STYLE - Match the exact same rendering style${category ? ` (${category})` : ''}
+3. ✅ SAME COLORS - Every color must match the reference exactly
+4. ✅ SAME PROPORTIONS - Keep body ratios identical
 5. ✅ ROTATED VIEW - Show the ${viewAngles[view]}
 
-WHAT TO SHOW:
-- ${view === 'left' ? 'Left side profile - what you\'d see standing to the left of the object' : ''}
-- ${view === 'right' ? 'Right side profile - what you\'d see standing to the right of the object' : ''}
-- ${view === 'back' ? 'Back/rear view - what you\'d see standing behind the object' : ''}
+${artStyleRules}
 
-CONSISTENCY RULES:
-- All colors MUST match the reference exactly
-- All materials (paper, clay, fabric, etc.) MUST be the same
-- All proportions and details MUST be consistent
-- The style (photorealistic craft) MUST be maintained
-- Background should be similar neutral studio setting
+═══════════════════════════════════════════════════════════════
+📐 VIEW DETAILS
+═══════════════════════════════════════════════════════════════
 
-IMAGINE: You have the physical craft object on a turntable/lazy susan.
-You spin it ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'} and take another photo.
-Generate THAT view.
+WHAT TO SHOW FOR ${view.toUpperCase()} VIEW:
+${view === 'left' ? `
+- Left side profile of the character
+- Left arm position and details
+- Left side of head/face
+- Side view of clothing/armor
+- Left leg stance` : ''}
+${view === 'right' ? `
+- Right side profile of the character
+- Right arm position and details
+- Right side of head/face
+- Side view of clothing/armor
+- Right leg stance` : ''}
+${view === 'back' ? `
+- Complete back view of character
+- Back of head (hair, helmet, etc.)
+- Back details (cape, wings, backpack, tail)
+- Rear view of clothing/armor
+- Back of legs` : ''}
 
-DO NOT:
-- Change the character/object design
+IMAGINE: You are a 3D artist rotating this character model on a turntable.
+You spin it ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'} and render that view.
+The model doesn't change - only the camera angle changes.
+
+═══════════════════════════════════════════════════════════════
+🚫 DO NOT
+═══════════════════════════════════════════════════════════════
+
+- Change the character's design in any way
+- Use different colors than the reference
 - Add or remove features
-- Change colors or materials
-- Use a different art style
-- Show a different craft entirely
+- Change the art style${category ? ` (must stay ${category})` : ''}
+- Alter proportions or scale
+- Show a different character
+- Use a busy or different background
 `;
 
   return retryWithBackoff(async () => {

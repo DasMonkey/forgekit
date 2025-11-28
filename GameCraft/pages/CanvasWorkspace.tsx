@@ -26,7 +26,8 @@ import { MasterNodeActionsMenu } from '../src/components/MasterNodeActionsMenu';
 import { calculateNodeMenuPosition, calculateCraftMenuPosition } from '../utils/contextMenuPosition';
 import { handleFileUpload } from '../utils/fileUpload';
 import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject, generateCraftFromImage, generateSVGPatternSheet, generateTurnTableView, TurnTableView } from '../services/geminiService';
-import { CraftCategory, DissectionResponse } from '../types';
+import { snapPixels, initPixelSnapper, getKColorsForPixelSize } from '../services/pixelSnapperService';
+import { CraftCategory, DissectionResponse, PixelGridSize } from '../types';
 import { useProjects } from '../contexts/ProjectsContext';
 import { useKeyboardShortcuts } from '../utils/useKeyboardShortcuts';
 import { useToolKeyboardShortcuts } from '../utils/useToolKeyboardShortcuts';
@@ -233,13 +234,16 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     position: { x: number; y: number };
     nodeId: string | null;
     selectedCategory: CraftCategory | null;
+    selectedPixelSize: PixelGridSize;
   }>({
     visible: false,
     position: { x: 0, y: 0 },
     nodeId: null,
     selectedCategory: null,
+    selectedPixelSize: 32, // Default to 32x32
   });
   const [isConvertingImage, setIsConvertingImage] = useState(false);
+  const [isSnappingPixels, setIsSnappingPixels] = useState(false);
 
   // Master node actions menu state
   const [masterNodeActionsMenu, setMasterNodeActionsMenu] = useState<{
@@ -352,12 +356,13 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
     // ImageNode unified menu width: Download + Share + Style dropdown + Convert ≈ 480px
     const position = calculateCraftMenuPosition(element, 480);
-    setCraftStyleMenu({
+    setCraftStyleMenu((prev) => ({
+      ...prev,
       visible: true,
       position,
       nodeId,
       selectedCategory: null,
-    });
+    }));
   }, [readOnly]);
 
   /**
@@ -413,15 +418,26 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   }, []);
 
   /**
+   * Handle pixel size selection for pixel art
+   */
+  const handlePixelSizeSelect = useCallback((size: PixelGridSize) => {
+    setCraftStyleMenu((prev) => ({
+      ...prev,
+      selectedPixelSize: size,
+    }));
+  }, []);
+
+  /**
    * Close craft style menu
    */
   const handleCloseCraftStyleMenu = useCallback(() => {
-    setCraftStyleMenu({
+    setCraftStyleMenu((prev) => ({
+      ...prev,
       visible: false,
       position: { x: 0, y: 0 },
       nodeId: null,
       selectedCategory: null,
-    });
+    }));
     
     // Clear selection state from ImageNode
     setNodes((nds) =>
@@ -1134,6 +1150,146 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     
     console.log('Deleted image node:', nodeId);
   }, [readOnly, setNodes, setEdges]);
+
+  /**
+   * Handle snap pixel functionality for ImageNode
+   * Snaps AI-generated pixel art to a perfect grid
+   */
+  const handleSnapPixels = useCallback(async () => {
+    const nodeId = craftStyleMenu.nodeId;
+    if (!nodeId || readOnly) return;
+
+    // Find the image node
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type !== 'imageNode') {
+      console.error('Image node not found');
+      return;
+    }
+
+    const imageUrl = node.data.imageUrl as string;
+    const fileName = node.data.fileName as string || 'image.png';
+    const pixelSize = craftStyleMenu.selectedPixelSize;
+
+    // Calculate appropriate kColors based on selected pixel size
+    const kColors = getKColorsForPixelSize(pixelSize);
+
+    // Set loading state
+    setIsSnappingPixels(true);
+
+    try {
+      console.log(`🔧 Snapping pixels for: ${fileName} (pixelSize: ${pixelSize}, kColors: ${kColors})`);
+
+      // Call the pixel snapper service with dynamic kColors
+      const snappedImageUrl = await snapPixels(imageUrl, kColors);
+
+      // Create a new ImageNode with the snapped image
+      const snappedNodeId = `snapped-${Date.now()}`;
+      const newFileName = fileName.replace(/\.(png|jpg|jpeg|webp)$/i, '-snapped.png');
+
+      const newNode: Node = {
+        id: snappedNodeId,
+        type: 'imageNode',
+        position: {
+          x: node.position.x + 350, // Position to the right of the original
+          y: node.position.y,
+        },
+        data: {
+          imageUrl: snappedImageUrl,
+          fileName: newFileName,
+          width: node.data.width || 300,
+          height: node.data.height,
+          isSelected: false,
+          isPixelSnapped: true, // Enable nearest-neighbor rendering for crisp pixel art
+          onSelect: handleImageNodeSelect,
+          onDeselect: handleImageNodeDeselect,
+          onDelete: handleDeleteImageNode,
+        },
+      };
+
+      // Add the new node
+      setNodes((nds) => [...nds, newNode]);
+
+      console.log('✅ Pixel snapping complete, new node created:', snappedNodeId);
+
+      // Close the menu
+      handleCloseCraftStyleMenu();
+    } catch (error) {
+      console.error('❌ Pixel snapping failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to snap pixels');
+    } finally {
+      setIsSnappingPixels(false);
+    }
+  }, [craftStyleMenu.nodeId, craftStyleMenu.selectedPixelSize, nodes, readOnly, setNodes, handleCloseCraftStyleMenu, handleImageNodeSelect, handleImageNodeDeselect, handleDeleteImageNode]);
+
+  /**
+   * Handle snap pixel functionality for MasterNode (Pixel Art only)
+   * Snaps AI-generated pixel art to a perfect grid
+   */
+  const handleMasterNodeSnapPixels = useCallback(async () => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId || readOnly) return;
+
+    // Find the master node
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type !== 'masterNode') {
+      console.error('Master node not found');
+      return;
+    }
+
+    const imageUrl = node.data.imageUrl as string;
+    const label = node.data.label as string || 'Pixel Art';
+    const pixelSize = node.data.pixelSize as PixelGridSize | undefined;
+
+    // Calculate appropriate kColors based on pixel size
+    // Larger pixel art needs more colors to preserve detail
+    const kColors = getKColorsForPixelSize(pixelSize);
+
+    // Set loading state
+    setIsSnappingPixels(true);
+
+    // Close menu immediately
+    handleCloseMasterNodeActionsMenu();
+
+    try {
+      console.log(`🔧 Snapping pixels for: ${label} (pixelSize: ${pixelSize || 'unknown'}, kColors: ${kColors})`);
+
+      // Call the pixel snapper service with dynamic kColors
+      const snappedImageUrl = await snapPixels(imageUrl, kColors);
+
+      // Create a new ImageNode with the snapped image
+      const snappedNodeId = `snapped-${Date.now()}`;
+      const newFileName = `${label}-snapped.png`;
+
+      const newNode: Node = {
+        id: snappedNodeId,
+        type: 'imageNode',
+        position: {
+          x: node.position.x + 350, // Position to the right of the master node
+          y: node.position.y,
+        },
+        data: {
+          imageUrl: snappedImageUrl,
+          fileName: newFileName,
+          width: 300,
+          isSelected: false,
+          isPixelSnapped: true, // Enable nearest-neighbor rendering for crisp pixel art
+          onSelect: handleImageNodeSelect,
+          onDeselect: handleImageNodeDeselect,
+          onDelete: handleDeleteImageNode,
+        },
+      };
+
+      // Add the new node
+      setNodes((nds) => [...nds, newNode]);
+
+      console.log('✅ Pixel snapping complete, new node created:', snappedNodeId);
+    } catch (error) {
+      console.error('❌ Pixel snapping failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to snap pixels');
+    } finally {
+      setIsSnappingPixels(false);
+    }
+  }, [masterNodeActionsMenu.nodeId, nodes, readOnly, setNodes, handleCloseMasterNodeActionsMenu, handleImageNodeSelect, handleImageNodeDeselect, handleDeleteImageNode]);
 
   /**
    * Handle upload image action
@@ -2257,7 +2413,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   /**
    * Create placeholder master node when generation starts
    */
-  const handleStartGeneration = useCallback((nodeId: string, prompt: string, category: CraftCategory) => {
+  const handleStartGeneration = useCallback((nodeId: string, prompt: string, category: CraftCategory, pixelSize?: PixelGridSize) => {
     if (readOnly) return;
 
     // Place node at fixed position (0, 0) and pan canvas to it
@@ -2273,6 +2429,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         label: prompt,
         imageUrl: '',
         category,
+        pixelSize, // Store pixel size for later use (e.g., snap pixels)
         onDissect: handleDissect,
         onDissectSelected: handleDissectSelected,
         onSelect: handleMasterNodeSelect,
@@ -2372,13 +2529,18 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
 
     const imageUrl = selectedNode.data.imageUrl as string;
     const category = craftStyleMenu.selectedCategory;
+    const pixelSize = craftStyleMenu.selectedPixelSize;
 
     // Set loading state
     setIsConvertingImage(true);
 
     try {
-      // Call Gemini API to generate craft image
-      const craftImageUrl = await generateCraftFromImage(imageUrl, category);
+      // Call Gemini API to generate craft image (pass pixel size for pixel art)
+      const craftImageUrl = await generateCraftFromImage(
+        imageUrl,
+        category,
+        category === CraftCategory.PIXEL_ART ? pixelSize : undefined
+      );
 
       // Create MasterNode with generated craft image
       // Position it near the original ImageNode
@@ -2488,19 +2650,31 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         onSelectMode={handleSelectPencilMode}
       />
 
-      {/* Unified Image Node Menu (Download, Share, Convert) */}
+      {/* Unified Image Node Menu (Download, Share, Snap Pixel, Convert) */}
       <ImageNodeUnifiedMenu
         visible={craftStyleMenu.visible}
         position={craftStyleMenu.position}
         selectedCategory={craftStyleMenu.selectedCategory}
         onSelectCategory={handleCraftCategorySelect}
+        selectedPixelSize={craftStyleMenu.selectedPixelSize}
+        onSelectPixelSize={handlePixelSizeSelect}
         onConvert={handleImageToCraftConvert}
+        onSnapPixel={handleSnapPixels}
         onDownload={handleDownloadImageNode}
         onShare={handleShareImageNode}
         onClose={handleCloseCraftStyleMenu}
         onMouseEnter={handleMenuMouseEnter}
         onMouseLeave={handleMenuMouseLeave}
         isConverting={isConvertingImage}
+        isSnapping={isSnappingPixels}
+        isAlreadySnapped={(() => {
+          const node = nodes.find(n => n.id === craftStyleMenu.nodeId);
+          if (!node || node.type !== 'imageNode') return false;
+          // Check if node has isPixelSnapped flag or filename contains "snapped"
+          const isPixelSnapped = node.data.isPixelSnapped as boolean | undefined;
+          const fileName = (node.data.fileName as string | undefined) || '';
+          return isPixelSnapped || fileName.toLowerCase().includes('snapped');
+        })()}
       />
 
       {/* Master Node Actions Menu */}
@@ -2513,10 +2687,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         onCreateSVGPattern={handleCreateSVGPattern}
         onCreateStepInstructions={handleCreateStepInstructions}
         onCreateTurnTable={handleCreateTurnTable}
+        onSnapPixel={handleMasterNodeSnapPixels}
         onDownload={handleDownloadImage}
         onShare={handleShareImage}
         onMouseEnter={handleMenuMouseEnter}
         onMouseLeave={handleMenuMouseLeave}
+        isSnapping={isSnappingPixels}
       />
 
       <div

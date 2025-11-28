@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Share2, FileImage, Scissors, MousePointerClick, RotateCcw } from 'lucide-react';
+import { Download, Share2, FileImage, Scissors, MousePointerClick, RotateCcw, Grid3X3, Loader2 } from 'lucide-react';
 import { CraftCategory } from '../../types';
 
 interface MasterNodeActionsMenuProps {
@@ -11,10 +11,12 @@ interface MasterNodeActionsMenuProps {
   onCreateSVGPattern: () => void;
   onCreateStepInstructions: () => void;
   onCreateTurnTable: () => void;
+  onSnapPixel: () => void;
   onDownload: () => void;
   onShare: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  isSnapping?: boolean;
 }
 
 // All game asset categories support sprite sheet generation
@@ -34,15 +36,20 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
   onCreateSVGPattern,
   onCreateStepInstructions,
   onCreateTurnTable,
+  onSnapPixel,
   onDownload,
   onShare,
   onMouseEnter,
   onMouseLeave,
+  isSnapping = false,
 }) => {
   if (!visible) return null;
 
   // Check if this category should show sprite sheet button (all game categories do)
   const showSpriteButton = category && SPRITE_CATEGORIES.includes(category);
+
+  // Snap Pixel button only shows for Pixel Art category
+  const showSnapPixelButton = category === CraftCategory.PIXEL_ART;
 
   return (
     <div
@@ -97,6 +104,33 @@ export const MasterNodeActionsMenu: React.FC<MasterNodeActionsMenuProps> = ({
 
         {/* Divider */}
         <div className="w-px h-6 bg-gray-200" />
+
+        {/* Snap Pixel Button - Only for Pixel Art category */}
+        {showSnapPixelButton && (
+          <>
+            <button
+              onClick={onSnapPixel}
+              disabled={isSnapping}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Snap pixels to grid (fixes AI-generated pixel art)"
+            >
+              {isSnapping ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="font-medium">Snapping...</span>
+                </>
+              ) : (
+                <>
+                  <Grid3X3 className="w-4 h-4" />
+                  <span className="font-medium">Snap Pixel</span>
+                </>
+              )}
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-gray-200" />
+          </>
+        )}
 
         {/* Magic Select Toggle Button */}
         <button
