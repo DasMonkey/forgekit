@@ -62,8 +62,9 @@ class RateLimiter {
 }
 
 // Rate limiters for different API operations
+// Note: Gemini API has its own rate limits, no need for aggressive client-side limiting
 export const imageGenerationLimiter = new RateLimiter({
-  maxRequests: 10, // 10 images per hour
+  maxRequests: 500, // Effectively unlimited - let Google's API handle rate limiting
   windowMs: 60 * 60 * 1000,
 });
 

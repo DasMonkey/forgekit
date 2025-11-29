@@ -94,14 +94,21 @@ export function isPixelSnapperReady(): boolean {
   return wasmModule !== null;
 }
 
+export interface SnapPixelsResult {
+  dataUrl: string;
+  inputSize: { width: number; height: number };
+  outputSize: { width: number; height: number };
+  kColorsUsed: number;
+}
+
 /**
  * Snap pixels in an image to a perfect grid
  *
  * @param imageUrl - The URL or base64 data URL of the image to process
  * @param kColors - Number of colors in the palette (default: 16)
- * @returns Promise<string> - Base64 data URL of the processed image
+ * @returns Promise<SnapPixelsResult> - Result with data URL and dimension info
  */
-export async function snapPixels(imageUrl: string, kColors: number = 16): Promise<string> {
+export async function snapPixels(imageUrl: string, kColors: number = 16): Promise<SnapPixelsResult> {
   // Ensure WASM module is initialized
   if (!wasmModule) {
     await initPixelSnapper();
@@ -112,19 +119,36 @@ export async function snapPixels(imageUrl: string, kColors: number = 16): Promis
   }
 
   try {
+    // Get input image dimensions
+    const inputSize = await getImageDimensions(imageUrl);
+    console.log(`📐 Input image size: ${inputSize.width}×${inputSize.height}`);
+
     // Convert image URL to bytes
     const imageBytes = await imageUrlToBytes(imageUrl);
+    console.log(`📦 Input bytes: ${imageBytes.length} bytes`);
 
     // Process the image
     console.log(`🔧 Snapping pixels with ${kColors} colors...`);
     const resultBytes = wasmModule.process_image(imageBytes, kColors);
+    console.log(`📦 Output bytes: ${resultBytes.length} bytes`);
 
     // Convert result bytes back to base64 data URL
     const base64 = bytesToBase64(resultBytes);
     const dataUrl = `data:image/png;base64,${base64}`;
 
+    // Get output image dimensions
+    const outputSize = await getImageDimensions(dataUrl);
+    console.log(`📐 Output image size: ${outputSize.width}×${outputSize.height}`);
+
     console.log('✅ Pixel snapping complete');
-    return dataUrl;
+    console.log(`   Input: ${inputSize.width}×${inputSize.height}, Output: ${outputSize.width}×${outputSize.height}, kColors: ${kColors}`);
+
+    return {
+      dataUrl,
+      inputSize,
+      outputSize,
+      kColorsUsed: kColors,
+    };
   } catch (error) {
     console.error('❌ Pixel snapping failed:', error);
     throw new Error(
@@ -133,6 +157,22 @@ export async function snapPixels(imageUrl: string, kColors: number = 16): Promis
         : 'Pixel snapping failed with unknown error'
     );
   }
+}
+
+/**
+ * Get image dimensions from a URL or data URL
+ */
+async function getImageDimensions(imageUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      reject(new Error('Failed to load image for dimension check'));
+    };
+    img.src = imageUrl;
+  });
 }
 
 /**

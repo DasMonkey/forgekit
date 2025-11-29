@@ -137,6 +137,7 @@ export const CommunityGallery: React.FC = () => {
   const getCategoryColor = (category: CraftCategory) => {
     const colors: Record<CraftCategory, string> = {
       [CraftCategory.PIXEL_ART]: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      [CraftCategory.HD_2D]: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       [CraftCategory.AAA]: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       [CraftCategory.LOW_POLY_3D]: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
       [CraftCategory.VOXEL_ART]: 'bg-amber-500/20 text-amber-400 border-amber-500/30',

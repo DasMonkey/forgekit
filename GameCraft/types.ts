@@ -1,16 +1,16 @@
 // Game Asset Style Categories for GameCraft
 export enum CraftCategory {
   PIXEL_ART = 'Pixel Art',
+  HD_2D = 'HD 2D',
   AAA = 'AAA',
   LOW_POLY_3D = 'Low Poly 3D',
   VOXEL_ART = 'Voxel Art'
 }
 
 // Pixel art grid sizes
-export type PixelGridSize = 8 | 16 | 32 | 64 | 128 | 320 | 640;
+export type PixelGridSize = 16 | 32 | 64 | 128 | 320 | 640;
 
 export const PIXEL_GRID_SIZES: { value: PixelGridSize; label: string }[] = [
-  { value: 8, label: '8×8' },
   { value: 16, label: '16×16' },
   { value: 32, label: '32×32' },
   { value: 64, label: '64×64' },

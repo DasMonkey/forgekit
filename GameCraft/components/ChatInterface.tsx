@@ -1,10 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, ArrowUp, ChevronUp, ChevronRight, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowUp, ChevronUp, ChevronRight, Loader2, Plus, X } from 'lucide-react';
 import { CraftCategory, PixelGridSize, PIXEL_GRID_SIZES } from '../types';
-import { generateCraftImage } from '../services/geminiService';
+import { generateCraftImage, generateWithImageReferences } from '../services/geminiService';
 import { validatePrompt } from '../utils/validation';
 import { sanitizeText } from '../utils/security';
+import { handleFileUpload } from '../utils/fileUpload';
+
+// Reference image type for chat attachments
+export interface ReferenceImage {
+  url: string;
+  fileName: string;
+  nodeId?: string; // if from canvas node
+}
+
+// Ref methods exposed to parent component
+export interface ChatInterfaceRef {
+  addReferenceImage: (image: ReferenceImage) => void;
+  setPromptText: (text: string) => void;
+}
 
 interface ChatInterfaceProps {
   onGenerate: (imageUrl: string, prompt: string, category: CraftCategory, pixelSize?: PixelGridSize) => void;
@@ -21,7 +35,7 @@ const LOADING_MESSAGES = [
   "Finalizing the studio lighting..."
 ];
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStartGeneration, onGenerationComplete, onGenerationError }) => {
+export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(({ onGenerate, onStartGeneration, onGenerationComplete, onGenerationError }, ref) => {
   const [prompt, setPrompt] = useState('');
   const [category, setCategory] = useState<CraftCategory>(CraftCategory.PIXEL_ART);
   const [pixelSize, setPixelSize] = useState<PixelGridSize>(32);
@@ -30,10 +44,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const [submenuPosition, setSubmenuPosition] = useState<{ bottom: number; left: number }>({ bottom: 0, left: 0 });
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pixelArtRowRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
   const submenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    addReferenceImage: (image: ReferenceImage) => {
+      // Check if image is already attached (by URL)
+      const isAlreadyAttached = referenceImages.some(img => img.url === image.url);
+      if (isAlreadyAttached) {
+        // Could show a toast here - for now just skip
+        return;
+      }
+      setReferenceImages(prev => [...prev, image]);
+    },
+    setPromptText: (text: string) => {
+      setPrompt(text);
+    }
+  }));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,6 +122,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
     }
   }, [isLoading]);
 
+  // Handle file selection from file picker
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of Array.from(files)) {
+      try {
+        const { dataUrl, fileName } = await handleFileUpload(file);
+        setReferenceImages(prev => [...prev, { url: dataUrl, fileName }]);
+      } catch (error) {
+        console.error('File upload error:', error);
+        alert(error instanceof Error ? error.message : 'Failed to upload file');
+      }
+    }
+
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Remove a reference image
+  const removeReferenceImage = (index: number) => {
+    setReferenceImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || isLoading) return;
@@ -113,13 +171,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
       onStartGeneration(nodeId, sanitizedPrompt, category, currentPixelSize);
     }
 
-    // Clear input immediately for better UX
+    // Store reference images before clearing
+    const currentReferenceImages = [...referenceImages];
+
+    // Clear input and reference images immediately for better UX
     setPrompt('');
+    setReferenceImages([]);
     setIsCategoryOpen(false);
     setIsPixelSizeSubmenuOpen(false);
 
     try {
-      const imageUrl = await generateCraftImage(sanitizedPrompt, category, currentPixelSize);
+      let imageUrl: string;
+
+      if (currentReferenceImages.length > 0) {
+        // Use image reference generation
+        const imageUrls = currentReferenceImages.map(img => img.url);
+        imageUrl = await generateWithImageReferences(sanitizedPrompt, category, imageUrls, currentPixelSize);
+      } else {
+        // Use standard generation
+        imageUrl = await generateCraftImage(sanitizedPrompt, category, currentPixelSize);
+      }
 
       // Update the placeholder node with the generated image
       if (onGenerationComplete) {
@@ -223,6 +294,35 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
           </div>
         )}
 
+        {/* Reference Images Preview - Above the input bar */}
+        {referenceImages.length > 0 && (
+          <div
+            className="mb-2 flex items-center gap-2 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: 'thin' }}
+          >
+            {referenceImages.map((img, index) => (
+              <div
+                key={`${img.url}-${index}`}
+                className="relative flex-shrink-0 group/thumb"
+                title={img.fileName}
+              >
+                <img
+                  src={img.url}
+                  alt={img.fileName}
+                  className="w-10 h-10 md:w-12 md:h-12 object-cover rounded-lg border border-zinc-700/50 bg-zinc-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeReferenceImage(index)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-zinc-800 hover:bg-red-600 border border-zinc-600 rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                >
+                  <X className="w-3 h-3 text-zinc-300" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Pixel Size Submenu - Rendered via portal to escape parent overflow */}
         {isCategoryOpen && isPixelSizeSubmenuOpen && createPortal(
           <div
@@ -275,14 +375,41 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
           document.body
         )}
 
+        {/* Hidden file input for image uploads */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+
         {/* Main Input Bar */}
         <form
           onSubmit={handleSubmit}
           className={`
             relative flex items-center gap-1.5 md:gap-2 bg-zinc-900/90 backdrop-blur-md border border-zinc-700/50 p-1.5 md:p-2 rounded-2xl md:rounded-3xl shadow-2xl shadow-black/50 smooth-transition
             ${isLoading ? 'border-amber-500/50 ring-1 ring-amber-500/20' : 'hover:border-zinc-600 focus-within:border-zinc-500'}
+            ${referenceImages.length > 0 ? 'ring-1 ring-indigo-500/30 border-indigo-500/30' : ''}
           `}
         >
+          {/* Add Image Button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className={`
+              h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl md:rounded-2xl smooth-transition flex-shrink-0
+              ${isLoading
+                ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-indigo-400'}
+            `}
+            title="Add reference image"
+          >
+            <Plus className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+
           {/* Category Trigger Button */}
           <button
             type="button"
@@ -306,7 +433,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={isLoading ? loadingMsg : "Describe a game asset you want to create..."}
+              placeholder={
+                isLoading
+                  ? loadingMsg
+                  : referenceImages.length > 0
+                    ? "Describe what to create based on the reference..."
+                    : "Describe a game asset you want to create..."
+              }
               disabled={isLoading}
               className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-500 focus:ring-0 h-10 md:h-12 py-2 md:py-3 px-1 md:px-2 text-sm md:text-base"
               autoComplete="off"
@@ -341,4 +474,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onGenerate, onStar
       </div>
     </div>
   );
-};
+});
+
+// Display name for debugging
+ChatInterface.displayName = 'ChatInterface';

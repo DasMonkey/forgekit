@@ -15,18 +15,18 @@ import {
 } from '@xyflow/react';
 import { Sparkles, Keyboard } from 'lucide-react';
 import { MasterNode, InstructionNode, MaterialNode, ImageNode, ShapeNode, TextNode, DrawingNode } from '../components/CustomNodes';
-import { ChatInterface } from '../components/ChatInterface';
+import { ChatInterface, ChatInterfaceRef, ReferenceImage } from '../components/ChatInterface';
 import { FloatingMenuBar } from '../components/FloatingMenuBar';
 import { LeftToolbar, ToolType } from '../components/LeftToolbar';
 import { UploadSubmenu } from '../components/UploadSubmenu';
 import { ShapesSubmenu, ShapeType } from '../components/ShapesSubmenu';
 import { PencilSubmenu, PencilMode } from '../components/PencilSubmenu';
 import { ImageNodeUnifiedMenu } from '../src/components/ImageNodeUnifiedMenu';
-import { MasterNodeActionsMenu } from '../src/components/MasterNodeActionsMenu';
+import { MasterNodeActionsMenu, SpriteFrameCount } from '../src/components/MasterNodeActionsMenu';
 import { calculateNodeMenuPosition, calculateCraftMenuPosition } from '../utils/contextMenuPosition';
 import { handleFileUpload } from '../utils/fileUpload';
 import { dissectCraft, dissectSelectedObject, generateStepImage, identifySelectedObject, generateCraftFromImage, generateSVGPatternSheet, generateTurnTableView, TurnTableView } from '../services/geminiService';
-import { snapPixels, initPixelSnapper, getKColorsForPixelSize } from '../services/pixelSnapperService';
+import { snapPixels, initPixelSnapper, getKColorsForPixelSize, SnapPixelsResult } from '../services/pixelSnapperService';
 import { CraftCategory, DissectionResponse, PixelGridSize } from '../types';
 import { useProjects } from '../contexts/ProjectsContext';
 import { useKeyboardShortcuts } from '../utils/useKeyboardShortcuts';
@@ -275,6 +275,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
   // Track hover state for craft menu auto-dismiss
   const menuHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isHoveringMenu, setIsHoveringMenu] = useState(false);
+
+  // Ref to ChatInterface for adding images and setting prompts
+  const chatInterfaceRef = useRef<ChatInterfaceRef>(null);
 
   // Drawing state management
   const drawingState = useDrawingState({
@@ -889,6 +892,80 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     handleCloseMasterNodeActionsMenu();
   }, [masterNodeActionsMenu.nodeId]);
 
+  // Handle "Add to Chat" from Master Node Actions Menu
+  const handleMasterNodeAddToChat = useCallback(() => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId) return;
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (node && node.type === 'masterNode') {
+      const imageUrl = node.data.imageUrl as string;
+      const label = node.data.label as string;
+
+      if (chatInterfaceRef.current && imageUrl) {
+        const referenceImage: ReferenceImage = {
+          url: imageUrl,
+          fileName: `${label.slice(0, 30)}.png`,
+          nodeId: nodeId,
+        };
+        chatInterfaceRef.current.addReferenceImage(referenceImage);
+      }
+    }
+
+    handleCloseMasterNodeActionsMenu();
+  }, [masterNodeActionsMenu.nodeId, nodes, handleCloseMasterNodeActionsMenu]);
+
+  // Handle "Animations" shortcut from Master Node Actions Menu
+  // Adds image to chat and pre-fills prompt with animation starter text including frame count
+  const handleAnimationsShortcut = useCallback((frameCount: SpriteFrameCount) => {
+    const nodeId = masterNodeActionsMenu.nodeId;
+    if (!nodeId) return;
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (node && node.type === 'masterNode') {
+      const imageUrl = node.data.imageUrl as string;
+      const label = node.data.label as string;
+
+      if (chatInterfaceRef.current && imageUrl) {
+        // Add image to chat reference
+        const referenceImage: ReferenceImage = {
+          url: imageUrl,
+          fileName: `${label.slice(0, 30)}.png`,
+          nodeId: nodeId,
+        };
+        chatInterfaceRef.current.addReferenceImage(referenceImage);
+
+        // Pre-fill prompt with animation starter text including frame count
+        chatInterfaceRef.current.setPromptText(`Generate a ${frameCount}-frame sprite sheet animation for `);
+      }
+    }
+
+    handleCloseMasterNodeActionsMenu();
+  }, [masterNodeActionsMenu.nodeId, nodes, handleCloseMasterNodeActionsMenu]);
+
+  // Handle "Add to Chat" from Image Node Unified Menu
+  const handleImageNodeAddToChat = useCallback(() => {
+    const nodeId = craftStyleMenu.nodeId;
+    if (!nodeId) return;
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (node && node.type === 'imageNode') {
+      const imageUrl = node.data.imageUrl as string;
+      const fileName = node.data.fileName as string || 'image.png';
+
+      if (chatInterfaceRef.current && imageUrl) {
+        const referenceImage: ReferenceImage = {
+          url: imageUrl,
+          fileName: fileName,
+          nodeId: nodeId,
+        };
+        chatInterfaceRef.current.addReferenceImage(referenceImage);
+      }
+    }
+
+    handleCloseCraftStyleMenu();
+  }, [craftStyleMenu.nodeId, nodes, handleCloseCraftStyleMenu]);
+
   // Handle tool-specific behaviors
   useEffect(() => {
     if (activeTool === 'select') {
@@ -1180,7 +1257,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       console.log(`🔧 Snapping pixels for: ${fileName} (pixelSize: ${pixelSize}, kColors: ${kColors})`);
 
       // Call the pixel snapper service with dynamic kColors
-      const snappedImageUrl = await snapPixels(imageUrl, kColors);
+      const result = await snapPixels(imageUrl, kColors);
 
       // Create a new ImageNode with the snapped image
       const snappedNodeId = `snapped-${Date.now()}`;
@@ -1194,7 +1271,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           y: node.position.y,
         },
         data: {
-          imageUrl: snappedImageUrl,
+          imageUrl: result.dataUrl,
           fileName: newFileName,
           width: node.data.width || 300,
           height: node.data.height,
@@ -1210,6 +1287,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       setNodes((nds) => [...nds, newNode]);
 
       console.log('✅ Pixel snapping complete, new node created:', snappedNodeId);
+      console.log(`   Dimensions: ${result.inputSize.width}×${result.inputSize.height} → ${result.outputSize.width}×${result.outputSize.height}`);
 
       // Close the menu
       handleCloseCraftStyleMenu();
@@ -1254,7 +1332,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       console.log(`🔧 Snapping pixels for: ${label} (pixelSize: ${pixelSize || 'unknown'}, kColors: ${kColors})`);
 
       // Call the pixel snapper service with dynamic kColors
-      const snappedImageUrl = await snapPixels(imageUrl, kColors);
+      const result = await snapPixels(imageUrl, kColors);
 
       // Create a new ImageNode with the snapped image
       const snappedNodeId = `snapped-${Date.now()}`;
@@ -1268,7 +1346,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
           y: node.position.y,
         },
         data: {
-          imageUrl: snappedImageUrl,
+          imageUrl: result.dataUrl,
           fileName: newFileName,
           width: 300,
           isSelected: false,
@@ -1283,6 +1361,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       setNodes((nds) => [...nds, newNode]);
 
       console.log('✅ Pixel snapping complete, new node created:', snappedNodeId);
+      console.log(`   Dimensions: ${result.inputSize.width}×${result.inputSize.height} → ${result.outputSize.width}×${result.outputSize.height}`);
     } catch (error) {
       console.error('❌ Pixel snapping failed:', error);
       alert(error instanceof Error ? error.message : 'Failed to snap pixels');
@@ -2662,6 +2741,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         onSnapPixel={handleSnapPixels}
         onDownload={handleDownloadImageNode}
         onShare={handleShareImageNode}
+        onAddToChat={handleImageNodeAddToChat}
         onClose={handleCloseCraftStyleMenu}
         onMouseEnter={handleMenuMouseEnter}
         onMouseLeave={handleMenuMouseLeave}
@@ -2684,12 +2764,12 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
         category={masterNodeActionsMenu.category}
         magicSelectEnabled={magicSelectEnabledMap[masterNodeActionsMenu.nodeId ?? ''] ?? false}
         onToggleMagicSelect={handleToggleMagicSelect}
-        onCreateSVGPattern={handleCreateSVGPattern}
-        onCreateStepInstructions={handleCreateStepInstructions}
+        onAnimations={handleAnimationsShortcut}
         onCreateTurnTable={handleCreateTurnTable}
         onSnapPixel={handleMasterNodeSnapPixels}
         onDownload={handleDownloadImage}
         onShare={handleShareImage}
+        onAddToChat={handleMasterNodeAddToChat}
         onMouseEnter={handleMenuMouseEnter}
         onMouseLeave={handleMenuMouseLeave}
         isSnapping={isSnappingPixels}
@@ -2768,6 +2848,7 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
       {/* Chat Interface (hidden in readonly mode) */}
       {!readOnly && (
         <ChatInterface
+          ref={chatInterfaceRef}
           onGenerate={handleGenerate}
           onStartGeneration={handleStartGeneration}
           onGenerationComplete={handleGenerationComplete}

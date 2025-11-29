@@ -110,7 +110,14 @@ ${isLarge ? '- Include fine details: wrinkles in clothing, individual hair pixel
 - Game-ready sprite suitable for 2D games
 - IMPORTANT: Use a PURE WHITE (#FFFFFF) solid background - NO transparency checkerboard pattern, NO gray/white checker pattern
 - Each colored area is a smooth block of color with NO separating lines between pixels
-- IMPORTANT: Design as a ${size}x${size} pixel sprite with ${isLarge ? 'MAXIMUM' : 'appropriate'} detail for this resolution`;
+- IMPORTANT: Design as a ${size}x${size} pixel sprite with ${isLarge ? 'MAXIMUM' : 'appropriate'} detail for this resolution
+
+⚠️ PADDING REQUIREMENT - CRITICAL:
+- Leave at least 10-15% padding/margin on ALL sides of the canvas
+- The character's HEAD must NOT touch or be cut off at the top edge
+- The character's FEET must NOT touch or be cut off at the bottom edge
+- Ensure the FULL character is visible with breathing room around it
+- The sprite should be CENTERED with empty space around the edges`;
 
       case CraftCategory.AAA:
         return `
@@ -137,6 +144,20 @@ LOW POLY 3D STYLE:
 - Soft ambient lighting to show form
 - Mobile-game or indie-game ready quality
 - Simple gradient or solid color background`;
+
+      case CraftCategory.HD_2D:
+        return `
+HD 2D / ILLUSTRATED SPRITE STYLE:
+- Hand-painted, high-resolution 2D art (like Ori and the Blind Forest, Hollow Knight, Rayman Legends)
+- Smooth, fluid artwork with NO visible pixel grid
+- Rich painterly details with gradients and lighting effects
+- Soft edges with subtle glows and atmospheric effects
+- Detailed shading and highlights that feel hand-crafted
+- Vibrant colors with depth and luminosity
+- Layered visual depth with foreground/background separation feel
+- Professional illustration quality suitable for HD/4K displays
+- Artistic, stylized proportions (not photorealistic)
+- Clean background with soft gradient or atmospheric elements`;
 
       case CraftCategory.VOXEL_ART:
         return `
@@ -260,7 +281,14 @@ ${isLargeT ? '- Use advanced dithering for smooth gradients and detailed shading
 ${isLargeT ? '- Preserve and enhance fine details: textures, hair, facial features, fabric patterns' : ''}
 - Maintain character silhouette and key features
 - IMPORTANT: Use a PURE WHITE (#FFFFFF) solid background - NO transparency checkerboard pattern, NO gray/white checker pattern
-- IMPORTANT: Output must be a ${size}x${size} pixel sprite with ${isLargeT ? 'MAXIMUM' : 'appropriate'} detail`;
+- IMPORTANT: Output must be a ${size}x${size} pixel sprite with ${isLargeT ? 'MAXIMUM' : 'appropriate'} detail
+
+⚠️ PADDING REQUIREMENT - CRITICAL:
+- Leave at least 10-15% padding/margin on ALL sides of the canvas
+- The character's HEAD must NOT touch or be cut off at the top edge
+- The character's FEET must NOT touch or be cut off at the bottom edge
+- Ensure the FULL character is visible with breathing room around it
+- The sprite should be CENTERED with empty space around the edges`;
 
       case CraftCategory.AAA:
         return `
@@ -372,6 +400,445 @@ ${transformRules}
     throw new Error("Failed to generate craft image from uploaded image");
   }).catch((error) => {
     trackApiUsage('generateCraftFromImage', false);
+    throw error;
+  });
+};
+
+/**
+ * Detects if the prompt is requesting a sprite sheet animation
+ * Returns the frame count if detected, null otherwise
+ */
+const detectSpriteSheetRequest = (prompt: string): number | null => {
+  const lowerPrompt = prompt.toLowerCase();
+
+  // Check for sprite sheet animation patterns
+  const patterns = [
+    /(\d+)[-\s]?frame\s+sprite\s*sheet/i,
+    /sprite\s*sheet\s+animation.*?(\d+)[-\s]?frame/i,
+    /sprite\s*sheet.*?(\d+)\s*frame/i,
+    /(\d+)\s*frame.*sprite\s*sheet/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    if (match && match[1]) {
+      const frameCount = parseInt(match[1], 10);
+      if (frameCount >= 2 && frameCount <= 12) {
+        return frameCount;
+      }
+    }
+  }
+
+  // Check for generic sprite sheet requests without specific frame count
+  if (lowerPrompt.includes('sprite sheet') || lowerPrompt.includes('spritesheet')) {
+    return 4; // Default to 4 frames
+  }
+
+  return null;
+};
+
+/**
+ * Generates an animation sprite sheet in a horizontal strip format
+ * Designed for compatibility with animation tools (Unity, Godot, etc.)
+ *
+ * Output format:
+ * - 16:9 aspect ratio for wide horizontal layout
+ * - Single horizontal row of frames (no grid)
+ * - Equal spacing between frames
+ * - No overlapping poses
+ * - Clear frame boundaries for easy slicing
+ */
+export const generateAnimationSpriteSheet = async (
+  referenceImageBase64: string,
+  frameCount: number,
+  animationDescription: string,
+  category: CraftCategory
+): Promise<string> => {
+  // Check rate limit before making request
+  if (!imageGenerationLimiter.canMakeRequest()) {
+    const waitTime = imageGenerationLimiter.getTimeUntilNextRequest();
+    const waitSeconds = Math.ceil(waitTime / 1000);
+    throw new Error(`Rate limit exceeded. Please wait ${waitSeconds} seconds before generating another image.`);
+  }
+
+  const ai = getAiClient();
+  const cleanBase64 = referenceImageBase64.split(',')[1] || referenceImageBase64;
+
+  // Category-specific style rules for sprite sheets
+  const getStyleRules = (cat: CraftCategory): string => {
+    switch (cat) {
+      case CraftCategory.PIXEL_ART:
+        return `
+PIXEL ART STYLE:
+- Clean, crisp pixels with NO anti-aliasing or blur
+- Limited color palette (same colors across all frames)
+- NO grid lines between pixels - seamless solid color blocks
+- Each frame must maintain pixel-perfect consistency
+- Use magenta (#FF00FF) or solid color background for easy removal`;
+
+      case CraftCategory.AAA:
+        return `
+AAA QUALITY STYLE:
+- Photorealistic, high-fidelity 3D render quality
+- Consistent PBR lighting across all frames
+- Same material properties in every pose
+- Studio lighting with soft shadows
+- Neutral background for easy extraction`;
+
+      case CraftCategory.LOW_POLY_3D:
+        return `
+LOW POLY 3D STYLE:
+- Geometric, faceted 3D model aesthetic
+- Flat-shaded triangular faces
+- Same polygon density in all frames
+- Clean, solid colors per face
+- Simple background`;
+
+      case CraftCategory.VOXEL_ART:
+        return `
+VOXEL ART STYLE:
+- 3D cubic/blocky voxel structure
+- Same voxel resolution in all frames
+- Consistent lighting and ambient occlusion
+- Solid colors per voxel block
+- Clean background`;
+
+      case CraftCategory.HD_2D:
+        return `
+HD 2D / ILLUSTRATED STYLE:
+- Hand-painted, high-resolution 2D art (Ori, Hollow Knight style)
+- Smooth, fluid artwork with NO visible pixel grid
+- Rich painterly details with gradients and lighting effects
+- Soft glows and atmospheric effects consistent across frames
+- Same level of detail and color palette in every frame
+- Clean background for easy extraction`;
+
+      default:
+        return 'Consistent game-ready art style across all frames.';
+    }
+  };
+
+  const styleRules = getStyleRules(category);
+
+  const prompt = `
+🎮 ANIMATION SPRITE SHEET GENERATION
+
+📷 REFERENCE CHARACTER: Use this image as the character to animate.
+📦 ART STYLE: ${category}
+🎬 ANIMATION: ${animationDescription}
+🔢 FRAME COUNT: ${frameCount} frames
+
+═══════════════════════════════════════════════════════════════
+🎯 CRITICAL: ANIMATION-TOOL COMPATIBLE FORMAT
+═══════════════════════════════════════════════════════════════
+
+You MUST create a sprite sheet that works with game engines (Unity, Godot, etc.):
+
+📐 LAYOUT - SINGLE HORIZONTAL STRIP:
+┌────────┬────────┬────────┬────────┬────────┬────────┐
+│ Frame 1│ Frame 2│ Frame 3│ Frame 4│ Frame 5│ Frame 6│
+│        │        │        │        │        │        │
+└────────┴────────┴────────┴────────┴────────┴────────┘
+
+MANDATORY REQUIREMENTS:
+1. ✅ EXACTLY ${frameCount} FRAMES arranged in ONE HORIZONTAL ROW
+2. ✅ EQUAL FRAME WIDTHS - Each frame takes exactly 1/${frameCount} of the total width
+3. ✅ NO OVERLAPPING - Each pose must fit completely within its frame boundary
+4. ✅ CONSISTENT SIZE - The character should be the same size in every frame
+5. ✅ CENTERED IN FRAME - Each pose centered within its frame cell
+6. ✅ NO LABELS - Do NOT add frame numbers, text, or labels
+7. ✅ SEAMLESS ANIMATION - Last frame should connect smoothly back to first
+
+═══════════════════════════════════════════════════════════════
+🎭 CHARACTER CONSISTENCY (CRITICAL)
+═══════════════════════════════════════════════════════════════
+
+SAME CHARACTER in every frame:
+- EXACT SAME colors - sample from reference
+- EXACT SAME proportions and body structure
+- EXACT SAME art style (${category})
+- EXACT SAME level of detail
+- EXACT SAME accessories and features
+
+Only the POSE changes between frames, NOT the character design.
+
+═══════════════════════════════════════════════════════════════
+🎬 ANIMATION FRAMES TO CREATE
+═══════════════════════════════════════════════════════════════
+
+Animation type: ${animationDescription}
+
+Create a smooth ${frameCount}-frame animation cycle:
+- Frame 1: Starting pose
+- Frames 2-${frameCount - 1}: Progressive movement poses
+- Frame ${frameCount}: Final pose (should loop back to Frame 1)
+
+For walk/run cycles: Show full stride from left foot forward to right foot forward
+For idle: Subtle breathing or shifting weight
+For attack: Wind-up, strike, follow-through
+For jump: Crouch, leap, peak, land
+
+${styleRules}
+
+═══════════════════════════════════════════════════════════════
+🚫 DO NOT
+═══════════════════════════════════════════════════════════════
+
+- DO NOT create a grid layout (no rows stacked vertically)
+- DO NOT let poses overlap or extend beyond frame boundaries
+- DO NOT add frame numbers, text, or labels
+- DO NOT change the character's design between frames
+- DO NOT use different colors in different frames
+- DO NOT make frames different sizes
+- DO NOT add borders or grid lines between frames
+- DO NOT create a busy or textured background
+`;
+
+  return retryWithBackoff(async () => {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: 'image/png',
+              data: cleanBase64,
+            },
+          },
+          { text: prompt },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9", // Wide format for horizontal strip
+          imageSize: "2K", // Higher resolution for better frame quality
+        },
+        thinkingConfig: {
+          includeThoughts: true,
+        },
+      },
+    });
+
+    // Log thinking process if available
+    const candidate = response.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+    const thinkingTexts: string[] = [];
+
+    for (const part of parts) {
+      const partAny = part as any;
+      if (partAny.text && partAny.thought === true) {
+        thinkingTexts.push(partAny.text);
+      }
+    }
+
+    if (thinkingTexts.length > 0) {
+      console.log('\n💭 === AI THINKING PROCESS (Animation Sprite Sheet) ===');
+      console.log('Animation:', animationDescription);
+      console.log('Frame Count:', frameCount);
+      console.log('\nThinking:');
+      console.log(thinkingTexts.join('\n'));
+      console.log('=== END THINKING ===\n');
+    }
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        trackApiUsage('generateAnimationSpriteSheet', true);
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    trackApiUsage('generateAnimationSpriteSheet', false);
+    throw new Error("Failed to generate animation sprite sheet");
+  }).catch((error) => {
+    trackApiUsage('generateAnimationSpriteSheet', false);
+    throw error;
+  });
+};
+
+/**
+ * Generates a game asset based on user prompt with reference images.
+ * Allows users to provide one or more images as visual references for the generation.
+ *
+ * Automatically detects sprite sheet requests and uses the appropriate generation function.
+ */
+export const generateWithImageReferences = async (
+  prompt: string,
+  category: CraftCategory,
+  referenceImageUrls: string[],
+  pixelSize?: PixelGridSize
+): Promise<string> => {
+  // Check rate limit before making request
+  if (!imageGenerationLimiter.canMakeRequest()) {
+    const waitTime = imageGenerationLimiter.getTimeUntilNextRequest();
+    const waitSeconds = Math.ceil(waitTime / 1000);
+    throw new Error(`Rate limit exceeded. Please wait ${waitSeconds} seconds before generating another image.`);
+  }
+
+  if (referenceImageUrls.length === 0) {
+    throw new Error("At least one reference image is required");
+  }
+
+  // Check if this is a sprite sheet animation request
+  const frameCount = detectSpriteSheetRequest(prompt);
+  if (frameCount && referenceImageUrls.length === 1) {
+    // Use specialized animation sprite sheet generation
+    console.log(`🎬 Detected sprite sheet request: ${frameCount} frames`);
+    return generateAnimationSpriteSheet(
+      referenceImageUrls[0],
+      frameCount,
+      prompt,
+      category
+    );
+  }
+
+  const ai = getAiClient();
+
+  // Get category-specific style rules
+  const getStyleRules = (cat: CraftCategory, gridSize?: PixelGridSize): string => {
+    switch (cat) {
+      case CraftCategory.PIXEL_ART:
+        const size = gridSize || 32;
+        const isSmall = size <= 32;
+        const isMedium = size > 32 && size <= 128;
+        const isLarge = size > 128;
+
+        const detailLevel = isSmall
+          ? 'Simple, iconic design with minimal details. Limited color palette (8-16 colors).'
+          : isMedium
+          ? 'Moderate detail with 16-32 colors. Good balance of detail and readability.'
+          : 'HIGHLY DETAILED pixel art with 64-128+ colors. Rich textures, shading, fine details.';
+
+        return `
+PIXEL ART STYLE (${size}x${size} resolution):
+- ${detailLevel}
+- Clean, crisp pixels with no anti-aliasing blur
+- NO grid lines or pixel borders
+- Game-ready sprite suitable for 2D games
+- PURE WHITE (#FFFFFF) solid background`;
+
+      case CraftCategory.AAA:
+        return `
+AAA GAME QUALITY STYLE:
+- Photorealistic, high-fidelity 3D render quality
+- Studio lighting with realistic shadows
+- PBR material quality
+- Cinematic quality suitable for next-gen games`;
+
+      case CraftCategory.LOW_POLY_3D:
+        return `
+LOW POLY 3D STYLE:
+- Geometric, faceted 3D model aesthetic
+- Flat-shaded triangular faces visible
+- Minimalist polygon count
+- Clean, solid colors per face`;
+
+      case CraftCategory.VOXEL_ART:
+        return `
+VOXEL ART STYLE:
+- 3D cubic/blocky aesthetic (Minecraft-inspired)
+- Visible cube/voxel grid structure
+- Clean, solid colors per voxel block
+- Isometric or 3/4 view`;
+
+      case CraftCategory.HD_2D:
+        return `
+HD 2D / ILLUSTRATED SPRITE STYLE:
+- Hand-painted, high-resolution 2D art (Ori, Hollow Knight, Rayman style)
+- Smooth, fluid artwork with NO visible pixel grid
+- Rich painterly details with gradients and lighting
+- Soft glows and atmospheric effects
+- Professional illustration quality`;
+
+      default:
+        return `Game asset style with clean rendering and professional quality.`;
+    }
+  };
+
+  const styleRules = getStyleRules(category, pixelSize);
+
+  // Build the prompt based on number of reference images
+  const referenceDescription = referenceImageUrls.length === 1
+    ? "Use this reference image as visual guidance:"
+    : `Use these ${referenceImageUrls.length} reference images as visual guidance:`;
+
+  const fullPrompt = `
+🎮 GAME ASSET GENERATION WITH REFERENCE
+
+${referenceDescription}
+
+📝 USER REQUEST: ${prompt}
+
+📦 TARGET STYLE: ${category}
+
+${styleRules}
+
+═══════════════════════════════════════════════════════════════
+🔒 REFERENCE IMAGE USAGE
+═══════════════════════════════════════════════════════════════
+
+1. ✅ USE REFERENCE FOR STYLE - Match the character/object style from reference
+2. ✅ PRESERVE KEY FEATURES - Keep recognizable elements from the reference
+3. ✅ MATCH COLORS - Use similar color palette when appropriate
+4. ✅ FOLLOW USER PROMPT - The user's text request takes priority
+5. ✅ MAINTAIN CONSISTENCY - Generated result should look like it belongs with reference
+
+═══════════════════════════════════════════════════════════════
+📋 OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════
+
+- CENTERED composition with appropriate padding
+- FRONT-FACING or 3/4 VIEW angle (unless specified otherwise)
+- CLEAN BACKGROUND (solid color or simple gradient)
+- GAME-READY quality suitable for use in a video game
+- CONSISTENT ${category} style throughout
+
+🚫 DO NOT:
+- Ignore the reference image(s) completely
+- Mix multiple art styles together
+- Use busy or complex backgrounds
+- Create a sketch or unfinished look
+  `;
+
+  // Build content parts: reference images first, then text prompt
+  const contentParts: Array<{ inlineData: { mimeType: string; data: string } } | { text: string }> = [];
+
+  // Add each reference image
+  for (const imageUrl of referenceImageUrls) {
+    const cleanBase64 = imageUrl.split(',')[1] || imageUrl;
+    contentParts.push({
+      inlineData: {
+        mimeType: 'image/png',
+        data: cleanBase64,
+      },
+    });
+  }
+
+  // Add the text prompt
+  contentParts.push({ text: fullPrompt });
+
+  return retryWithBackoff(async () => {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: contentParts,
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: "1K",
+        },
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        trackApiUsage('generateWithImageReferences', true);
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    trackApiUsage('generateWithImageReferences', false);
+    throw new Error("Failed to generate image with references");
+  }).catch((error) => {
+    trackApiUsage('generateWithImageReferences', false);
     throw error;
   });
 };
@@ -755,25 +1222,38 @@ ${craftLabel ? `🎨 CHARACTER: ${craftLabel}` : ''}
 📦 STYLE: ${category}
 
 ═══════════════════════════════════════════════════════════════
-🔒 CONSISTENCY REQUIREMENTS (CRITICAL - READ FIRST)
+🎯 CRITICAL: ANIMATION-TOOL COMPATIBLE FORMAT
 ═══════════════════════════════════════════════════════════════
 
-You MUST preserve EXACT visual consistency with the reference character:
+You MUST create a sprite sheet that works with game engines (Unity, Godot, etc.):
 
-1. ✅ SAME CHARACTER - Every pose is the EXACT same character
-2. ✅ SAME COLORS - Match colors EXACTLY across all poses
-3. ✅ SAME STYLE - Maintain ${category} art style throughout
-4. ✅ SAME PROPORTIONS - Keep body ratios identical in every pose
-5. ✅ SAME DETAILS - All unique features appear in every pose
+📐 LAYOUT - SINGLE HORIZONTAL STRIP:
+┌────────┬────────┬────────┬────────┬────────┬────────┐
+│  IDLE  │ WALK 1 │ WALK 2 │  JUMP  │ ATTACK │  HURT  │
+│        │        │        │        │        │        │
+└────────┴────────┴────────┴────────┴────────┴────────┘
 
-IMAGINE: You are a game artist creating a sprite sheet for this exact character. Every frame must look like it belongs together in the same game. The character NEVER changes - only the pose changes.
+MANDATORY REQUIREMENTS:
+1. ✅ EXACTLY 6 FRAMES arranged in ONE HORIZONTAL ROW
+2. ✅ EQUAL FRAME WIDTHS - Each frame takes exactly 1/6 of the total width
+3. ✅ NO OVERLAPPING - Each pose must fit completely within its frame boundary
+4. ✅ CONSISTENT SIZE - The character should be the same size in every frame
+5. ✅ CENTERED IN FRAME - Each pose centered within its frame cell
+6. ✅ NO LABELS - Do NOT add frame numbers, text, or labels
+7. ✅ CLEAN BACKGROUND - Solid color (magenta #FF00FF or white) for easy removal
 
-🔴 CRITICAL - CHARACTER MUST BE IDENTICAL:
-- SAME exact color palette in every pose
-- SAME proportions and body structure
-- SAME level of detail (${category} style)
-- SAME accessories and unique features
-- Character should be instantly recognizable across all poses
+═══════════════════════════════════════════════════════════════
+🔒 CONSISTENCY REQUIREMENTS (CRITICAL)
+═══════════════════════════════════════════════════════════════
+
+SAME CHARACTER in every frame:
+- EXACT SAME colors - sample from reference
+- EXACT SAME proportions and body structure
+- EXACT SAME art style (${category})
+- EXACT SAME level of detail
+- EXACT SAME accessories and unique features
+
+Only the POSE changes between frames, NOT the character design.
 
 ${craftLabel ? `
 🎯 SPRITE SHEET FOR: "${craftLabel}"
@@ -782,53 +1262,32 @@ ${craftLabel ? `
 ` : ''}
 
 ═══════════════════════════════════════════════════════════════
-🎬 SPRITE SHEET LAYOUT
+🎬 6 POSES TO CREATE (LEFT TO RIGHT)
 ═══════════════════════════════════════════════════════════════
 
-Create a SPRITE SHEET with 4-6 POSES arranged in a grid:
+Create these 6 poses in a single horizontal row:
 
-┌─────────────────────────────────────────────────────────┐
-│  SPRITE SHEET - [CHARACTER NAME]                         │
-├──────────────┬──────────────┬──────────────┬────────────┤
-│   IDLE       │   WALK 1     │   WALK 2     │   JUMP     │
-│   (neutral)  │   (step L)   │   (step R)   │   (up)     │
-├──────────────┼──────────────┼──────────────┼────────────┤
-│   ATTACK     │   HURT       │   (optional) │ (optional) │
-│   (action)   │   (damage)   │              │            │
-└──────────────┴──────────────┴──────────────┴────────────┘
-
-MANDATORY POSES:
 1. IDLE - Standing neutral pose (similar to reference)
-2. WALK FRAME 1 - Left foot forward
-3. WALK FRAME 2 - Right foot forward
+2. WALK 1 - Walking, left foot forward
+3. WALK 2 - Walking, right foot forward
 4. JUMP - Airborne/jumping pose
-5. ATTACK - Action/attack pose
-6. HURT - Taking damage pose (optional)
+5. ATTACK - Action/attack pose with arm extended
+6. HURT - Taking damage, recoiling pose
 
 ${styleRules}
-
-═══════════════════════════════════════════════════════════════
-📐 OUTPUT FORMAT
-═══════════════════════════════════════════════════════════════
-
-- Grid layout with clear separation between poses
-- Each pose in its own cell/frame
-- Consistent sprite size across all poses
-- Labels under each pose (IDLE, WALK, JUMP, etc.)
-- Clean background suitable for game engines
-- Game-ready quality
 
 ═══════════════════════════════════════════════════════════════
 🚫 DO NOT
 ═══════════════════════════════════════════════════════════════
 
-- Change the character's design between poses
-- Use different colors in different poses
-- Mix art styles (stick to ${category})
-- Create a different character
-- Use inconsistent proportions
-- Add busy backgrounds or effects
-- Forget to label the poses
+- DO NOT create a grid layout (no rows stacked vertically)
+- DO NOT let poses overlap or extend beyond frame boundaries
+- DO NOT add frame numbers, text, or labels
+- DO NOT change the character's design between frames
+- DO NOT use different colors in different frames
+- DO NOT make frames different sizes
+- DO NOT add borders or grid lines between frames
+- DO NOT create a busy or textured background
 `;
 
   console.log('🚀 Starting retryWithBackoff...');
@@ -1339,17 +1798,17 @@ export const generateTurnTableView = async (
   const ai = getAiClient();
   const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
 
-  // View-specific rotation descriptions
+  // View-specific rotation descriptions - ORTHOGRAPHIC FLAT VIEWS (no angles)
   const viewDescriptions: Record<TurnTableView, string> = {
-    left: 'LEFT SIDE VIEW (90° rotation) - Show the left profile as if the character turned 90 degrees counter-clockwise',
-    right: 'RIGHT SIDE VIEW (90° rotation) - Show the right profile as if the character turned 90 degrees clockwise',
-    back: 'BACK VIEW (180° rotation) - Show the rear view as if the character turned completely around',
+    left: 'PURE LEFT SIDE VIEW - Flat orthographic profile, camera exactly at 90° left, NO angle, NO perspective distortion',
+    right: 'PURE RIGHT SIDE VIEW - Flat orthographic profile, camera exactly at 90° right, NO angle, NO perspective distortion',
+    back: 'PURE BACK VIEW - Flat orthographic rear view, camera exactly at 180° behind, NO angle, NO perspective distortion',
   };
 
   const viewAngles: Record<TurnTableView, string> = {
-    left: 'left side profile, showing left arm, left side of face, left leg details',
-    right: 'right side profile, showing right arm, right side of face, right leg details',
-    back: 'back view, showing back of head, back details, cape/tail/rear features',
+    left: 'FLAT left side profile - camera perpendicular to left side, eye-level, pure silhouette view',
+    right: 'FLAT right side profile - camera perpendicular to right side, eye-level, pure silhouette view',
+    back: 'FLAT back view - camera directly behind, eye-level, pure rear silhouette view',
   };
 
   // Get art style rules based on category
@@ -1365,7 +1824,8 @@ PIXEL ART STYLE RULES:
 - NO grid lines or pixel borders - seamless solid color blocks
 - NO visible grid overlay between pixels
 - Same pixel density/resolution as reference
-- Dithering patterns must be consistent (but no grid lines)`;
+- Dithering patterns must be consistent (but no grid lines)
+- PADDING: Keep same margins as reference - head and feet must NOT be cut off`;
 
       case CraftCategory.AAA:
         return `
@@ -1450,14 +1910,32 @@ ${view === 'back' ? `
 - Rear view of clothing/armor
 - Back of legs` : ''}
 
-IMAGINE: You are a 3D artist rotating this character model on a turntable.
-You spin it ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'} and render that view.
-The model doesn't change - only the camera angle changes.
+═══════════════════════════════════════════════════════════════
+📸 CAMERA SETUP - CRITICAL FOR GAME ART
+═══════════════════════════════════════════════════════════════
+
+ORTHOGRAPHIC CAMERA - NO PERSPECTIVE:
+- Camera is at EXACT eye-level with the character center
+- Camera is PERFECTLY PERPENDICULAR to the view direction
+- NO 3/4 angle, NO tilted view, NO looking up or down
+- FLAT side view like a character reference sheet
+- Think blueprint/model sheet style - pure silhouette angles
+
+${view === 'left' ? 'Camera position: Directly to the LEFT of the character, pointing RIGHT at 90°' : ''}
+${view === 'right' ? 'Camera position: Directly to the RIGHT of the character, pointing LEFT at 90°' : ''}
+${view === 'back' ? 'Camera position: Directly BEHIND the character, pointing FORWARD at 180°' : ''}
+
+IMAGINE: This is for a professional game character MODEL SHEET.
+Artists need FLAT orthographic views - left, right, and back.
+NO 3/4 angles, NO dramatic perspectives - just clean flat views.
 
 ═══════════════════════════════════════════════════════════════
 🚫 DO NOT
 ═══════════════════════════════════════════════════════════════
 
+- Use ANY 3/4 angle or perspective view - FLAT ORTHOGRAPHIC ONLY
+- Tilt the camera up or down - keep it at EYE LEVEL
+- Show the character at an angle - pure side/back view only
 - Change the character's design in any way
 - Use different colors than the reference
 - Add or remove features

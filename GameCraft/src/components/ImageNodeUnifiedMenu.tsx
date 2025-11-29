@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Share2, Loader2, Sparkles, ChevronDown, ChevronRight, Grid3X3 } from 'lucide-react';
+import { Download, Share2, Loader2, Sparkles, ChevronDown, ChevronRight, Grid3X3, MessageSquarePlus } from 'lucide-react';
 import { CraftCategory, PixelGridSize, PIXEL_GRID_SIZES } from '../../types';
 
 interface ImageNodeUnifiedMenuProps {
@@ -13,6 +13,7 @@ interface ImageNodeUnifiedMenuProps {
   onSnapPixel: () => void;
   onDownload: () => void;
   onShare: () => void;
+  onAddToChat: () => void;
   onClose: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -24,6 +25,7 @@ interface ImageNodeUnifiedMenuProps {
 // Game asset style categories for GameCraft
 const ASSET_CATEGORIES = [
   CraftCategory.PIXEL_ART,
+  CraftCategory.HD_2D,
   CraftCategory.AAA,
   CraftCategory.LOW_POLY_3D,
   CraftCategory.VOXEL_ART,
@@ -40,6 +42,7 @@ export const ImageNodeUnifiedMenu: React.FC<ImageNodeUnifiedMenuProps> = ({
   onSnapPixel,
   onDownload,
   onShare,
+  onAddToChat,
   onClose,
   onMouseEnter,
   onMouseLeave,
@@ -117,6 +120,20 @@ export const ImageNodeUnifiedMenu: React.FC<ImageNodeUnifiedMenuProps> = ({
       }}
     >
       <div className="flex items-center gap-1 px-2 py-2">
+        {/* Add to Chat Button */}
+        <button
+          onClick={onAddToChat}
+          disabled={isConverting}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Add to chat as reference"
+        >
+          <MessageSquarePlus className="w-4 h-4" />
+          <span className="font-medium">Add to Chat</span>
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-6 bg-gray-200" />
+
         {/* Download Button */}
         <button
           onClick={onDownload}
