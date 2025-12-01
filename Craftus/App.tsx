@@ -28,9 +28,12 @@ export default function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/canvas" element={<CanvasWorkspace />} />
                 <Route path="/canvas/:projectId" element={<CanvasWorkspace />} />
-                <Route path="/projects" element={<ProjectsGallery />} />
-                <Route path="/community" element={<CommunityGallery />} />
-                <Route path="/community/:projectId" element={<CanvasWorkspace readOnly={true} />} />
+                {/* Hidden for hackathon demo - auth not fully implemented */}
+                {/* <Route path="/projects" element={<ProjectsGallery />} /> */}
+                {/* <Route path="/community" element={<CommunityGallery />} /> */}
+                {/* <Route path="/community/:projectId" element={<CanvasWorkspace readOnly={true} />} /> */}
+                <Route path="/settings" element={<ProfilePage />} />
+                {/* Keep old route for backwards compatibility */}
                 <Route path="/profile" element={<ProfilePage />} />
               </Routes>
             </div>

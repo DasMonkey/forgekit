@@ -55,7 +55,8 @@ export const FloatingMenuBar: React.FC<FloatingMenuBarProps> = ({
               <span className="hidden md:inline">Home</span>
             </button>
 
-            <button
+            {/* Hidden for hackathon demo - auth not fully implemented */}
+            {/* <button
               onClick={() => handleNavigation('/projects')}
               className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 smooth-transition text-xs md:text-sm font-medium"
               title="My Projects"
@@ -71,18 +72,15 @@ export const FloatingMenuBar: React.FC<FloatingMenuBarProps> = ({
             >
               <Users className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span className="hidden md:inline">Community</span>
-            </button>
+            </button> */}
 
             <button
-              onClick={() => handleNavigation('/profile')}
+              onClick={() => handleNavigation('/settings')}
               className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 smooth-transition text-xs md:text-sm font-medium relative"
-              title="Profile"
+              title="Settings"
             >
               <User className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span className="hidden md:inline">Profile</span>
-              {state.isAuthenticated && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-zinc-900"></span>
-              )}
+              <span className="hidden md:inline">Settings</span>
             </button>
           </div>
 

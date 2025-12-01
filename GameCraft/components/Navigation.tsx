@@ -10,9 +10,10 @@ export const Navigation: React.FC = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/canvas', label: 'Canvas', icon: Layout },
-    { path: '/projects', label: 'My Projects', icon: Sparkles },
-    { path: '/community', label: 'Community', icon: Users },
-    { path: '/profile', label: 'Profile', icon: User },
+    // Hidden for hackathon demo - auth not fully implemented
+    // { path: '/projects', label: 'My Projects', icon: Sparkles },
+    // { path: '/community', label: 'Community', icon: Users },
+    { path: '/settings', label: 'Settings', icon: User },
   ];
 
   // Hide navigation on canvas page for immersive experience
@@ -35,7 +36,7 @@ export const Navigation: React.FC = () => {
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
-              const isProfileLink = item.path === '/profile';
+              const isProfileLink = item.path === '/settings';
 
               return (
                 <Link
