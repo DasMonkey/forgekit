@@ -112,12 +112,11 @@ ${isLarge ? '- Include fine details: wrinkles in clothing, individual hair pixel
 - Each colored area is a smooth block of color with NO separating lines between pixels
 - IMPORTANT: Design as a ${size}x${size} pixel sprite with ${isLarge ? 'MAXIMUM' : 'appropriate'} detail for this resolution
 
-⚠️ PADDING REQUIREMENT - CRITICAL:
-- Leave at least 10-15% padding/margin on ALL sides of the canvas
-- The character's HEAD must NOT touch or be cut off at the top edge
-- The character's FEET must NOT touch or be cut off at the bottom edge
-- Ensure the FULL character is visible with breathing room around it
-- The sprite should be CENTERED with empty space around the edges`;
+⚠️ COMPOSITION REQUIREMENT - CRITICAL:
+- FOR SINGLE CHARACTERS/OBJECTS: Leave 10-15% padding on all sides, center the subject with breathing room
+- FOR SCENES/LANDSCAPES/ENVIRONMENTS: Fill the ENTIRE canvas edge-to-edge with NO white borders or padding
+- If the prompt describes a scene, landscape, environment, or multiple elements: USE FULL CANVAS
+- If the prompt describes a single character or object: USE CENTERED COMPOSITION with padding`;
 
       case CraftCategory.AAA:
         return `
@@ -182,7 +181,7 @@ VOXEL ART STYLE:
   const fullPrompt = `
 🎮 GAME ASSET GENERATION
 
-Create a game-ready character or object asset: ${prompt}
+Create a game-ready asset: ${prompt}
 
 📦 STYLE CATEGORY: ${category}
 
@@ -194,16 +193,23 @@ ${stylePrompt}
 
 1. ✅ GAME-READY - Asset should look like it belongs in a video game
 2. ✅ CLEAR SILHOUETTE - Easily recognizable shape and form
-3. ✅ CENTERED COMPOSITION - Subject centered with appropriate padding
-4. ✅ FRONT-FACING or 3/4 VIEW - Standard game asset presentation angle
+3. ✅ COMPOSITION - See below for scene vs character rules
+4. ✅ FRONT-FACING or 3/4 VIEW - Standard game asset presentation angle (for characters)
 5. ✅ CONSISTENT STYLE - Match the ${category} aesthetic throughout
 6. ✅ CLEAN BACKGROUND - Transparent-friendly or simple solid/gradient
+
+🚨 CRITICAL COMPOSITION RULES:
+- IF SINGLE CHARACTER/OBJECT: Center with padding, leave breathing room
+- IF SCENE/LANDSCAPE/ENVIRONMENT: Fill ENTIRE canvas edge-to-edge, NO white borders
+- Scenes include: landscapes, environments, buildings with surroundings, multiple characters in a setting
+- Single assets include: one character, one object, one item
 
 🚫 DO NOT:
 - Mix art styles (e.g., no pixel art elements in AAA renders)
 - Add excessive detail that doesn't match the style
 - Use busy or distracting backgrounds
 - Create assets that look unfinished or sketch-like
+- Add white padding/borders around scenes or landscapes
   `;
 
   return retryWithBackoff(async () => {
@@ -283,12 +289,11 @@ ${isLargeT ? '- Preserve and enhance fine details: textures, hair, facial featur
 - IMPORTANT: Use a PURE WHITE (#FFFFFF) solid background - NO transparency checkerboard pattern, NO gray/white checker pattern
 - IMPORTANT: Output must be a ${size}x${size} pixel sprite with ${isLargeT ? 'MAXIMUM' : 'appropriate'} detail
 
-⚠️ PADDING REQUIREMENT - CRITICAL:
-- Leave at least 10-15% padding/margin on ALL sides of the canvas
-- The character's HEAD must NOT touch or be cut off at the top edge
-- The character's FEET must NOT touch or be cut off at the bottom edge
-- Ensure the FULL character is visible with breathing room around it
-- The sprite should be CENTERED with empty space around the edges`;
+⚠️ COMPOSITION REQUIREMENT - CRITICAL:
+- FOR SINGLE CHARACTERS/OBJECTS: Leave 10-15% padding on all sides, center the subject with breathing room
+- FOR SCENES/LANDSCAPES/ENVIRONMENTS: Fill the ENTIRE canvas edge-to-edge with NO white borders or padding
+- If the image shows a scene, landscape, environment, or multiple elements: USE FULL CANVAS
+- If the image shows a single character or object: USE CENTERED COMPOSITION with padding`;
 
       case CraftCategory.AAA:
         return `
@@ -520,78 +525,202 @@ HD 2D / ILLUSTRATED STYLE:
 
   const styleRules = getStyleRules(category);
 
+  // Grid layout: 4 frames = 2x2, 6 or 8 frames = 3x3
+  const gridSize = frameCount === 4 ? 2 : 3;
+  const totalCells = gridSize * gridSize;
+  const emptyCells = totalCells - frameCount;
+
+  // Generate grid diagram based on frame count
+  const getGridDiagram = () => {
+    if (frameCount === 4) {
+      return `
+┌────────┬────────┐
+│ Frame 1│ Frame 2│
+├────────┼────────┤
+│ Frame 3│ Frame 4│
+└────────┴────────┘`;
+    } else if (frameCount === 6) {
+      return `
+┌────────┬────────┬────────┐
+│ Frame 1│ Frame 2│ Frame 3│
+├────────┼────────┼────────┤
+│ Frame 4│ Frame 5│ Frame 6│
+├────────┼────────┼────────┤
+│ (empty)│ (empty)│ (empty)│
+└────────┴────────┴────────┘`;
+    } else {
+      return `
+┌────────┬────────┬────────┐
+│ Frame 1│ Frame 2│ Frame 3│
+├────────┼────────┼────────┤
+│ Frame 4│ Frame 5│ Frame 6│
+├────────┼────────┼────────┤
+│ Frame 7│ Frame 8│ (empty)│
+└────────┴────────┴────────┘`;
+    }
+  };
+
   const prompt = `
-🎮 ANIMATION SPRITE SHEET GENERATION
+🎮 ANIMATION SPRITE SHEET
 
 📷 REFERENCE CHARACTER: Use this image as the character to animate.
 📦 ART STYLE: ${category}
 🎬 ANIMATION: ${animationDescription}
-🔢 FRAME COUNT: ${frameCount} frames
+🔢 TOTAL FRAMES: ${frameCount} frames
 
 ═══════════════════════════════════════════════════════════════
-🎯 CRITICAL: ANIMATION-TOOL COMPATIBLE FORMAT
+📐 SPRITE SHEET GRID LAYOUT - CRITICAL
 ═══════════════════════════════════════════════════════════════
 
-You MUST create a sprite sheet that works with game engines (Unity, Godot, etc.):
+Create a ${gridSize}×${gridSize} SQUARE grid sprite sheet:
+- Grid size: ${gridSize} columns × ${gridSize} rows
+- Total cells: ${totalCells} (${frameCount} frames + ${emptyCells} empty)
+- SQUARE 1:1 aspect ratio
 
-📐 LAYOUT - SINGLE HORIZONTAL STRIP:
-┌────────┬────────┬────────┬────────┬────────┬────────┐
-│ Frame 1│ Frame 2│ Frame 3│ Frame 4│ Frame 5│ Frame 6│
-│        │        │        │        │        │        │
-└────────┴────────┴────────┴────────┴────────┴────────┘
-
-MANDATORY REQUIREMENTS:
-1. ✅ EXACTLY ${frameCount} FRAMES arranged in ONE HORIZONTAL ROW
-2. ✅ EQUAL FRAME WIDTHS - Each frame takes exactly 1/${frameCount} of the total width
-3. ✅ NO OVERLAPPING - Each pose must fit completely within its frame boundary
-4. ✅ CONSISTENT SIZE - The character should be the same size in every frame
-5. ✅ CENTERED IN FRAME - Each pose centered within its frame cell
-6. ✅ NO LABELS - Do NOT add frame numbers, text, or labels
-7. ✅ SEAMLESS ANIMATION - Last frame should connect smoothly back to first
+GRID LAYOUT:
+${getGridDiagram()}
 
 ═══════════════════════════════════════════════════════════════
-🎭 CHARACTER CONSISTENCY (CRITICAL)
+📏 EQUAL GRID CELLS - MANDATORY
 ═══════════════════════════════════════════════════════════════
 
-SAME CHARACTER in every frame:
+- Divide the SQUARE canvas into a PERFECT ${gridSize}×${gridSize} grid
+- Each cell is EQUAL SIZE (1/${gridSize} of width and height)
+- ALL cells must be IDENTICAL SIZE
+${emptyCells > 0 ? `- Last ${emptyCells} cell(s) should be empty (pure white)` : ''}
+
+⚠️ PADDING PER CELL - CRITICAL:
+- Leave 5-10% padding/margin within EACH cell
+- Character's HEAD must NOT touch the top edge of the cell
+- Character's FEET must NOT touch the bottom edge of the cell
+- Character CENTERED within each cell with breathing room
+
+═══════════════════════════════════════════════════════════════
+🎭 CHARACTER & ANGLE - SAME AS REFERENCE
+═══════════════════════════════════════════════════════════════
+
+IMPORTANT: Keep the EXACT SAME viewing angle as the reference image!
+- Do NOT rotate the character to different angles
+- Do NOT show front/side/back views
+- ONLY animate the character from the SAME angle shown in the reference
+
+SAME character in ALL ${frameCount} frames:
 - EXACT SAME colors - sample from reference
 - EXACT SAME proportions and body structure
 - EXACT SAME art style (${category})
 - EXACT SAME level of detail
-- EXACT SAME accessories and features
-
-Only the POSE changes between frames, NOT the character design.
+- EXACT SAME viewing angle
+- Only the POSE changes between frames
 
 ═══════════════════════════════════════════════════════════════
-🎬 ANIMATION FRAMES TO CREATE
+🎬 ANIMATION FRAMES - EACH FRAME MUST BE DISTINCTLY DIFFERENT
 ═══════════════════════════════════════════════════════════════
 
 Animation type: ${animationDescription}
 
-Create a smooth ${frameCount}-frame animation cycle:
-- Frame 1: Starting pose
-- Frames 2-${frameCount - 1}: Progressive movement poses
-- Frame ${frameCount}: Final pose (should loop back to Frame 1)
+🚨 CRITICAL: Every frame MUST show a DIFFERENT pose!
+Adjacent frames should NOT look similar - they must show clear progression.
 
-For walk/run cycles: Show full stride from left foot forward to right foot forward
-For idle: Subtle breathing or shifting weight
-For attack: Wind-up, strike, follow-through
-For jump: Crouch, leap, peak, land
+${frameCount === 4 ? `
+══ 4-FRAME RUN/WALK CYCLE - SPECIFIC POSES ══
+
+Frame 1 - CONTACT (Right foot forward):
+- Right leg extended FORWARD, foot touching ground
+- Left leg extended BACK behind body
+- Left arm swings FORWARD, right arm swings BACK
+- Body leaning slightly forward
+
+Frame 2 - PASSING (Right leg under body):
+- Right leg bent UNDER the body (knee high)
+- Left leg straight, pushing off ground
+- Arms at sides, switching positions
+- Body upright, slight bounce UP
+
+Frame 3 - CONTACT (Left foot forward):
+- Left leg extended FORWARD, foot touching ground
+- Right leg extended BACK behind body
+- Right arm swings FORWARD, left arm swings BACK
+- Body leaning slightly forward
+
+Frame 4 - PASSING (Left leg under body):
+- Left leg bent UNDER the body (knee high)
+- Right leg straight, pushing off ground
+- Arms at sides, switching positions
+- Body upright, slight bounce UP
+
+⚠️ Frames 1 and 3 are MIRROR poses (opposite legs forward)
+⚠️ Frames 2 and 4 are MIRROR poses (opposite legs lifting)
+⚠️ Frame 1 ≠ Frame 2 ≠ Frame 3 ≠ Frame 4 - ALL DIFFERENT!
+` : frameCount === 6 ? `
+══ 6-FRAME RUN/WALK CYCLE - SPECIFIC POSES ══
+
+Frame 1 - CONTACT RIGHT: Right foot lands, left leg back, left arm forward
+Frame 2 - RECOIL: Right leg absorbs impact, body lowest point
+Frame 3 - PASSING: Right leg pushes, left leg swings forward under body
+Frame 4 - CONTACT LEFT: Left foot lands, right leg back, right arm forward
+Frame 5 - RECOIL: Left leg absorbs impact, body lowest point
+Frame 6 - PASSING: Left leg pushes, right leg swings forward under body
+
+⚠️ Frames 1-3 show RIGHT leg leading
+⚠️ Frames 4-6 show LEFT leg leading (mirror of 1-3)
+⚠️ ALL 6 frames must be visually DISTINCT!
+` : `
+══ 8-FRAME RUN/WALK CYCLE - SPECIFIC POSES ══
+
+Frame 1 - CONTACT: Right foot forward, touching down
+Frame 2 - RECOIL: Right leg bends absorbing impact, body low
+Frame 3 - PASSING: Weight shifts, left leg swings forward
+Frame 4 - HIGH POINT: Left leg raised high, body at highest
+Frame 5 - CONTACT: Left foot forward, touching down
+Frame 6 - RECOIL: Left leg bends absorbing impact, body low
+Frame 7 - PASSING: Weight shifts, right leg swings forward
+Frame 8 - HIGH POINT: Right leg raised high, body at highest
+
+⚠️ Frames 1-4 and 5-8 are mirror cycles
+⚠️ ALL 8 frames must be visually DISTINCT!
+`}
+
+FOR OTHER ANIMATIONS:
+- IDLE: Breathing motion - chest rises/falls, slight sway
+- ATTACK: Wind-up → Strike → Impact → Recovery (all different poses)
+- JUMP: Crouch → Launch → Apex → Fall → Land (all different poses)
+
+Reading order: Left to right, top to bottom
 
 ${styleRules}
 
 ═══════════════════════════════════════════════════════════════
-🚫 DO NOT
+🎨 BACKGROUND - CRITICAL
 ═══════════════════════════════════════════════════════════════
 
-- DO NOT create a grid layout (no rows stacked vertically)
-- DO NOT let poses overlap or extend beyond frame boundaries
+- Use PURE WHITE (#FFFFFF) background for the ENTIRE sprite sheet
+- ALL cells (including empty ones) must be pure white
+- NO transparency, NO gray, NO colored backgrounds
+- Clean white background for easy character extraction
+
+═══════════════════════════════════════════════════════════════
+🚫 DO NOT - CRITICAL ERRORS TO AVOID
+═══════════════════════════════════════════════════════════════
+
+ANIMATION ERRORS (most important):
+❌ DO NOT make frames look similar - each must be DISTINCTLY DIFFERENT
+❌ DO NOT copy/paste the same pose with tiny changes
+❌ DO NOT keep legs in same position across frames
+❌ DO NOT keep arms in same position across frames
+❌ DO NOT make frame 2 look like frame 4 (they should be mirrors of 1 and 3)
+
+LAYOUT ERRORS:
+- DO NOT change the viewing angle - keep SAME angle as reference
+- DO NOT rotate the character to show different sides
+- DO NOT make cells different sizes - EQUAL GRID CELLS ONLY
+- DO NOT let poses overlap or extend beyond cell boundaries
 - DO NOT add frame numbers, text, or labels
+
+STYLE ERRORS:
 - DO NOT change the character's design between frames
 - DO NOT use different colors in different frames
-- DO NOT make frames different sizes
-- DO NOT add borders or grid lines between frames
-- DO NOT create a busy or textured background
+- DO NOT add borders or grid lines between cells
+- DO NOT use any background other than PURE WHITE (#FFFFFF)
 `;
 
   return retryWithBackoff(async () => {
@@ -610,8 +739,8 @@ ${styleRules}
       },
       config: {
         imageConfig: {
-          aspectRatio: "16:9", // Wide format for horizontal strip
-          imageSize: "2K", // Higher resolution for better frame quality
+          aspectRatio: "1:1", // Square format for 2x2 or 3x3 grid layout (Snap Pixel compatible)
+          imageSize: "2K", // Higher resolution for good detail per cell
         },
         thinkingConfig: {
           includeThoughts: true,
@@ -1862,87 +1991,102 @@ VOXEL ART STYLE RULES:
   const artStyleRules = getArtStyleRules(category);
 
   const prompt = `
-🎮 YOUR TASK: Generate a ${view.toUpperCase()} VIEW of this exact game character.
+🎮 TASK: Generate the ${view.toUpperCase()} SIDE of this character - rotate the ENTIRE CHARACTER ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'}.
 
-📷 REFERENCE IMAGE: This shows the FRONT VIEW of a game character/asset.
+📷 REFERENCE: Front view of the character
 ${craftLabel ? `🎨 CHARACTER: ${craftLabel}` : ''}
-${category ? `📦 ART STYLE: ${category}` : ''}
+${category ? `📦 STYLE: ${category}` : ''}
 
 ═══════════════════════════════════════════════════════════════
-🔄 CHARACTER ROTATION - TURN TABLE VIEW
+🚨 CRITICAL: ROTATE THE WHOLE BODY, NOT JUST THE HEAD
 ═══════════════════════════════════════════════════════════════
 
-You are creating a ${viewDescriptions[view]}.
+You must rotate the ENTIRE CHARACTER like spinning a toy on a table:
+- The whole body rotates ${view === 'left' ? '90° to show the left side' : view === 'right' ? '90° to show the right side' : '180° to show the back'}
+- NOT just turning the head - the ENTIRE body, arms, legs, everything rotates
+- Same pose, but viewed from a different angle
 
-This is for a CHARACTER REFERENCE SHEET used in game development.
-Game artists need consistent rotated views of characters.
+${view === 'left' ? `
+══ LEFT SIDE VIEW - WHAT YOU SHOULD SEE ══
 
-CRITICAL REQUIREMENTS:
-1. ✅ SAME CHARACTER - Generate the EXACT SAME character, not a similar one
-2. ✅ SAME ART STYLE - Match the exact same rendering style${category ? ` (${category})` : ''}
-3. ✅ SAME COLORS - Every color must match the reference exactly
-4. ✅ SAME PROPORTIONS - Keep body ratios identical
-5. ✅ ROTATED VIEW - Show the ${viewAngles[view]}
+✅ VISIBLE (must show these):
+- LEFT EAR only (right ear hidden behind head)
+- LEFT side of the face in profile (nose pointing left)
+- LEFT ARM in full view
+- LEFT LEG in full view
+- The LEFT side of the body/torso
+- Items held - seen from the left side
+
+❌ NOT VISIBLE (these should be hidden):
+- NO front of face (no both eyes visible)
+- NO right ear
+- NO right arm (hidden behind body)
+- The character should look like they are facing LEFT` : ''}
+${view === 'right' ? `
+══ RIGHT SIDE VIEW - WHAT YOU SHOULD SEE ══
+
+✅ VISIBLE (must show these):
+- RIGHT EAR only (left ear hidden behind head)
+- RIGHT side of the face in profile (nose pointing right)
+- RIGHT ARM in full view
+- RIGHT LEG in full view
+- The RIGHT side of the body/torso
+- Items held - seen from the right side
+
+❌ NOT VISIBLE (these should be hidden):
+- NO front of face (no both eyes visible)
+- NO left ear
+- NO left arm (hidden behind body)
+- The character should look like they are facing RIGHT` : ''}
+${view === 'back' ? `
+══ BACK VIEW - WHAT YOU SHOULD SEE ══
+
+✅ VISIBLE (must show these):
+- BACK of the head (hair, hat from behind)
+- BACK of the body/torso
+- BOTH arms from behind
+- BOTH legs from behind
+- Any back details (cape, backpack, tail)
+
+❌ NOT VISIBLE (these should be hidden):
+- NO face at all
+- NO front of body
+- NO chest/belly
+- The character should be facing AWAY from camera` : ''}
+
+═══════════════════════════════════════════════════════════════
+📐 LEFT vs RIGHT - THEY MUST BE DIFFERENT!
+═══════════════════════════════════════════════════════════════
+
+LEFT VIEW: Character's nose points to the LEFT of the image
+RIGHT VIEW: Character's nose points to the RIGHT of the image
+
+These are MIRROR OPPOSITES - if left and right look the same, it's WRONG!
+
+═══════════════════════════════════════════════════════════════
+🎭 KEEP THE SAME POSE
+═══════════════════════════════════════════════════════════════
+
+- Arms stay in same position (just viewed from ${view})
+- Legs stay in same stance (just viewed from ${view})
+- Items held stay in same hand position
+- Only the VIEWING ANGLE changes, not the pose
 
 ${artStyleRules}
 
 ═══════════════════════════════════════════════════════════════
-📐 VIEW DETAILS
+🚫 COMMON MISTAKES TO AVOID
 ═══════════════════════════════════════════════════════════════
 
-WHAT TO SHOW FOR ${view.toUpperCase()} VIEW:
-${view === 'left' ? `
-- Left side profile of the character
-- Left arm position and details
-- Left side of head/face
-- Side view of clothing/armor
-- Left leg stance` : ''}
-${view === 'right' ? `
-- Right side profile of the character
-- Right arm position and details
-- Right side of head/face
-- Side view of clothing/armor
-- Right leg stance` : ''}
-${view === 'back' ? `
-- Complete back view of character
-- Back of head (hair, helmet, etc.)
-- Back details (cape, wings, backpack, tail)
-- Rear view of clothing/armor
-- Back of legs` : ''}
+❌ WRONG: Just turning the head while body faces forward
+❌ WRONG: Showing 3/4 view where you see front AND side
+❌ WRONG: Left and right views looking identical
+❌ WRONG: Changing the pose or arm positions
+❌ WRONG: Showing both eyes in a side view
 
-═══════════════════════════════════════════════════════════════
-📸 CAMERA SETUP - CRITICAL FOR GAME ART
-═══════════════════════════════════════════════════════════════
-
-ORTHOGRAPHIC CAMERA - NO PERSPECTIVE:
-- Camera is at EXACT eye-level with the character center
-- Camera is PERFECTLY PERPENDICULAR to the view direction
-- NO 3/4 angle, NO tilted view, NO looking up or down
-- FLAT side view like a character reference sheet
-- Think blueprint/model sheet style - pure silhouette angles
-
-${view === 'left' ? 'Camera position: Directly to the LEFT of the character, pointing RIGHT at 90°' : ''}
-${view === 'right' ? 'Camera position: Directly to the RIGHT of the character, pointing LEFT at 90°' : ''}
-${view === 'back' ? 'Camera position: Directly BEHIND the character, pointing FORWARD at 180°' : ''}
-
-IMAGINE: This is for a professional game character MODEL SHEET.
-Artists need FLAT orthographic views - left, right, and back.
-NO 3/4 angles, NO dramatic perspectives - just clean flat views.
-
-═══════════════════════════════════════════════════════════════
-🚫 DO NOT
-═══════════════════════════════════════════════════════════════
-
-- Use ANY 3/4 angle or perspective view - FLAT ORTHOGRAPHIC ONLY
-- Tilt the camera up or down - keep it at EYE LEVEL
-- Show the character at an angle - pure side/back view only
-- Change the character's design in any way
-- Use different colors than the reference
-- Add or remove features
-- Change the art style${category ? ` (must stay ${category})` : ''}
-- Alter proportions or scale
-- Show a different character
-- Use a busy or different background
+✅ CORRECT: Full body rotation showing true ${view} profile
+✅ CORRECT: Only ONE eye visible in side views (or none in back)
+✅ CORRECT: Nose pointing ${view === 'left' ? 'LEFT' : view === 'right' ? 'RIGHT' : 'AWAY'}
 `;
 
   return retryWithBackoff(async () => {

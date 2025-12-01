@@ -1374,42 +1374,99 @@ export const generateTurnTableView = async (
   const ai = getAiClient();
   const cleanBase64 = originalImageBase64.split(',')[1] || originalImageBase64;
 
-  // View-specific rotation descriptions
+  // View-specific rotation descriptions - TRUE ORTHOGRAPHIC VIEWS matching the reference pose
   const viewDescriptions: Record<TurnTableView, string> = {
-    left: 'LEFT SIDE VIEW (90° rotation to the left) - Show the left profile of the object as if you rotated it 90 degrees counter-clockwise',
-    right: 'RIGHT SIDE VIEW (90° rotation to the right) - Show the right profile of the object as if you rotated it 90 degrees clockwise',
-    back: 'BACK VIEW (180° rotation) - Show the back/rear of the object as if you rotated it 180 degrees to see what\'s behind it',
+    left: 'TRUE LEFT PROFILE - The character rotated 90° so we see their LEFT side in the EXACT SAME POSE as the reference',
+    right: 'TRUE RIGHT PROFILE - The character rotated 90° so we see their RIGHT side in the EXACT SAME POSE as the reference',
+    back: 'TRUE BACK VIEW - The character rotated 180° so we see their BACK in the EXACT SAME POSE as the reference',
   };
 
   const viewAngles: Record<TurnTableView, string> = {
-    left: 'left side profile, showing the left ear/arm/side details',
-    right: 'right side profile, showing the right ear/arm/side details',
-    back: 'back view, showing the back of head, back details, any tail or rear features',
+    left: 'Character facing screen-left, showing LEFT profile with LEFT ear visible, nose pointing LEFT',
+    right: 'Character facing screen-right, showing RIGHT profile with RIGHT ear visible, nose pointing RIGHT',
+    back: 'Character facing away from camera, showing the back of head, back of body, NO face visible',
   };
 
   const prompt = `
-🎯 YOUR TASK: Generate a ${view.toUpperCase()} VIEW of this exact same craft object.
+🎯 TASK: Generate the ${view.toUpperCase()} SIDE of this character - rotate the ENTIRE CHARACTER ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'}.
 
-📷 REFERENCE IMAGE: This shows the FRONT VIEW of a craft/figure.
-${craftLabel ? `🎨 OBJECT: ${craftLabel}` : ''}
+📷 REFERENCE: Front view of the character
+${craftLabel ? `🎨 CHARACTER: ${craftLabel}` : ''}
 
 ═══════════════════════════════════════════════════════════════
-🔄 TURN TABLE VIEW GENERATION
+🚨 CRITICAL: ROTATE THE WHOLE BODY, NOT JUST THE HEAD
 ═══════════════════════════════════════════════════════════════
 
-You are creating a ${viewDescriptions[view]}.
+You must rotate the ENTIRE CHARACTER like spinning a toy on a table:
+- The whole body rotates ${view === 'left' ? '90° to show the left side' : view === 'right' ? '90° to show the right side' : '180° to show the back'}
+- NOT just turning the head - the ENTIRE body, arms, legs, everything rotates
+- Same pose, but viewed from a different angle
 
-CRITICAL REQUIREMENTS:
-1. ✅ SAME OBJECT - Generate the EXACT SAME craft object, not a different one
-2. ✅ SAME STYLE - Match the exact same art style, materials, textures, and colors
-3. ✅ SAME SCALE - Keep the same size and proportions
-4. ✅ SAME LIGHTING - Use similar studio lighting and neutral background
-5. ✅ ROTATED VIEW - Show the ${viewAngles[view]}
+${view === 'left' ? `
+══ LEFT SIDE VIEW - WHAT YOU SHOULD SEE ══
 
-WHAT TO SHOW:
-- ${view === 'left' ? 'Left side profile - what you\'d see standing to the left of the object' : ''}
-- ${view === 'right' ? 'Right side profile - what you\'d see standing to the right of the object' : ''}
-- ${view === 'back' ? 'Back/rear view - what you\'d see standing behind the object' : ''}
+✅ VISIBLE (must show these):
+- LEFT EAR only (right ear hidden behind head)
+- LEFT side of the face in profile (nose pointing left)
+- LEFT ARM in full view
+- LEFT LEG in full view
+- The LEFT side of the body/torso
+- Items held - seen from the left side
+
+❌ NOT VISIBLE (these should be hidden):
+- NO front of face (no both eyes visible)
+- NO right ear
+- NO right arm (hidden behind body)
+- The character should look like they are facing LEFT` : ''}
+${view === 'right' ? `
+══ RIGHT SIDE VIEW - WHAT YOU SHOULD SEE ══
+
+✅ VISIBLE (must show these):
+- RIGHT EAR only (left ear hidden behind head)
+- RIGHT side of the face in profile (nose pointing right)
+- RIGHT ARM in full view
+- RIGHT LEG in full view
+- The RIGHT side of the body/torso
+- Items held - seen from the right side
+
+❌ NOT VISIBLE (these should be hidden):
+- NO front of face (no both eyes visible)
+- NO left ear
+- NO left arm (hidden behind body)
+- The character should look like they are facing RIGHT` : ''}
+${view === 'back' ? `
+══ BACK VIEW - WHAT YOU SHOULD SEE ══
+
+✅ VISIBLE (must show these):
+- BACK of the head (hair, hat from behind)
+- BACK of the body/torso
+- BOTH arms from behind
+- BOTH legs from behind
+- Any back details (cape, backpack, tail)
+
+❌ NOT VISIBLE (these should be hidden):
+- NO face at all
+- NO front of body
+- NO chest/belly
+- The character should be facing AWAY from camera` : ''}
+
+═══════════════════════════════════════════════════════════════
+📐 LEFT vs RIGHT - THEY MUST BE DIFFERENT!
+═══════════════════════════════════════════════════════════════
+
+LEFT VIEW: Character's nose points to the LEFT of the image
+RIGHT VIEW: Character's nose points to the RIGHT of the image
+
+These are MIRROR OPPOSITES - if left and right look the same, it's WRONG!
+
+═══════════════════════════════════════════════════════════════
+🎭 KEEP THE SAME POSE
+═══════════════════════════════════════════════════════════════
+
+- Arms stay in same position (just viewed from ${view})
+- Legs stay in same stance (just viewed from ${view})
+- Items held stay in same hand position
+- Only the VIEWING ANGLE changes, not the pose
 
 CONSISTENCY RULES:
 - All colors MUST match the reference exactly
@@ -1418,16 +1475,19 @@ CONSISTENCY RULES:
 - The style (photorealistic craft) MUST be maintained
 - Background should be similar neutral studio setting
 
-IMAGINE: You have the physical craft object on a turntable/lazy susan.
-You spin it ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'} and take another photo.
-Generate THAT view.
+═══════════════════════════════════════════════════════════════
+🚫 COMMON MISTAKES TO AVOID
+═══════════════════════════════════════════════════════════════
 
-DO NOT:
-- Change the character/object design
-- Add or remove features
-- Change colors or materials
-- Use a different art style
-- Show a different craft entirely
+❌ WRONG: Just turning the head while body faces forward
+❌ WRONG: Showing 3/4 view where you see front AND side
+❌ WRONG: Left and right views looking identical
+❌ WRONG: Changing the pose or arm positions
+❌ WRONG: Showing both eyes in a side view
+
+✅ CORRECT: Full body rotation showing true ${view} profile
+✅ CORRECT: Only ONE eye visible in side views (or none in back)
+✅ CORRECT: Nose pointing ${view === 'left' ? 'LEFT' : view === 'right' ? 'RIGHT' : 'AWAY'}
 `;
 
   return retryWithBackoff(async () => {

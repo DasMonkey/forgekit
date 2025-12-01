@@ -7,8 +7,9 @@ import { initSegmenter, segmentImage, extractSelectedObject, filterLargestRegion
 /**
  * The Central "Master" Node displaying the generated image with Interactive Segmentation.
  */
-export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
-  const { label, imageUrl, isDissecting, isGeneratingImage, onDissectSelected, onSelect, onDeselect, category, magicSelectEnabled = false } = data as MasterNodeData;
+export const MasterNode = memo(({ data, id, selected, width: nodeWidth, height: nodeHeight }: NodeProps<any>) => {
+  const { label, imageUrl, isDissecting, isGeneratingImage, onDissectSelected, onSelect, onDeselect, category, magicSelectEnabled = false, width: dataWidth, height: dataHeight } = data as MasterNodeData;
+
   const nodeRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -21,6 +22,30 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
     width: number;
     height: number;
   } | null>(null);
+
+  // Track natural image dimensions for proper sizing
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  // Load image dimensions when imageUrl changes
+  useEffect(() => {
+    if (imageUrl && !isGeneratingImage) {
+      const img = new Image();
+      img.onload = () => {
+        // Scale down to fit max width of 500px while maintaining aspect ratio
+        const maxWidth = 500;
+        const scale = Math.min(1, maxWidth / img.naturalWidth);
+        setImageDimensions({
+          width: img.naturalWidth * scale,
+          height: img.naturalHeight * scale
+        });
+      };
+      img.src = imageUrl;
+    }
+  }, [imageUrl, isGeneratingImage]);
+
+  // Use node dimensions from ReactFlow (updated by resizer) or fall back to calculated/data dimensions
+  const displayWidth = nodeWidth || dataWidth || imageDimensions?.width || 500;
+  const displayHeight = nodeHeight || dataHeight || (imageDimensions ? imageDimensions.height + 40 : 540); // +40 for header
 
   // Initialize Segmenter on mount
   useEffect(() => {
@@ -152,8 +177,33 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
       ref={nodeRef}
       onMouseEnter={handleNodeHover}
       onMouseLeave={handleNodeLeave}
-      className="relative group rounded-xl overflow-hidden shadow-2xl border-2 border-amber-500/50 bg-zinc-900 w-[500px]"
+      className={`relative group rounded-xl shadow-2xl bg-zinc-900 transition-none hover:shadow-xl ${
+        selected
+          ? 'border-4 border-amber-500 shadow-amber-500/50 ring-4 ring-amber-500/30'
+          : 'border-2 border-amber-500/50'
+      }`}
+      style={{ width: displayWidth, height: displayHeight, minWidth: 200, minHeight: 200 }}
     >
+      {/* Node Resizer - only visible when selected */}
+      {/* aspectRatio = width / height (including 40px header) for proper resize */}
+      <NodeResizer
+        color="#f59e0b"
+        isVisible={selected}
+        minWidth={150}
+        minHeight={150}
+        aspectRatio={imageDimensions ? (imageDimensions.width / (imageDimensions.height + 40)) : 1}
+        handleStyle={{
+          width: 14,
+          height: 14,
+          borderRadius: 4,
+          border: '2px solid #f59e0b',
+          backgroundColor: 'white',
+        }}
+        lineStyle={{
+          borderWidth: 2,
+        }}
+      />
+
       {/* Connection Handles */}
       <Handle type="source" position={Position.Right} id="source-right" className="!bg-amber-500 !w-3 !h-3" />
       <Handle type="source" position={Position.Left} id="source-left" className="!bg-amber-500 !w-3 !h-3" />
@@ -169,8 +219,11 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
         </div>
       </div>
 
-      {/* Image & Interactive Area */}
-      <div className={`relative aspect-square w-full bg-zinc-950 ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}>
+      {/* Image & Interactive Area - uses absolute positioning to fill space below header */}
+      <div
+        className={`absolute left-0 right-0 bottom-0 bg-zinc-950 overflow-hidden rounded-b-xl ${magicSelectEnabled ? 'cursor-crosshair' : 'cursor-default'}`}
+        style={{ top: '40px' }} /* Header height */
+      >
         {isGeneratingImage ? (
           // Loading placeholder while image is being generated
           <div className="w-full h-full flex flex-col items-center justify-center">
@@ -187,7 +240,7 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
             alt={label}
             crossOrigin="anonymous"
             onClick={handleImageClick}
-            className="w-full h-full object-cover relative z-10"
+            className="w-full h-full object-contain relative z-10"
           />
         )}
 
@@ -257,12 +310,15 @@ export const MasterNode = memo(({ data, id }: NodeProps<any>) => {
     </div>
   );
 }, (prevProps: NodeProps<any>, nextProps: NodeProps<any>) => {
-  // Custom comparison for better performance
+  // Custom comparison for better performance - include selected for resize handles
   return (
     prevProps.data.isDissecting === nextProps.data.isDissecting &&
     prevProps.data.isGeneratingImage === nextProps.data.isGeneratingImage &&
     prevProps.data.imageUrl === nextProps.data.imageUrl &&
-    prevProps.data.magicSelectEnabled === nextProps.data.magicSelectEnabled
+    prevProps.data.magicSelectEnabled === nextProps.data.magicSelectEnabled &&
+    prevProps.selected === nextProps.selected &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height
   );
 });
 

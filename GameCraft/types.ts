@@ -46,6 +46,8 @@ export interface MasterNodeData {
   onSelect?: (nodeId: string, element: HTMLElement, category?: CraftCategory) => void;
   onDeselect?: () => void;
   magicSelectEnabled?: boolean;
+  width?: number;
+  height?: number;
 }
 
 export interface InstructionNodeData {

@@ -769,7 +769,9 @@ const CanvasWorkspaceContent: React.FC<CanvasWorkspaceProps> = ({ projectId: pro
     };
 
     // Calculate positions for the 3 new nodes (arranged in a row below the master node)
-    const baseY = node.position.y + 400; // Position below master node
+    // Use actual node height if available, otherwise use a safe default
+    const nodeHeight = (node.data as any)?.height || 500;
+    const baseY = node.position.y + nodeHeight + 100; // Position below master node with 100px gap
     const spacing = 350; // Horizontal spacing between nodes
     const startX = node.position.x - spacing; // Start from left
 
