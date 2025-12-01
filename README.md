@@ -494,13 +494,4 @@ We strategically used Google Gemini AI for the initial Gemini API integration (s
 
 ---
 
-## 🎬 Demo & Submission
-
-- **Live Demo**: [Coming Soon]
-- **Video Walkthrough**: [Coming Soon]
-- **Hackathon Submission**: [Link]
-- **Repository**: [Link]
-
----
-
 **Built with ❤️ using Kiro AI for the Kiroween Hackathon - Skeleton Crew Category**
