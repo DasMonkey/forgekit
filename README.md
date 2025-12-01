@@ -157,8 +157,8 @@ Our applications don't just digitize old instruction sheets—they use AI to **g
 
 1. **Clone the repository:**
 ```bash
-git clone <repository-url>
-cd skeleton-crew-hackathon
+git clone https://github.com/DasMonkey/forgekit.git
+cd forgekit
 ```
 
 2. **Choose your application:**
@@ -254,7 +254,7 @@ User: "Make a clay turtle"
 ## 🏗️ Project Structure
 
 ```
-skeleton-crew-hackathon/
+forgekit/
 ├── README.md                    # This file
 ├── GameCraft/                   # Pixel art sprite generator
 │   ├── components/              # React components
