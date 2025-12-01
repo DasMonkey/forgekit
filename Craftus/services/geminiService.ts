@@ -1388,106 +1388,80 @@ export const generateTurnTableView = async (
   };
 
   const prompt = `
-🎯 TASK: Generate the ${view.toUpperCase()} SIDE of this character - rotate the ENTIRE CHARACTER ${view === 'left' ? '90° counter-clockwise' : view === 'right' ? '90° clockwise' : '180°'}.
+Generate a ${view.toUpperCase()} side view of this craft character by rotating the camera around it.
 
-📷 REFERENCE: Front view of the character
-${craftLabel ? `🎨 CHARACTER: ${craftLabel}` : ''}
+${craftLabel ? `CHARACTER: ${craftLabel}` : ''}
 
-═══════════════════════════════════════════════════════════════
-🚨 CRITICAL: ROTATE THE WHOLE BODY, NOT JUST THE HEAD
-═══════════════════════════════════════════════════════════════
-
-You must rotate the ENTIRE CHARACTER like spinning a toy on a table:
-- The whole body rotates ${view === 'left' ? '90° to show the left side' : view === 'right' ? '90° to show the right side' : '180° to show the back'}
-- NOT just turning the head - the ENTIRE body, arms, legs, everything rotates
-- Same pose, but viewed from a different angle
+CAMERA POSITION:
+${view === 'left' ? '- Move camera 90° to the LEFT of the character' : ''}
+${view === 'right' ? '- Move camera 90° to the RIGHT of the character' : ''}
+${view === 'back' ? '- Move camera 180° behind the character' : ''}
+- Character stays in the same pose
+- Only the camera viewing angle changes
 
 ${view === 'left' ? `
-══ LEFT SIDE VIEW - WHAT YOU SHOULD SEE ══
+LEFT SIDE VIEW REQUIREMENTS:
 
-✅ VISIBLE (must show these):
-- LEFT EAR only (right ear hidden behind head)
-- LEFT side of the face in profile (nose pointing left)
-- LEFT ARM in full view
-- LEFT LEG in full view
-- The LEFT side of the body/torso
-- Items held - seen from the left side
+What you MUST show:
+• LEFT ear visible (right ear hidden)
+• Profile of face with nose pointing LEFT
+• LEFT arm fully visible
+• LEFT leg fully visible  
+• LEFT side of body/torso
+• Character facing toward the LEFT edge of the image
 
-❌ NOT VISIBLE (these should be hidden):
-- NO front of face (no both eyes visible)
-- NO right ear
-- NO right arm (hidden behind body)
-- The character should look like they are facing LEFT` : ''}
+What you MUST NOT show:
+• Both eyes visible (only left eye or profile)
+• Right ear
+• Front-facing view
+• Right arm (it's behind the body)
+` : ''}
 ${view === 'right' ? `
-══ RIGHT SIDE VIEW - WHAT YOU SHOULD SEE ══
+RIGHT SIDE VIEW REQUIREMENTS:
 
-✅ VISIBLE (must show these):
-- RIGHT EAR only (left ear hidden behind head)
-- RIGHT side of the face in profile (nose pointing right)
-- RIGHT ARM in full view
-- RIGHT LEG in full view
-- The RIGHT side of the body/torso
-- Items held - seen from the right side
+What you MUST show:
+• RIGHT ear visible (left ear hidden)
+• Profile of face with nose pointing RIGHT
+• RIGHT arm fully visible
+• RIGHT leg fully visible
+• RIGHT side of body/torso
+• Character facing toward the RIGHT edge of the image
 
-❌ NOT VISIBLE (these should be hidden):
-- NO front of face (no both eyes visible)
-- NO left ear
-- NO left arm (hidden behind body)
-- The character should look like they are facing RIGHT` : ''}
+What you MUST NOT show:
+• Both eyes visible (only right eye or profile)
+• Left ear
+• Front-facing view
+• Left arm (it's behind the body)
+` : ''}
 ${view === 'back' ? `
-══ BACK VIEW - WHAT YOU SHOULD SEE ══
+BACK VIEW REQUIREMENTS:
 
-✅ VISIBLE (must show these):
-- BACK of the head (hair, hat from behind)
-- BACK of the body/torso
-- BOTH arms from behind
-- BOTH legs from behind
-- Any back details (cape, backpack, tail)
+What you MUST show:
+• Back of head (hair/hat from behind)
+• Back of body/torso
+• Both arms from behind
+• Both legs from behind
+• Any back details (tail, cape, etc.)
 
-❌ NOT VISIBLE (these should be hidden):
-- NO face at all
-- NO front of body
-- NO chest/belly
-- The character should be facing AWAY from camera` : ''}
+What you MUST NOT show:
+• Face or eyes
+• Front of body
+• Chest or belly
+` : ''}
 
-═══════════════════════════════════════════════════════════════
-📐 LEFT vs RIGHT - THEY MUST BE DIFFERENT!
-═══════════════════════════════════════════════════════════════
+CRITICAL: Left and right views MUST be mirror opposites:
+- LEFT view: nose points LEFT, left ear visible
+- RIGHT view: nose points RIGHT, right ear visible
+- They should look completely different, not the same angle!
 
-LEFT VIEW: Character's nose points to the LEFT of the image
-RIGHT VIEW: Character's nose points to the RIGHT of the image
+STYLE CONSISTENCY:
+- Match all colors from the reference image exactly
+- Keep the same craft material style (paper/clay/fabric/etc)
+- Maintain the same proportions and details
+- Use the same neutral studio background
+- Keep the same lighting and shadows
 
-These are MIRROR OPPOSITES - if left and right look the same, it's WRONG!
-
-═══════════════════════════════════════════════════════════════
-🎭 KEEP THE SAME POSE
-═══════════════════════════════════════════════════════════════
-
-- Arms stay in same position (just viewed from ${view})
-- Legs stay in same stance (just viewed from ${view})
-- Items held stay in same hand position
-- Only the VIEWING ANGLE changes, not the pose
-
-CONSISTENCY RULES:
-- All colors MUST match the reference exactly
-- All materials (paper, clay, fabric, etc.) MUST be the same
-- All proportions and details MUST be consistent
-- The style (photorealistic craft) MUST be maintained
-- Background should be similar neutral studio setting
-
-═══════════════════════════════════════════════════════════════
-🚫 COMMON MISTAKES TO AVOID
-═══════════════════════════════════════════════════════════════
-
-❌ WRONG: Just turning the head while body faces forward
-❌ WRONG: Showing 3/4 view where you see front AND side
-❌ WRONG: Left and right views looking identical
-❌ WRONG: Changing the pose or arm positions
-❌ WRONG: Showing both eyes in a side view
-
-✅ CORRECT: Full body rotation showing true ${view} profile
-✅ CORRECT: Only ONE eye visible in side views (or none in back)
-✅ CORRECT: Nose pointing ${view === 'left' ? 'LEFT' : view === 'right' ? 'RIGHT' : 'AWAY'}
+Think of this like photographing a physical craft model from different angles - the model doesn't change, only where you're standing to take the photo.
 `;
 
   return retryWithBackoff(async () => {
