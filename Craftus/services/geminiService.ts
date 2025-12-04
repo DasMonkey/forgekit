@@ -81,7 +81,31 @@ export const generateCraftImage = async (
 
   const ai = getAiClient();
   
-  const fullPrompt = `
+  // Special handling for Coloring Book category
+  const fullPrompt = category === CraftCategory.COLORING_BOOK 
+    ? `
+    Create a high-quality black and white line art coloring page of: ${prompt}.
+    
+    CRITICAL REQUIREMENTS:
+    - BLACK OUTLINES ONLY - No colors, no shading, no fills, no gray tones
+    - Pure line art suitable for coloring with pencils or crayons
+    - Clean, crisp black lines on pure white background
+    - Varying line weights: thicker for main outlines (2-3px), thinner for details (1px)
+    - All areas must be fully enclosed with no gaps in lines
+    - Include decorative details and patterns appropriate for the subject
+    - Create areas of varying sizes for interesting coloring
+    - Avoid areas that are too tiny to color
+    - Professional coloring book quality
+    - Suitable for both children and adults
+    - High contrast for easy printing
+    
+    STYLE: Traditional coloring book illustration with smooth curves and clear boundaries
+    VIEW: Front-facing, centered, full subject visible
+    BACKGROUND: Pure white, no textures or patterns
+    
+    DO NOT include any colors, shading, gradients, or fills - ONLY black outlines on white background.
+  `
+    : `
     Create a photorealistic studio photograph of a DIY craft project: ${prompt}.
     Category: ${category}.
     Style: Neutral background, even studio lighting, highly detailed textures showing materials like fabric grain, paper fibers, wood grain, or metal. 
