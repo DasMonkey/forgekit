@@ -22,7 +22,7 @@ describe('errorHandler utilities', () => {
 
   describe('sanitizeError', () => {
     it('should sanitize API key errors', () => {
-      const error = new Error('Invalid API key: AIzaSyCXUmKcBLVPQsxj9Yt_Q5dBY34JxhaS4OM');
+      const error = new Error('Invalid API key: FAKE_API_KEY_FOR_TESTING');
       const result = sanitizeError(error);
       expect(result).toBe('Authentication error. Please check your configuration.');
       expect(result).not.toContain('AIza');

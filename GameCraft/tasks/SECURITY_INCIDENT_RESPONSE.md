@@ -4,11 +4,11 @@
 
 ### 1. Revoke Exposed API Key (DO THIS NOW!)
 
-The Gemini API key `AIzaSyCXUmKcBLVPQsxj9Yt_Q5dBY34JxhaS4OM` is exposed in the repository.
+The Gemini API key was exposed in the repository.
 
 **Steps:**
 1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Find the API key `AIzaSyCXUmKcBLVPQsxj9Yt_Q5dBY34JxhaS4OM`
+2. Find the exposed API key
 3. Click "Delete" or "Regenerate"
 4. Generate a new API key
 5. Update your local `.env.local` with the new key

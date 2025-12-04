@@ -91,7 +91,7 @@ The Gemini API key is hardcoded in `.env.local` and exposed in the client-side b
 
 ```typescript
 // .env.local
-GEMINI_API_KEY=AIzaSyCXUmKcBLVPQsxj9Yt_Q5dBY34JxhaS4OM  // ❌ EXPOSED
+GEMINI_API_KEY=your_api_key_here  // ❌ EXPOSED
 
 // geminiService.ts
 const apiKey = process.env.API_KEY || '';  // ❌ Client-accessible
